@@ -4,8 +4,8 @@ import com.doge.simulator.domain.model.Planet
 
 interface PlanetRepository {
 
-    // 초기 행성 리스트 불러오기 (시장 기본 목록)
-    suspend fun getInitialPlanets(): List<Planet>
+    // 행성 탐험 (랜덤 행성 생성)
+    suspend fun generatePlanets(): Planet
 
     // 행성 구매
     suspend fun buyPlanet(planet: Planet)

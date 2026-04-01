@@ -8,6 +8,10 @@ fun PlanetEntity.toDomain(): Planet {
     return Planet(
         id = id,
         type = PlanetType.valueOf(type),
+        production = production,
+        risk = risk,
+        investment = investment,
+        eventRate = eventRate,
         buyPrice = buyPrice,
         acquireTime = acquireTime,
         currentValue = currentValue,
@@ -21,6 +25,10 @@ fun Planet.toEntity(): PlanetEntity {
     return PlanetEntity(
         id = id,
         type = type.name,
+        production = production,
+        risk = risk,
+        investment = investment,
+        eventRate = eventRate,
         buyPrice = buyPrice,
         acquireTime = acquireTime,
         currentValue = currentValue,

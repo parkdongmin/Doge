@@ -5,15 +5,15 @@ import com.doge.simulator.data.local.mapper.toDomain
 import com.doge.simulator.data.local.mapper.toEntity
 import com.doge.simulator.domain.model.Planet
 import com.doge.simulator.domain.repository.PlanetRepository
-import com.doge.simulator.domain.usecase.GenerateInitialPlanetsUseCase
+import com.doge.simulator.domain.usecase.GeneratePlanetsUseCase
 
 class PlanetRepositoryImpl(
     private val dao: PlanetDao,
-    private val generateInitialPlanetsUseCase: GenerateInitialPlanetsUseCase
+    private val generatePlanetsUseCase: GeneratePlanetsUseCase
 ) : PlanetRepository {
 
-    override suspend fun getInitialPlanets(): List<Planet> {
-        return generateInitialPlanetsUseCase() // UseCase 호출
+    override suspend fun generatePlanets(): Planet {
+        return generatePlanetsUseCase()
     }
 
     override suspend fun buyPlanet(planet: Planet) {

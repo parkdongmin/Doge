@@ -4,8 +4,20 @@ data class PlanetMetaData(
     val type: PlanetType,
     val displayName: String,
     val description: String,
-    val baseProduction: Int,      // 기본 자원 생산량
-    val baseRisk: Int,            // 위험도 (0~100)
-    val baseInvestmentCost: Int,  // 투자 기본 비용
-    val eventRate: Int            // 랜덤 이벤트 확률 (0~100)
+
+    val productionMin: Int,
+    val productionMax: Int,
+
+    val riskMin: Int,
+    val riskMax: Int,
+
+    val investmentMin: Int,
+    val investmentMax: Int,
+
+    val eventRateMin: Int,
+    val eventRateMax: Int,
+
+    val rarity: RarityTier,
+    val basePrice: Int,
+    val variants: List<PlanetVariant>   // 여기서 Wet-01 ~ Wet-30
 )

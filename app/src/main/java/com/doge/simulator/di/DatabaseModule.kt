@@ -6,7 +6,7 @@ import com.doge.simulator.data.local.PlanetDatabase
 import com.doge.simulator.data.local.dao.PlanetDao
 import com.doge.simulator.data.repository.PlanetRepositoryImpl
 import com.doge.simulator.domain.repository.PlanetRepository
-import com.doge.simulator.domain.usecase.GenerateInitialPlanetsUseCase
+import com.doge.simulator.domain.usecase.GeneratePlanetsUseCase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -34,8 +34,8 @@ object DatabaseModule {
     @Singleton
     fun providePlanetRepository(
         dao: PlanetDao,
-        generateInitialPlanetsUseCase: GenerateInitialPlanetsUseCase
+        generatePlanetsUseCase: GeneratePlanetsUseCase
     ): PlanetRepository {
-        return PlanetRepositoryImpl(dao, generateInitialPlanetsUseCase)
+        return PlanetRepositoryImpl(dao, generatePlanetsUseCase)
     }
 }
