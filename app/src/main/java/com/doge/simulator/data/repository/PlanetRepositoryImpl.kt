@@ -8,13 +8,8 @@ import com.doge.simulator.domain.repository.PlanetRepository
 import com.doge.simulator.domain.usecase.GeneratePlanetsUseCase
 
 class PlanetRepositoryImpl(
-    private val dao: PlanetDao,
-    private val generatePlanetsUseCase: GeneratePlanetsUseCase
+    private val dao: PlanetDao
 ) : PlanetRepository {
-
-    override suspend fun generatePlanets(): Planet {
-        return generatePlanetsUseCase()
-    }
 
     override suspend fun buyPlanet(planet: Planet) {
         dao.insertPlanet(planet.toEntity())

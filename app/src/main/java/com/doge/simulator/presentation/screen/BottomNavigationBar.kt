@@ -1,10 +1,11 @@
-package com.doge.simulator.presentation.navigation
+package com.doge.simulator.presentation.screen
 
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.res.painterResource
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.doge.simulator.presentation.navigation.BottomNavItem
 
 @Composable
 fun BottomNavigationBar(navController: NavController) {

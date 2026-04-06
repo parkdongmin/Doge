@@ -4,9 +4,6 @@ import com.doge.simulator.domain.model.Planet
 
 interface PlanetRepository {
 
-    // 행성 탐험 (랜덤 행성 생성)
-    suspend fun generatePlanets(): Planet
-
     // 행성 구매
     suspend fun buyPlanet(planet: Planet)
 

@@ -3,11 +3,15 @@ package com.doge.simulator.domain.usecase
 import com.doge.simulator.domain.model.Planet
 import com.doge.simulator.domain.model.PlanetMetaDataTable
 import com.doge.simulator.domain.model.PlanetType
+import com.doge.simulator.domain.repository.PlanetRepository
+import javax.inject.Inject
 import kotlin.random.Random
 
-class GeneratePlanetsUseCase {
+class GeneratePlanetsUseCase @Inject constructor() {
 
-    operator fun invoke(): Planet {
+    suspend operator fun invoke(): Planet = generateRandomPlanet()
+
+    private fun generateRandomPlanet(): Planet {
         val type = getType()
         val meta = PlanetMetaDataTable.data[type]!!
 
