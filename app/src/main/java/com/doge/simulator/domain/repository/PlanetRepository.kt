@@ -1,6 +1,7 @@
 package com.doge.simulator.domain.repository
 
 import com.doge.simulator.domain.model.Planet
+import kotlinx.coroutines.flow.Flow
 
 interface PlanetRepository {
 
@@ -8,7 +9,7 @@ interface PlanetRepository {
     suspend fun buyPlanet(planet: Planet)
 
     // 보유 중인 행성 목록
-    suspend fun getOwnedPlanets(): List<Planet>
+    fun getOwnedPlanets(): Flow<List<Planet>>
 
     // 행성 판매
     suspend fun sellPlanet(planetId: String)

@@ -3,12 +3,13 @@ package com.doge.simulator.data.local.dao
 import androidx.room.*
 
 import com.doge.simulator.data.local.entity.PlanetEntity
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PlanetDao {
 
     @Query("SELECT * FROM planet_table")
-    suspend fun getOwnedPlanets(): List<PlanetEntity>
+    fun getOwnedPlanets(): Flow<List<PlanetEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPlanet(planet: PlanetEntity)
