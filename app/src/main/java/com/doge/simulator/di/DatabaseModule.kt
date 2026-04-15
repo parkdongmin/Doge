@@ -9,6 +9,7 @@ import com.doge.simulator.domain.repository.PlanetRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
@@ -18,7 +19,9 @@ object DatabaseModule {
 
     @Provides
     @Singleton
-    fun provideDatabase(context: Context): PlanetDatabase {
+    fun provideDatabase(
+        @ApplicationContext context: Context
+    ): PlanetDatabase {
         return Room.databaseBuilder(
             context,
             PlanetDatabase::class.java,

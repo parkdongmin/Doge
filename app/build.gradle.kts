@@ -2,8 +2,8 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.hilt) apply false
-    alias(libs.plugins.ksp) apply false
+    alias(libs.plugins.hilt)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -63,11 +63,12 @@ dependencies {
     // Room
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
-    // ksp(libs.room.compiler)
+    ksp(libs.room.compiler)
 
     // Hilt
     implementation(libs.hilt.android)
-    // ksp(libs.hilt.compiler)
+    implementation(libs.hilt.navigation.compose)
+    ksp(libs.hilt.compiler)
 
     // ViewModel Compose
     implementation(libs.lifecycle.viewmodel.compose)
