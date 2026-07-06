@@ -12,11 +12,13 @@ fun PlanetEntity.toDomain(): Planet {
         risk = risk,
         investment = investment,
         eventRate = eventRate,
+        variantId = variantId,
         buyPrice = buyPrice,
         acquireTime = acquireTime,
         currentValue = currentValue,
         level = level,
         totalProfit = totalProfit,
+        upgradeInvestment = upgradeInvestment,
         lastProfitTime = lastProfitTime
     )
 }
@@ -29,11 +31,13 @@ fun Planet.toEntity(): PlanetEntity {
         risk = risk,
         investment = investment,
         eventRate = eventRate,
+        variantId = variantId,
         buyPrice = buyPrice,
         acquireTime = acquireTime,
         currentValue = currentValue,
         level = level,
         totalProfit = totalProfit,
+        upgradeInvestment = upgradeInvestment,
         lastProfitTime = lastProfitTime
     )
 }

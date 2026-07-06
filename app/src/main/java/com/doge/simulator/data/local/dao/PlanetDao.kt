@@ -1,7 +1,6 @@
 package com.doge.simulator.data.local.dao
 
 import androidx.room.*
-
 import com.doge.simulator.data.local.entity.PlanetEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -17,6 +16,9 @@ interface PlanetDao {
     @Query("DELETE FROM planet_table WHERE id = :planetId")
     suspend fun deletePlanet(planetId: String)
 
-    @Query("UPDATE planet_table SET currentValue = :newValue WHERE id = :planetId")
-    suspend fun updateValue(planetId: String, newValue: Int)
+    @Query("UPDATE planet_table SET totalProfit = :totalProfit, lastProfitTime = :lastProfitTime WHERE id = :id")
+    suspend fun updateProfit(id: String, totalProfit: Long, lastProfitTime: Long)
+
+    @Query("UPDATE planet_table SET level = :level, upgradeInvestment = :upgradeInvestment WHERE id = :planetId")
+    suspend fun upgradePlanet(planetId: String, level: Int, upgradeInvestment: Long)
 }

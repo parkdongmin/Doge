@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "351903809147",
+    "project_id": "doge-8449f",
+    "storage_bucket": "doge-8449f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:351903809147:android:d7bf922d975567cd976cde",
+        "android_client_info": {
+          "package_name": "com.doge.simulator"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "351903809147-vucmu6rh1otipu0gg1ldj044aneiksab.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.doge.simulator",
+            "certificate_hash": "1e593313d1df99ce1eba1858b2f31f408fd82bc4"
+          }
+        },
+        {
+          "client_id": "351903809147-rujbttmoccdk9ud90j5ffcqdml152437.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCBtbErTAs7rMZiQ8DQqLN64NRyq9xe6AM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "351903809147-rujbttmoccdk9ud90j5ffcqdml152437.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

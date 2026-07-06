@@ -5,7 +5,6 @@ import com.doge.simulator.data.local.mapper.toDomain
 import com.doge.simulator.data.local.mapper.toEntity
 import com.doge.simulator.domain.model.Planet
 import com.doge.simulator.domain.repository.PlanetRepository
-import com.doge.simulator.domain.usecase.GeneratePlanetsUseCase
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -26,7 +25,11 @@ class PlanetRepositoryImpl(
         dao.deletePlanet(planetId)
     }
 
-    override suspend fun updatePlanetValue(planetId: String, newValue: Int) {
-        dao.updateValue(planetId, newValue)
+    override suspend fun updatePlanetProfit(planetId: String, totalProfit: Long, lastProfitTime: Long) {
+        dao.updateProfit(planetId, totalProfit, lastProfitTime)
+    }
+
+    override suspend fun upgradePlanet(planetId: String, level: Int, upgradeInvestment: Long) {
+        dao.upgradePlanet(planetId, level, upgradeInvestment)
     }
 }

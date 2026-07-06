@@ -1,9 +1,23 @@
 package com.doge.simulator.presentation.screen.explore
 
+import com.doge.simulator.domain.model.ExpeditionCategory
 import com.doge.simulator.domain.model.Planet
+import com.doge.simulator.domain.model.ResourceType
 
 data class ExploreUiState(
-    val planets: List<Planet> = emptyList(), // 표시할 행성 리스트
-    val isLoading: Boolean = false,          // 로딩중 여부
-    val error: String? = null                // 에러 메세지
+    val isTeamBuilderOpen: Boolean = false,
+    val selectedCategory: ExpeditionCategory = ExpeditionCategory.MINERAL,
+    val selectedTier: Int = 1,
+    val selectedAstronautIds: Set<String> = emptySet(),
+    val selectedSpaceshipId: String? = null,
+    val isDispatching: Boolean = false,
+    val dispatchError: String? = null,
+    val completionResult: ExpeditionCompletionResult? = null
+)
+
+data class ExpeditionCompletionResult(
+    val success: Boolean,
+    val resources: Map<ResourceType, Long>,
+    val discoveredPlanet: Planet?,
+    val canBuyPlanet: Boolean = false
 )

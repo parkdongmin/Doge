@@ -17,7 +17,11 @@ data class PlanetMetaData(
     val eventRateMin: Int,
     val eventRateMax: Int,
 
+    val baseMaintenanceCostMin: Int,
+    val baseMaintenanceCostMax: Int,
     val rarity: RarityTier,
     val basePrice: Int,
-    val variants: List<PlanetVariant>   // 여기서 Wet-01 ~ Wet-30
+    val variants: List<PlanetVariant>,
+    // 자원 종류 -> 분당 드롭 확률(%). CollectProfitUseCase에서 경과 시간에 비례해 정산.
+    val resourceDrops: Map<ResourceType, Int> = emptyMap()
 )

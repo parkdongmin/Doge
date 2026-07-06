@@ -3,121 +3,181 @@ package com.doge.simulator.presentation.screen
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.*
+import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
-import com.doge.simulator.presentation.navigation.*
+import com.doge.simulator.presentation.navigation.BottomNavItem
+import com.doge.simulator.presentation.navigation.NavRoutes
 import com.doge.simulator.presentation.screen.asset.AssetScreen
 import com.doge.simulator.presentation.screen.explore.ExploreScreen
-import com.doge.simulator.presentation.screen.feed.FeedScreen
+import com.doge.simulator.presentation.screen.expedition.ExpeditionHistoryScreen
+import com.doge.simulator.presentation.screen.hq.AstronautScreen
+import com.doge.simulator.presentation.screen.hq.HQScreen
+import com.doge.simulator.presentation.screen.hq.HangarScreen
+import com.doge.simulator.presentation.screen.hq.ResearchLabScreen
+import com.doge.simulator.presentation.screen.planet.PlanetDetailScreen
 import com.doge.simulator.presentation.screen.planet.PlanetScreen
-import com.doge.simulator.R
+import com.doge.simulator.presentation.screen.rank.RankScreen
+import com.doge.simulator.ui.theme.*
+import kotlinx.coroutines.flow.StateFlow
 
 @Composable
-fun MainScreen() {
-
+fun MainScreen(deepLinkFlow: StateFlow<String?>) {
     val navController = rememberNavController()
-    val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
+    val deepLink by deepLinkFlow.collectAsState()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    val bottomNavItems = listOf(
+        BottomNavItem.Explore,
+        BottomNavItem.Planet,
+        BottomNavItem.HQ,
+        BottomNavItem.Asset
+    )
+    val bottomNavRoutes = bottomNavItems.map { it.route }.toSet()
+    var navBarHeightPx by remember { mutableStateOf(0) }
+    val density = LocalDensity.current
+
+    LaunchedEffect(deepLink) {
+        when {
+            deepLink == null -> Unit
+            deepLink!!.startsWith("doge://planet/") -> {
+                val planetId = deepLink!!.removePrefix("doge://planet/")
+                if (planetId.isNotBlank()) navController.navigate(NavRoutes.PlanetDetail.createRoute(planetId))
+            }
+            deepLink == "doge://explore" ->
+                navController.navigate(NavRoutes.Explore.route) { launchSingleTop = true }
+            deepLink == "doge://planet" ->
+                navController.navigate(NavRoutes.Planet.route) { launchSingleTop = true }
+            deepLink == "doge://hq" ->
+                navController.navigate(NavRoutes.HQ.route) { launchSingleTop = true }
+            deepLink == "doge://asset" ->
+                navController.navigate(NavRoutes.Asset.route) { launchSingleTop = true }
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
+        // 기본 배경색
+        Box(modifier = Modifier.matchParentSize().background(SpaceDark))
 
-        Image(
-            painter = painterResource(R.drawable.bg_main),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.matchParentSize()
-        )
-
-        // 화면
+        // 메인 콘텐츠
         NavHost(
             navController = navController,
             startDestination = NavRoutes.Explore.route,
-            modifier = Modifier.fillMaxSize()
-        ) {
-            composable(NavRoutes.Explore.route) { ExploreScreen() }
-            composable(NavRoutes.Planet.route) { PlanetScreen() }
-            composable(NavRoutes.Feed.route) { FeedScreen() }
-            composable(NavRoutes.Asset.route) { AssetScreen() }
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(bottom = with(density) { navBarHeightPx.toDp() })
+            ) {
+                // ── 하단 탭 4개 ───────────────────────────────────────
+                composable(NavRoutes.Explore.route) {
+                    ExploreScreen(
+                        onNavigateToExpeditionHistory = {
+                            navController.navigate(NavRoutes.ExpeditionHistory.route)
+                        }
+                    )
+                }
+                composable(NavRoutes.Planet.route) {
+                    PlanetScreen(
+                        onPlanetClick = { planetId ->
+                            navController.navigate(NavRoutes.PlanetDetail.createRoute(planetId))
+                        }
+                    )
+                }
+                composable(NavRoutes.HQ.route) {
+                    HQScreen(navController = navController)
+                }
+                composable(NavRoutes.Asset.route) {
+                    AssetScreen(
+                        onRankClick = { navController.navigate(NavRoutes.Rank.route) }
+                    )
+                }
+
+                // ── 본부 서브 화면 ─────────────────────────────────────
+                composable(NavRoutes.Astronaut.route) {
+                    AstronautScreen(onBack = { navController.popBackStack() })
+                }
+                composable(NavRoutes.Hangar.route) {
+                    HangarScreen(onBack = { navController.popBackStack() })
+                }
+                composable(NavRoutes.ResearchLab.route) {
+                    ResearchLabScreen(onBack = { navController.popBackStack() })
+                }
+
+                // ── 행성 상세 ──────────────────────────────────────────
+                composable(NavRoutes.PlanetDetail.route) { backStackEntry ->
+                    val planetId = backStackEntry.arguments?.getString("planetId") ?: return@composable
+                    PlanetDetailScreen(
+                        planetId = planetId,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+
+                // ── 탐사 기록 ──────────────────────────────────────────
+                composable(NavRoutes.ExpeditionHistory.route) {
+                    ExpeditionHistoryScreen(onBack = { navController.popBackStack() })
+                }
+
+                // ── 랭킹 (자산 탭에서 진입) ────────────────────────────
+                composable(NavRoutes.Rank.route) {
+                    RankScreen(onHomeClick = { navController.popBackStack() })
+                }
         }
 
-        BottomImageNavigationBar(
-            currentRoute = currentRoute,
-            onClick = { route -> navController.navigate(route) }
-        )
+        // 바텀 네비게이션 — bg_main 위에 직접 올려서 배경 없이 렌더링
+        if (currentRoute in bottomNavRoutes) {
+            PixelBottomNavBar(
+                navController = navController,
+                items = bottomNavItems,
+                currentRoute = currentRoute,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .onSizeChanged { navBarHeightPx = it.height }
+            )
+        }
     }
 }
 
 @Composable
-fun BottomImageNavigationBar(
+private fun PixelBottomNavBar(
+    navController: NavController,
+    items: List<BottomNavItem>,
     currentRoute: String?,
-    onClick: (String) -> Unit
+    modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(bottom = 68.dp),
-        verticalAlignment = Alignment.Bottom,
-        horizontalArrangement = Arrangement.SpaceEvenly
+        modifier = modifier
+            .fillMaxWidth()
+            .background(SpaceDark)
+            .navigationBarsPadding()
     ) {
-
-        ImageNavButton(
-            imageRes = if (currentRoute == NavRoutes.Explore.route)
-                R.drawable.ic_bottom_navi_explore
-            else R.drawable.ic_bottom_navi_explore,
-            onClick = { onClick(NavRoutes.Explore.route) }
-        )
-
-        ImageNavButton(
-            imageRes = if (currentRoute == NavRoutes.Planet.route)
-                R.drawable.ic_bottom_navi_planet
-            else R.drawable.ic_bottom_navi_planet,
-            onClick = { onClick(NavRoutes.Planet.route) }
-        )
-
-        ImageNavButton(
-            imageRes = if (currentRoute == NavRoutes.Feed.route)
-                R.drawable.ic_bottom_navi_feed
-            else R.drawable.ic_bottom_navi_feed,
-            onClick = { onClick(NavRoutes.Feed.route) }
-        )
-
-        ImageNavButton(
-            imageRes = if (currentRoute == NavRoutes.Asset.route)
-                R.drawable.ic_bottom_navi_asset
-            else R.drawable.ic_bottom_navi_asset,
-            onClick = { onClick(NavRoutes.Asset.route) }
-        )
+        items.forEach { item ->
+            val selected = currentRoute == item.route
+            Image(
+                painter = painterResource(if (selected) item.iconOn else item.iconOff),
+                contentDescription = item.title,
+                contentScale = ContentScale.FillBounds,
+                modifier = Modifier
+                    .weight(1f)
+                    .aspectRatio(90f / 68f)
+                    .clickable {
+                        navController.navigate(item.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+            )
+        }
     }
-}
-
-@Composable
-fun ImageNavButton(
-    imageRes: Int,
-    onClick: () -> Unit
-) {
-    Image(
-        painter = painterResource(imageRes),
-        contentDescription = null,
-        modifier = Modifier
-            .size(84.dp)
-            .clickable(onClick = onClick)
-    )
 }

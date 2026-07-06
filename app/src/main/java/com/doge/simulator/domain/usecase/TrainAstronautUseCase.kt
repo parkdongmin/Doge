@@ -1,0 +1,58 @@
+package com.doge.simulator.domain.usecase
+
+import com.doge.simulator.domain.model.Astronaut
+import com.doge.simulator.domain.model.AstronautStatus
+import com.doge.simulator.domain.model.GameConstants
+import com.doge.simulator.domain.repository.AstronautRepository
+import com.doge.simulator.domain.repository.ResearchLabRepository
+import com.doge.simulator.domain.repository.ResourceRepository
+import com.doge.simulator.domain.repository.UserRepository
+import kotlinx.coroutines.flow.first
+import javax.inject.Inject
+
+class TrainAstronautUseCase @Inject constructor(
+    private val astronautRepository: AstronautRepository,
+    private val userRepository: UserRepository,
+    private val resourceRepository: ResourceRepository,
+    private val researchLabRepository: ResearchLabRepository
+) {
+    sealed class Result {
+        object Success : Result()
+        object InsufficientCoins : Result()
+        object InsufficientResources : Result()
+        object TrainingSlotFull : Result()
+        object AstronautNotIdle : Result()
+    }
+
+    suspend operator fun invoke(astronaut: Astronaut, isAdvanced: Boolean): Result {
+        if (astronaut.status != AstronautStatus.IDLE) return Result.AstronautNotIdle
+
+        val lab = researchLabRepository.get().first()
+        val trainingCount = astronautRepository.getAstronauts().first()
+            .count { it.status == AstronautStatus.TRAINING }
+        if (trainingCount >= lab.maxTrainingSlots) return Result.TrainingSlotFull
+
+        val coinCost = if (isAdvanced) GameConstants.ADVANCED_TRAINING_COST_COINS
+                       else GameConstants.BASIC_TRAINING_COST_COINS
+        val coins = userRepository.getCoins().first()
+        if (coins < coinCost) return Result.InsufficientCoins
+
+        if (isAdvanced) {
+            for ((type, amount) in GameConstants.ADVANCED_TRAINING_RESOURCE_COST) {
+                if (resourceRepository.getAmount(type) < amount) return Result.InsufficientResources
+            }
+            for ((type, amount) in GameConstants.ADVANCED_TRAINING_RESOURCE_COST) {
+                resourceRepository.consume(type, amount.toLong())
+            }
+        }
+
+        userRepository.addCoins(-coinCost)
+
+        val duration = if (isAdvanced) GameConstants.ADVANCED_TRAINING_DURATION_MS
+                       else GameConstants.BASIC_TRAINING_DURATION_MS
+        val trainingEndTime = System.currentTimeMillis() + duration
+
+        astronautRepository.updateStatus(astronaut.id, AstronautStatus.TRAINING, trainingEndTime)
+        return Result.Success
+    }
+}

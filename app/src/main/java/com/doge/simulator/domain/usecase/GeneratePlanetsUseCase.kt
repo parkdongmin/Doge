@@ -3,7 +3,6 @@ package com.doge.simulator.domain.usecase
 import com.doge.simulator.domain.model.Planet
 import com.doge.simulator.domain.model.PlanetMetaDataTable
 import com.doge.simulator.domain.model.PlanetType
-import com.doge.simulator.domain.repository.PlanetRepository
 import javax.inject.Inject
 import kotlin.random.Random
 
@@ -19,11 +18,8 @@ class GeneratePlanetsUseCase @Inject constructor() {
         val risk = (meta.riskMin..meta.riskMax).random()
         val investment = (meta.investmentMin..meta.investmentMax).random()
         val eventRate = (meta.eventRateMin..meta.eventRateMax).random()
-
-        val buyPrice =
-            meta.basePrice +
-                    (production * 20) +
-                    (risk * 10)
+        val buyPrice = meta.basePrice + (production * 20) + (risk * 10)
+        val variant = meta.variants.random()
 
         return Planet(
             type = type,
@@ -31,42 +27,30 @@ class GeneratePlanetsUseCase @Inject constructor() {
             risk = risk,
             investment = investment,
             eventRate = eventRate,
+            variantId = variant.variantId,
             buyPrice = buyPrice,
             currentValue = buyPrice
         )
     }
 
     private fun getType(): PlanetType {
-        val roll = Random.nextInt(100) // 0~99
-
+        val roll = Random.nextInt(100)
         return when {
             roll < 60 -> getRandomCommon()
-            roll < 90 -> getRandomUncommon()  // 60~89 = 30%
-            roll < 95 -> PlanetType.BLACK_HOLE // 90~94 = 5%
-            roll < 99 -> PlanetType.GALAXY // 90~94 = 5%
-            else -> PlanetType.STAR      // 99 = 1%
+            roll < 90 -> getRandomUncommon()
+            roll < 95 -> PlanetType.BLACK_HOLE
+            roll < 99 -> PlanetType.GALAXY
+            else -> PlanetType.STAR
         }
     }
 
-    private fun getRandomCommon(): PlanetType {
-        val list = listOf(
-            PlanetType.TERRAN_WET,
-            PlanetType.TERRAN_DRY,
-            PlanetType.ISLANDS,
-            PlanetType.NO_ATMOSPHERE
-        )
-        return list.random()
-    }
+    private fun getRandomCommon(): PlanetType = listOf(
+        PlanetType.TERRAN_WET, PlanetType.TERRAN_DRY,
+        PlanetType.ISLANDS, PlanetType.NO_ATMOSPHERE
+    ).random()
 
-    private fun getRandomUncommon(): PlanetType {
-        val list = listOf(
-            PlanetType.GAS_GIANT_1,
-            PlanetType.GAS_GIANT_2,
-            PlanetType.ICE_WORLD,
-            PlanetType.LAVA_WORLD,
-            PlanetType.ASTEROID
-        )
-        return list.random()
-    }
-
+    private fun getRandomUncommon(): PlanetType = listOf(
+        PlanetType.GAS_GIANT_1, PlanetType.GAS_GIANT_2,
+        PlanetType.ICE_WORLD, PlanetType.LAVA_WORLD, PlanetType.ASTEROID
+    ).random()
 }

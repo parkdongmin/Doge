@@ -22,10 +22,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.doge.simulator" />
+                  <option name="mobileSdkAppId" value="1:351903809147:android:d7bf922d975567cd976cde" />
+                  <option name="projectId" value="doge-8449f" />
+                  <option name="projectNumber" value="351903809147" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />

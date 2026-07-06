@@ -1,0 +1,84 @@
+package com.doge.simulator.presentation.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.doge.simulator.domain.model.Resource
+import com.doge.simulator.domain.model.effectiveProduction
+import com.doge.simulator.domain.repository.UserRepository
+import com.doge.simulator.domain.usecase.GetOwnedPlanetsUseCase
+import com.doge.simulator.domain.usecase.GetResourcesUseCase
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class AssetUiState(
+    val coins: Long = 0L,
+    val planetCount: Int = 0,
+    val totalMarketValue: Long = 0L,
+    val totalProfit: Long = 0L,
+    val netProductionPerMin: Long = 0L,
+    val resources: List<Resource> = emptyList()
+)
+
+@HiltViewModel
+class AssetViewModel @Inject constructor(
+    getOwnedPlanetsUseCase: GetOwnedPlanetsUseCase,
+    getResourcesUseCase: GetResourcesUseCase,
+    userRepository: UserRepository
+) : ViewModel() {
+
+    val uiState: StateFlow<AssetUiState> = combine(
+        userRepository.getCoins(),
+        getOwnedPlanetsUseCase(),
+        getResourcesUseCase()
+    ) { coins, planets, resources ->
+        AssetUiState(
+            coins = coins,
+            planetCount = planets.size,
+            totalMarketValue = planets.sumOf { it.buyPrice + it.upgradeInvestment },
+            totalProfit = planets.sumOf { it.totalProfit },
+            netProductionPerMin = planets.sumOf { it.effectiveProduction },
+            resources = resources.filter { it.amount > 0 }
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AssetUiState())
+
+    private val _coinBaseTime = MutableStateFlow(System.currentTimeMillis())
+    private var lastKnownCoins = -1L
+    private val _ticker = MutableStateFlow(0L)
+
+    init {
+        viewModelScope.launch {
+            uiState.collect { state ->
+                if (state.coins != lastKnownCoins) {
+                    lastKnownCoins = state.coins
+                    _coinBaseTime.value = System.currentTimeMillis()
+                }
+            }
+        }
+        viewModelScope.launch {
+            while (true) {
+                delay(1000L)
+                _ticker.value++
+            }
+        }
+    }
+
+    val liveCoins: StateFlow<Long> = combine(uiState, _coinBaseTime, _ticker) { state, baseTime, _ ->
+        if (state.netProductionPerMin <= 0L) {
+            state.coins
+        } else {
+            val elapsedSec = (System.currentTimeMillis() - baseTime) / 1000L
+            state.coins + (elapsedSec * state.netProductionPerMin / 60L)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
+
+    val liveTotalAsset: StateFlow<Long> = combine(liveCoins, uiState) { live, state ->
+        live + state.totalMarketValue
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
+}

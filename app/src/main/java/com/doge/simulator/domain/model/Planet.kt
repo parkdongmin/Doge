@@ -6,21 +6,26 @@ data class Planet(
     val id: String = UUID.randomUUID().toString(),
     val type: PlanetType,
 
-    // 스탯 (행성 자체 속성)
     val production: Int,
     val risk: Int,
     val investment: Int,
     val eventRate: Int,
 
-    // 구매 시 결정되는 값
     val buyPrice: Int,
     val acquireTime: Long = System.currentTimeMillis(),
 
-    // 변동 정보
     val currentValue: Int,
     val level: Int = 1,
     val totalProfit: Long = 0L,
 
-    // Idle 계산용
+    val variantId: String = "",
+
+    // 강화에 투자한 누적 코인 (매도 가격 산정에 사용)
+    val upgradeInvestment: Long = 0L,
+
     val lastProfitTime: Long = System.currentTimeMillis()
 )
+
+// 강화 레벨이 오를수록 실제 생산량도 함께 오르도록 보정한 값
+val Planet.effectiveProduction: Long
+    get() = (production * GameConstants.planetLevelMultiplier(level)).toLong()

@@ -1,44 +1,249 @@
 package com.doge.simulator.presentation.viewmodel
 
-
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
+import com.doge.simulator.data.worker.ExplorationCompleteWorker
+import dagger.hilt.android.qualifiers.ApplicationContext
+import com.doge.simulator.domain.model.ExpeditionCategory
+import com.doge.simulator.domain.model.ExpeditionStatus
 import com.doge.simulator.domain.model.Planet
+import com.doge.simulator.domain.model.PlanetMetaDataTable
+import com.doge.simulator.domain.model.PlanetType
+import com.doge.simulator.domain.repository.UserRepository
 import com.doge.simulator.domain.usecase.BuyPlanetUseCase
+import com.doge.simulator.domain.usecase.CollectProfitUseCase
+import com.doge.simulator.domain.usecase.CompleteExpeditionUseCase
 import com.doge.simulator.domain.usecase.GeneratePlanetsUseCase
+import com.doge.simulator.domain.usecase.GetActiveExpeditionsUseCase
+import com.doge.simulator.domain.usecase.GetAstronautsUseCase
+import com.doge.simulator.domain.usecase.GetExpeditionReportsUseCase
 import com.doge.simulator.domain.usecase.GetOwnedPlanetsUseCase
+import com.doge.simulator.domain.usecase.GetResearchLabUseCase
+import com.doge.simulator.domain.usecase.GetSpaceshipsUseCase
+import com.doge.simulator.domain.usecase.StartExpeditionUseCase
+import com.doge.simulator.domain.repository.ResourceRepository
+import com.doge.simulator.domain.repository.StoryRepository
+import com.doge.simulator.presentation.screen.explore.ExpeditionCompletionResult
+import com.doge.simulator.presentation.screen.explore.ExploreUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class ExploreViewModel @Inject constructor(
+    private val startExpeditionUseCase: StartExpeditionUseCase,
+    private val completeExpeditionUseCase: CompleteExpeditionUseCase,
+    private val getActiveExpeditionsUseCase: GetActiveExpeditionsUseCase,
+    private val getAstronautsUseCase: GetAstronautsUseCase,
+    private val getSpaceshipsUseCase: GetSpaceshipsUseCase,
+    private val getResearchLabUseCase: GetResearchLabUseCase,
     private val generatePlanetsUseCase: GeneratePlanetsUseCase,
     private val buyPlanetUseCase: BuyPlanetUseCase,
-    private val getOwnedPlanetsUseCase: GetOwnedPlanetsUseCase
+    private val getOwnedPlanetsUseCase: GetOwnedPlanetsUseCase,
+    private val collectProfitUseCase: CollectProfitUseCase,
+    private val userRepository: UserRepository,
+    private val resourceRepository: ResourceRepository,
+    private val storyRepository: StoryRepository,
+    private val getExpeditionReportsUseCase: GetExpeditionReportsUseCase,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
-    val ownedPlanets: StateFlow<List<Planet>> =
-        getOwnedPlanetsUseCase()
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5000),
-                initialValue = emptyList()
-            )
+    val coins: StateFlow<Long> = userRepository.getCoins()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
 
-    // 행성 구매 로직
-    fun buyPlanet(planet: Planet) {
+    val activeExpeditions = getActiveExpeditionsUseCase()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val busyShipIds: StateFlow<Set<String>> = getActiveExpeditionsUseCase()
+        .map { expeditions -> expeditions.map { it.spaceshipId }.toSet() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    val resources = resourceRepository.getAll()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val unreadReportCount: StateFlow<Int> = getExpeditionReportsUseCase.unreadCount()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val latestReport = getExpeditionReportsUseCase.all()
+        .map { it.firstOrNull() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val storyProgress = storyRepository.getProgress()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000),
+            com.doge.simulator.domain.model.StoryProgress())
+
+    val ownedPlanets = getOwnedPlanetsUseCase()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val astronauts = getAstronautsUseCase()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val spaceships = getSpaceshipsUseCase()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val researchLab = getResearchLabUseCase()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000),
+            com.doge.simulator.domain.model.ResearchLab())
+
+    private val _uiState = MutableStateFlow(ExploreUiState())
+    val uiState: StateFlow<ExploreUiState> = _uiState.asStateFlow()
+
+    init {
         viewModelScope.launch {
-            buyPlanetUseCase(planet)
+            userRepository.initialize()
+            val planets = getOwnedPlanetsUseCase().first()
+            if (planets.isNotEmpty()) collectProfitUseCase(planets)
+        }
+        // 60초마다 수익 누적
+        viewModelScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(60_000L)
+                val planets = getOwnedPlanetsUseCase().first()
+                if (planets.isNotEmpty()) collectProfitUseCase(planets)
+            }
+        }
+        // 5초마다 만료된 탐사 자동 완료
+        viewModelScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(5_000L)
+                checkExpiredExpeditions()
+            }
         }
     }
 
-    // 행성 탐험 로직
-    suspend fun generatePlanet(): Planet {
-        return generatePlanetsUseCase()
+    private suspend fun checkExpiredExpeditions() {
+        val now = System.currentTimeMillis()
+        val expired = activeExpeditions.value.filter {
+            it.status == ExpeditionStatus.IN_PROGRESS && now >= it.endTime
+        }
+        expired.forEach { expedition ->
+            val result = completeExpeditionUseCase(expedition)
+            val planet = if (result.discoveredPlanetType != null) {
+                runCatching {
+                    val lab = getResearchLabUseCase().first()
+                    val ownedCount = getOwnedPlanetsUseCase().first().size
+                    val type = PlanetType.valueOf(result.discoveredPlanetType)
+                    val meta = PlanetMetaDataTable.data[type]
+                    if (meta != null) {
+                        val production = (meta.productionMin..meta.productionMax).random()
+                        val risk = (meta.riskMin..meta.riskMax).random()
+                        val buyPrice = meta.basePrice + production * 20 + risk * 10
+                        Planet(
+                            type = type,
+                            production = production,
+                            risk = risk,
+                            investment = (meta.investmentMin..meta.investmentMax).random(),
+                            eventRate = (meta.eventRateMin..meta.eventRateMax).random(),
+                            variantId = meta.variants.random().variantId,
+                            buyPrice = buyPrice,
+                            currentValue = buyPrice
+                        ) to (ownedCount < lab.maxPlanetSlots)
+                    } else null
+                }.getOrNull()
+            } else null
+
+            _uiState.update { it.copy(
+                completionResult = ExpeditionCompletionResult(
+                    success = result.success,
+                    resources = result.resources,
+                    discoveredPlanet = planet?.first,
+                    canBuyPlanet = planet?.second ?: false
+                )
+            )}
+        }
     }
 
+    // ── 팀 빌더 ──────────────────────────────────────────────────────
+    fun openTeamBuilder() = _uiState.update { it.copy(isTeamBuilderOpen = true) }
+    fun closeTeamBuilder() = _uiState.update {
+        it.copy(isTeamBuilderOpen = false, dispatchError = null,
+            selectedAstronautIds = emptySet(), selectedSpaceshipId = null)
+    }
+
+    fun selectCategory(category: ExpeditionCategory) =
+        _uiState.update { it.copy(selectedCategory = category, selectedAstronautIds = emptySet()) }
+
+    fun selectTier(tier: Int) = _uiState.update { it.copy(selectedTier = tier) }
+
+    fun toggleAstronaut(id: String) = _uiState.update { state ->
+        val ids = state.selectedAstronautIds.toMutableSet()
+        if (ids.contains(id)) ids.remove(id) else ids.add(id)
+        state.copy(selectedAstronautIds = ids)
+    }
+
+    fun selectSpaceship(id: String) = _uiState.update { it.copy(selectedSpaceshipId = id) }
+
+    fun dispatch() {
+        val state = _uiState.value
+        if (state.selectedSpaceshipId == null) {
+            _uiState.update { it.copy(dispatchError = "우주선을 선택해주세요") }
+            return
+        }
+        if (state.selectedAstronautIds.isEmpty()) {
+            _uiState.update { it.copy(dispatchError = "우주인을 한 명 이상 선택해주세요") }
+            return
+        }
+        viewModelScope.launch {
+            _uiState.update { it.copy(isDispatching = true) }
+            val result = startExpeditionUseCase(
+                category = state.selectedCategory,
+                tier = state.selectedTier,
+                astronautIds = state.selectedAstronautIds.toList(),
+                spaceshipId = state.selectedSpaceshipId
+            )
+            when (result) {
+                is StartExpeditionUseCase.Result.Success -> {
+                    scheduleExpeditionWorker(result.expedition.id, result.expedition.endTime)
+                    _uiState.update { it.copy(isTeamBuilderOpen = false, isDispatching = false,
+                        selectedAstronautIds = emptySet(), selectedSpaceshipId = null, dispatchError = null) }
+                }
+                is StartExpeditionUseCase.Result.CategoryLocked ->
+                    _uiState.update { it.copy(isDispatching = false, dispatchError = "해당 탐사 카테고리가 잠겨있습니다") }
+                is StartExpeditionUseCase.Result.TierRequirementNotMet ->
+                    _uiState.update { it.copy(isDispatching = false, dispatchError = "${result.conditionLabel} 보유 필요") }
+                is StartExpeditionUseCase.Result.AstronautNotAvailable ->
+                    _uiState.update { it.copy(isDispatching = false, dispatchError = "선택한 우주인이 이미 파견 중입니다") }
+                is StartExpeditionUseCase.Result.SpaceshipBusy ->
+                    _uiState.update { it.copy(isDispatching = false, dispatchError = "선택한 우주선이 이미 탐사 중입니다") }
+                is StartExpeditionUseCase.Result.TeamTooLarge ->
+                    _uiState.update { it.copy(isDispatching = false, dispatchError = "우주선 탑승 인원 초과입니다") }
+                else ->
+                    _uiState.update { it.copy(isDispatching = false, dispatchError = "파견에 실패했습니다") }
+            }
+        }
+    }
+
+    private fun scheduleExpeditionWorker(expeditionId: String, endTime: Long) {
+        val delay = (endTime - System.currentTimeMillis()).coerceAtLeast(0L)
+        val request = OneTimeWorkRequestBuilder<ExplorationCompleteWorker>()
+            .setInitialDelay(delay, java.util.concurrent.TimeUnit.MILLISECONDS)
+            .setInputData(workDataOf(ExplorationCompleteWorker.KEY_EXPEDITION_ID to expeditionId))
+            .addTag("expedition_$expeditionId")
+            .build()
+        WorkManager.getInstance(context)
+            .enqueueUniqueWork("expedition_$expeditionId", ExistingWorkPolicy.REPLACE, request)
+    }
+
+    // ── 결과 처리 ─────────────────────────────────────────────────────
+    fun buyDiscoveredPlanet(planet: Planet) {
+        viewModelScope.launch {
+            buyPlanetUseCase(planet)
+            _uiState.update { it.copy(completionResult = null) }
+        }
+    }
+
+    fun dismissResult() = _uiState.update { it.copy(completionResult = null) }
 }
