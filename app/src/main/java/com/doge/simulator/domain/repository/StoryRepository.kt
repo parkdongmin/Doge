@@ -15,6 +15,6 @@ interface StoryRepository {
     fun getUnreadCount(): Flow<Int>
     suspend fun saveReport(report: ExpeditionReport)
     suspend fun markReportAsRead(expeditionId: String)
-    suspend fun selectEventChoice(eventId: String, choiceIndex: Int, outcomeNote: String? = null)
+    suspend fun selectEventChoice(eventId: String, expeditionId: String, choiceIndex: Int, outcomeNote: String? = null)
     suspend fun addEvent(event: StoryEvent)
 }

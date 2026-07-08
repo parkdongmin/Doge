@@ -40,7 +40,7 @@ import com.doge.simulator.data.local.entity.UserEntity
         ExpeditionReportEntity::class,
         StoryEventEntity::class,
     ],
-    version = 10,
+    version = 12,
     exportSchema = false
 )
 abstract class PlanetDatabase : RoomDatabase() {
@@ -273,6 +273,23 @@ abstract class PlanetDatabase : RoomDatabase() {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL(
                     "ALTER TABLE user_table ADD COLUMN discoveredVariantIds TEXT NOT NULL DEFAULT ''"
+                )
+            }
+        }
+
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // 기존에 이미 완료된 탐사는 결과를 다시 띄우지 않도록 기본값 1(처리됨)로 채운다
+                database.execSQL(
+                    "ALTER TABLE expedition_table ADD COLUMN resultHandled INTEGER NOT NULL DEFAULT 1"
+                )
+            }
+        }
+
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "ALTER TABLE expedition_table ADD COLUMN coinsEarned INTEGER NOT NULL DEFAULT 0"
                 )
             }
         }

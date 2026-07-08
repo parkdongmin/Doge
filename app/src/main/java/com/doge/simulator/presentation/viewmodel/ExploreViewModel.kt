@@ -9,11 +9,13 @@ import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.doge.simulator.data.worker.ExplorationCompleteWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
+import com.doge.simulator.domain.model.Expedition
 import com.doge.simulator.domain.model.ExpeditionCategory
 import com.doge.simulator.domain.model.ExpeditionStatus
 import com.doge.simulator.domain.model.Planet
 import com.doge.simulator.domain.model.PlanetMetaDataTable
 import com.doge.simulator.domain.model.PlanetType
+import com.doge.simulator.domain.repository.ExpeditionRepository
 import com.doge.simulator.domain.repository.UserRepository
 import com.doge.simulator.domain.usecase.BuyPlanetUseCase
 import com.doge.simulator.domain.usecase.CollectProfitUseCase
@@ -57,6 +59,7 @@ class ExploreViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val resourceRepository: ResourceRepository,
     private val storyRepository: StoryRepository,
+    private val expeditionRepository: ExpeditionRepository,
     private val getExpeditionReportsUseCase: GetExpeditionReportsUseCase,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
@@ -115,11 +118,20 @@ class ExploreViewModel @Inject constructor(
                 if (planets.isNotEmpty()) collectProfitUseCase(planets)
             }
         }
-        // 5초마다 만료된 탐사 자동 완료
+        // 5초마다 만료된 탐사 자동 완료 (완료 처리만 하고, 결과 표시는 아래 unhandled 결과 관찰에서 담당)
         viewModelScope.launch {
             while (true) {
                 kotlinx.coroutines.delay(5_000L)
                 checkExpiredExpeditions()
+            }
+        }
+        // 완료됐지만 아직 결과를 보여주지 않은 탐사 관찰 — 포그라운드 폴링과 백그라운드 워커
+        // 중 어느 쪽이 완료 처리를 선점했는지와 무관하게 결과 팝업이 항상 뜨도록 보장한다
+        viewModelScope.launch {
+            expeditionRepository.getUnhandledResults().collect { unhandled ->
+                val next = unhandled.firstOrNull() ?: return@collect
+                if (_uiState.value.completionResult != null) return@collect
+                presentExpeditionResult(next)
             }
         }
     }
@@ -129,41 +141,55 @@ class ExploreViewModel @Inject constructor(
         val expired = activeExpeditions.value.filter {
             it.status == ExpeditionStatus.IN_PROGRESS && now >= it.endTime
         }
-        expired.forEach { expedition ->
-            val result = completeExpeditionUseCase(expedition)
-            val planet = if (result.discoveredPlanetType != null) {
-                runCatching {
-                    val lab = getResearchLabUseCase().first()
-                    val ownedCount = getOwnedPlanetsUseCase().first().size
-                    val type = PlanetType.valueOf(result.discoveredPlanetType)
-                    val meta = PlanetMetaDataTable.data[type]
-                    if (meta != null) {
-                        val production = (meta.productionMin..meta.productionMax).random()
-                        val risk = (meta.riskMin..meta.riskMax).random()
-                        val buyPrice = meta.basePrice + production * 20 + risk * 10
-                        Planet(
-                            type = type,
-                            production = production,
-                            risk = risk,
-                            investment = (meta.investmentMin..meta.investmentMax).random(),
-                            eventRate = (meta.eventRateMin..meta.eventRateMax).random(),
-                            variantId = meta.variants.random().variantId,
-                            buyPrice = buyPrice,
-                            currentValue = buyPrice
-                        ) to (ownedCount < lab.maxPlanetSlots)
-                    } else null
-                }.getOrNull()
-            } else null
+        expired.forEach { completeExpeditionUseCase(it) }
+    }
 
-            _uiState.update { it.copy(
-                completionResult = ExpeditionCompletionResult(
-                    success = result.success,
-                    resources = result.resources,
-                    discoveredPlanet = planet?.first,
-                    canBuyPlanet = planet?.second ?: false
-                )
-            )}
+    private suspend fun presentExpeditionResult(expedition: Expedition) {
+        val resources = parseResourcesResult(expedition.resourcesResult)
+        val planet = expedition.discoveredPlanetType?.let { typeName ->
+            runCatching {
+                val lab = getResearchLabUseCase().first()
+                val ownedCount = getOwnedPlanetsUseCase().first().size
+                val type = PlanetType.valueOf(typeName)
+                val meta = PlanetMetaDataTable.data[type] ?: return@runCatching null
+                val production = (meta.productionMin..meta.productionMax).random()
+                val risk = (meta.riskMin..meta.riskMax).random()
+                val buyPrice = meta.basePrice + production * 20 + risk * 10
+                Planet(
+                    type = type,
+                    production = production,
+                    risk = risk,
+                    investment = (meta.investmentMin..meta.investmentMax).random(),
+                    eventRate = (meta.eventRateMin..meta.eventRateMax).random(),
+                    variantId = meta.variants.random().variantId,
+                    buyPrice = buyPrice,
+                    currentValue = buyPrice
+                ) to (ownedCount < lab.maxPlanetSlots)
+            }.getOrNull()
         }
+
+        _uiState.update { it.copy(
+            completionResult = ExpeditionCompletionResult(
+                expeditionId = expedition.id,
+                success = expedition.status == ExpeditionStatus.COMPLETED,
+                resources = resources,
+                coinsEarned = expedition.coinsEarned,
+                discoveredPlanet = planet?.first,
+                canBuyPlanet = planet?.second ?: false
+            )
+        )}
+    }
+
+    private fun parseResourcesResult(raw: String?): Map<com.doge.simulator.domain.model.ResourceType, Long> {
+        if (raw.isNullOrBlank()) return emptyMap()
+        return raw.split(",").mapNotNull { entry ->
+            val parts = entry.split(":")
+            if (parts.size != 2) return@mapNotNull null
+            val type = runCatching { com.doge.simulator.domain.model.ResourceType.valueOf(parts[0]) }.getOrNull()
+                ?: return@mapNotNull null
+            val amount = parts[1].toLongOrNull() ?: return@mapNotNull null
+            type to amount
+        }.toMap()
     }
 
     // ── 팀 빌더 ──────────────────────────────────────────────────────
@@ -240,10 +266,20 @@ class ExploreViewModel @Inject constructor(
     // ── 결과 처리 ─────────────────────────────────────────────────────
     fun buyDiscoveredPlanet(planet: Planet) {
         viewModelScope.launch {
-            buyPlanetUseCase(planet)
-            _uiState.update { it.copy(completionResult = null) }
+            val bought = buyPlanetUseCase(planet)
+            if (bought) {
+                val expeditionId = _uiState.value.completionResult?.expeditionId
+                _uiState.update { it.copy(completionResult = null) }
+                expeditionId?.let { expeditionRepository.markResultHandled(it) }
+            }
         }
     }
 
-    fun dismissResult() = _uiState.update { it.copy(completionResult = null) }
+    fun dismissResult() {
+        val expeditionId = _uiState.value.completionResult?.expeditionId
+        _uiState.update { it.copy(completionResult = null) }
+        if (expeditionId != null) {
+            viewModelScope.launch { expeditionRepository.markResultHandled(expeditionId) }
+        }
+    }
 }

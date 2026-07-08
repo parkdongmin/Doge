@@ -16,8 +16,10 @@ data class ExploreUiState(
 )
 
 data class ExpeditionCompletionResult(
+    val expeditionId: String,
     val success: Boolean,
     val resources: Map<ResourceType, Long>,
+    val coinsEarned: Long = 0L,
     val discoveredPlanet: Planet?,
     val canBuyPlanet: Boolean = false
 )

@@ -421,14 +421,15 @@ private fun CategoryGrid(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .height(IntrinsicSize.Max),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         ExpeditionCategory.entries.forEach { category ->
             CategoryCard(
                 category = category,
                 isUnlocked = category in unlockedCategories,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).fillMaxHeight(),
                 onClick = { onSelectCategory(category) }
             )
         }
@@ -478,15 +479,18 @@ private fun CategoryCard(
                 maxLines = 1
             )
 
-            // 중간: 대표 자원 아이콘 (잠금이면 자물쇠)
-            if (isUnlocked && representativeResource != null) {
-                Image(
-                    painter = painterResource(representativeResource.iconRes),
-                    contentDescription = null,
-                    modifier = Modifier.size(36.dp)
-                )
-            } else {
-                Text("🔒", fontSize = 26.sp)
+            // 중간: 대표 자원 아이콘 (잠금이면 자물쇠) — 슬롯 높이를 고정해
+            // 잠금·해금 카드의 전체 높이가 서로 달라지지 않게 한다
+            Box(modifier = Modifier.size(36.dp), contentAlignment = Alignment.Center) {
+                if (isUnlocked && representativeResource != null) {
+                    Image(
+                        painter = painterResource(representativeResource.iconRes),
+                        contentDescription = null,
+                        modifier = Modifier.size(36.dp)
+                    )
+                } else {
+                    Text("🔒", fontSize = 26.sp)
+                }
             }
 
             // 하단: 자원 종류 수 or 잠금 조건
@@ -877,6 +881,29 @@ private fun ExpeditionResultDialog(
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(16.dp))
+
+                if (result.coinsEarned > 0) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        color = GoldAccent.copy(alpha = 0.12f)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("💰 탐사 보상", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+                            Text(
+                                "+${"%,d".format(result.coinsEarned)} 코인",
+                                color = GoldAccent,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
 
                 if (result.resources.isNotEmpty()) {
                     Text(

@@ -22,6 +22,17 @@ class ExpeditionRepositoryImpl(
     override suspend fun start(expedition: Expedition) =
         dao.insert(expedition.toEntity())
 
-    override suspend fun complete(id: String, status: ExpeditionStatus, resourcesResult: String?, discoveredPlanetType: String?): Boolean =
-        dao.complete(id, status.name, resourcesResult, discoveredPlanetType) > 0
+    override suspend fun complete(
+        id: String,
+        status: ExpeditionStatus,
+        resourcesResult: String?,
+        discoveredPlanetType: String?,
+        coinsEarned: Long
+    ): Boolean =
+        dao.complete(id, status.name, resourcesResult, discoveredPlanetType, coinsEarned) > 0
+
+    override fun getUnhandledResults(): Flow<List<Expedition>> =
+        dao.getUnhandledResults().map { list -> list.map { it.toDomain() } }
+
+    override suspend fun markResultHandled(id: String) = dao.markResultHandled(id)
 }

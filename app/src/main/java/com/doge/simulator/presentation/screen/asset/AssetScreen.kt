@@ -2,10 +2,12 @@ package com.doge.simulator.presentation.screen.asset
 
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -14,9 +16,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.doge.simulator.domain.model.GameConstants
+import com.doge.simulator.domain.model.Resource
 import com.doge.simulator.presentation.viewmodel.AssetViewModel
 import com.doge.simulator.ui.theme.*
 
@@ -28,7 +35,9 @@ fun AssetScreen(
     val state by viewModel.uiState.collectAsState()
     val displayCoins by viewModel.liveCoins.collectAsState()
     val displayTotalAsset by viewModel.liveTotalAsset.collectAsState()
+    val message by viewModel.message.collectAsState()
     val resources = state.resources
+    var sellDialogResource by remember { mutableStateOf<Resource?>(null) }
 
     Column(
         modifier = Modifier
@@ -39,6 +48,16 @@ fun AssetScreen(
             .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 24.dp)
             .navigationBarsPadding()
     ) {
+        // ── 상태 메시지 ────────────────────────────────────────────────
+        message?.let {
+            Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp),
+                color = SpaceBlue.copy(alpha = 0.3f)) {
+                Text(it, color = SpaceAccent, style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
         // ── 헤더 ──────────────────────────────────────────────────────
         Text(
             text = "나의 자산",
@@ -140,7 +159,8 @@ fun AssetScreen(
                             name = resource.type.displayName,
                             amount = "%,d".format(resource.amount),
                             changePercent = null,
-                            changePositive = true
+                            changePositive = true,
+                            onSell = { sellDialogResource = resource }
                         )
                         if (index < resources.size - 1) {
                             HorizontalDivider(color = SpaceMid.copy(alpha = 0.5f),
@@ -259,6 +279,129 @@ fun AssetScreen(
             Text(text = "🏆  랭킹 보기", style = MaterialTheme.typography.bodyMedium)
         }
     }
+
+    sellDialogResource?.let { resource ->
+        SellResourceDialog(
+            resource = resource,
+            onConfirm = { quantity ->
+                viewModel.sellResource(resource.type, quantity)
+                sellDialogResource = null
+            },
+            onDismiss = { sellDialogResource = null }
+        )
+    }
+}
+
+@Composable
+private fun SellResourceDialog(
+    resource: Resource,
+    onConfirm: (Long) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val unitPrice = GameConstants.RESOURCE_SELL_PRICE[resource.type] ?: 10L
+    var quantityText by remember(resource.type) { mutableStateOf(resource.amount.toString()) }
+    val quantity = quantityText.toLongOrNull() ?: 0L
+    val isValid = quantity in 1..resource.amount
+    val totalCoins = unitPrice * quantity.coerceAtLeast(0L)
+
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = SpaceNavy),
+            border = BorderStroke(1.dp, SpaceMid),
+            modifier = Modifier.fillMaxWidth(0.9f).wrapContentHeight()
+        ) {
+            Column(modifier = Modifier.padding(22.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Image(
+                        painter = painterResource(resource.type.iconRes),
+                        contentDescription = resource.type.displayName,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        resource.type.displayName,
+                        color = TextPrimary,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "보유 수량: ${"%,d".format(resource.amount)}개 · 단가 ${"%,d".format(unitPrice)}코인/개",
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.labelSmall
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = quantityText,
+                    onValueChange = { input -> if (input.length <= 12 && input.all { it.isDigit() }) quantityText = input },
+                    label = { Text("판매 수량") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    trailingIcon = {
+                        TextButton(onClick = { quantityText = resource.amount.toString() }) {
+                            Text("전체", color = SpaceAccent, style = MaterialTheme.typography.labelSmall)
+                        }
+                    },
+                    isError = quantityText.isNotEmpty() && !isValid
+                )
+
+                if (quantityText.isNotEmpty() && !isValid) {
+                    Text(
+                        if (quantity > resource.amount) "보유 수량을 초과했습니다" else "1개 이상 입력하세요",
+                        color = StatusRed,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = GoldAccent.copy(alpha = 0.12f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("예상 판매 금액", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+                        Text(
+                            "+${"%,d".format(totalCoins)} 코인",
+                            color = GoldAccent,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, SpaceMid),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary)
+                    ) { Text("취소") }
+                    Button(
+                        onClick = { onConfirm(quantity) },
+                        enabled = isValid,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = GoldAccent, contentColor = SpaceDark)
+                    ) { Text("판매", fontWeight = FontWeight.Bold) }
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -279,7 +422,8 @@ private fun ResourceRow(
     changePositive: Boolean,
     unit: String = "",
     @DrawableRes iconRes: Int? = null,
-    icon: String? = null
+    icon: String? = null,
+    onSell: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
@@ -316,6 +460,18 @@ private fun ResourceRow(
                     color = if (changePositive) StatusGreen else StatusRed,
                     style = MaterialTheme.typography.labelSmall
                 )
+            }
+        }
+        if (onSell != null) {
+            Spacer(modifier = Modifier.width(8.dp))
+            OutlinedButton(
+                onClick = onSell,
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                shape = RoundedCornerShape(6.dp),
+                border = BorderStroke(1.dp, GoldAccent.copy(alpha = 0.5f)),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = GoldAccent)
+            ) {
+                Text("판매", style = MaterialTheme.typography.labelSmall)
             }
         }
     }

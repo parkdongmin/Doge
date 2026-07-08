@@ -11,6 +11,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
@@ -69,13 +70,17 @@ fun MainScreen(deepLinkFlow: StateFlow<String?>) {
         Box(modifier = Modifier.matchParentSize().background(SpaceDark))
 
         // 메인 콘텐츠
+        // 하단 탭 바는 4개 탭 화면에서만 그려지므로, 그 외 서브 화면(우주인 센터·격납고·
+        // 연구소 등)에서는 탭 바 높이만큼 빈 공간을 남기지 않도록 패딩을 조건부로 적용한다
+        val bottomBarPadding = if (currentRoute in bottomNavRoutes)
+            with(density) { navBarHeightPx.toDp() } else 0.dp
         NavHost(
             navController = navController,
             startDestination = NavRoutes.Explore.route,
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .padding(bottom = with(density) { navBarHeightPx.toDp() })
+                .padding(bottom = bottomBarPadding)
             ) {
                 // ── 하단 탭 4개 ───────────────────────────────────────
                 composable(NavRoutes.Explore.route) {

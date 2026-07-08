@@ -26,19 +26,19 @@ class ChooseStoryEventUseCase @Inject constructor(
         if (event.isDeparture && choiceIndex == 1) {
             if (Random.nextFloat() < GameConstants.DEPARTURE_LOOT_SUCCESS_RATE) {
                 if (amount > 0) resourceRepository.add(resourceType, amount)
-                storyRepository.selectEventChoice(event.id, choiceIndex)
+                storyRepository.selectEventChoice(event.id, event.expeditionId, choiceIndex)
                 chainFollowUpEvent(event)
             } else {
                 val penalty = (amount * 80).coerceAtLeast(150L)
                 userRepository.deductCoins(penalty)
                 val flavor = StoryContent.departureFailureFlavors.random()
-                storyRepository.selectEventChoice(event.id, choiceIndex, "⚠ $flavor (코인 -$penalty)")
+                storyRepository.selectEventChoice(event.id, event.expeditionId, choiceIndex, "⚠ $flavor (코인 -$penalty)")
             }
             return
         }
 
         if (amount > 0) resourceRepository.add(resourceType, amount)
-        storyRepository.selectEventChoice(event.id, choiceIndex)
+        storyRepository.selectEventChoice(event.id, event.expeditionId, choiceIndex)
     }
 
     private suspend fun chainFollowUpEvent(event: StoryEvent) {

@@ -11,6 +11,7 @@ import com.doge.simulator.domain.repository.ExpeditionRepository
 import com.doge.simulator.domain.repository.ResearchLabRepository
 import com.doge.simulator.domain.repository.ResourceRepository
 import com.doge.simulator.domain.repository.SpaceshipRepository
+import com.doge.simulator.domain.repository.UserRepository
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import kotlin.random.Random
@@ -21,13 +22,15 @@ class CompleteExpeditionUseCase @Inject constructor(
     private val spaceshipRepository: SpaceshipRepository,
     private val resourceRepository: ResourceRepository,
     private val researchLabRepository: ResearchLabRepository,
+    private val userRepository: UserRepository,
     private val generateReportUseCase: GenerateExpeditionReportUseCase,
     private val storyRepository: com.doge.simulator.domain.repository.StoryRepository
 ) {
     data class ExpeditionResult(
         val success: Boolean,
         val resources: Map<ResourceType, Long>,
-        val discoveredPlanetType: String?
+        val discoveredPlanetType: String?,
+        val coinsEarned: Long = 0L
     )
 
     suspend operator fun invoke(expedition: Expedition): ExpeditionResult {
@@ -79,6 +82,10 @@ class CompleteExpeditionUseCase @Inject constructor(
             }
         }
 
+        // 탐사 성공 시 행성 발견 여부와 무관하게 지급되는 기본 코인 보상.
+        // 초반에 코인을 다 쓰고 행성도 못 찾았을 때 완전히 무수입 상태가 되는 것을 막는 안전망
+        val coinsEarned = if (isSuccess) GameConstants.expeditionSuccessCoinReward(expedition.tier) else 0L
+
         // 탐사 기록 완료 처리
         val resourcesStr = resources.entries
             .joinToString(",") { "${it.key.name}:${it.value}" }
@@ -91,11 +98,13 @@ class CompleteExpeditionUseCase @Inject constructor(
             id = expedition.id,
             status = if (isSuccess) ExpeditionStatus.COMPLETED else ExpeditionStatus.FAILED,
             resourcesResult = resourcesStr,
-            discoveredPlanetType = discoveredPlanetType
+            discoveredPlanetType = discoveredPlanetType,
+            coinsEarned = coinsEarned
         )
         if (!claimed) return ExpeditionResult(success = false, resources = emptyMap(), discoveredPlanetType = null)
 
         resources.forEach { (type, amount) -> resourceRepository.add(type, amount) }
+        if (coinsEarned > 0) userRepository.addCoins(coinsEarned)
 
         // 우주인 IDLE 복구
         expedition.astronautIds.forEach { id ->
@@ -106,7 +115,7 @@ class CompleteExpeditionUseCase @Inject constructor(
         val report = generateReportUseCase(expedition, isSuccess)
         storyRepository.saveReport(report)
 
-        return ExpeditionResult(isSuccess, resources, discoveredPlanetType)
+        return ExpeditionResult(isSuccess, resources, discoveredPlanetType, coinsEarned)
     }
 
     private fun rollPlanetType(tier: Int): String {

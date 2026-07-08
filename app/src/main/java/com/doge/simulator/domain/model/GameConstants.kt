@@ -117,13 +117,30 @@ object GameConstants {
     )
 
     // 탐사 성공 시 행성 발견 확률 — 초반 체감을 위해 기본값을 올림 (후반은 레벨 보너스로 이미 충분히 오름)
-    const val PLANET_DISCOVERY_BASE_CHANCE = 0.28f
+    const val PLANET_DISCOVERY_BASE_CHANCE = 1f
     const val PLANET_DISCOVERY_PLANET_CATEGORY_BONUS = 0.10f
     const val PLANET_DISCOVERY_CELESTIAL_BONUS_PER_LEVEL = 0.03f
 
     // 전문 분야 일치 시 보너스
     const val SPECIALTY_MATCH_SUCCESS_BONUS = 0.05f
     const val SPECIALTY_MATCH_RESOURCE_BONUS = 0.5f
+
+    // 탐사 성공 시 행성 발견 여부와 무관하게 지급되는 기본 코인 보상.
+    // 초반에 코인을 다 쓰고 행성도 못 찾았을 때 완전히 무수입 상태가 되는 것을 막기 위한 안전망
+    fun expeditionSuccessCoinReward(tier: Int): Long = 100L + tier * 50L
+
+    // 자원 판매 단가 (코인/개) — 행성이 없어 방치 수익이 없을 때 자원을 코인으로 바꿀 수 있는 최소한의 환금 수단.
+    // 탐사 카테고리 해금 순서(광물→행성→유적→외계문명)를 대략적인 희귀도 기준으로 반영
+    val RESOURCE_SELL_PRICE: Map<ResourceType, Long> = mapOf(
+        ResourceType.IRON_ORE to 8L, ResourceType.MAGMA_STONE to 12L,
+        ResourceType.CRYSTAL to 20L, ResourceType.RARE_EARTH to 25L,
+        ResourceType.BIOMASS to 10L, ResourceType.COOLANT to 15L,
+        ResourceType.ENERGY_CORE to 22L, ResourceType.LIFE_CRYSTAL to 35L,
+        ResourceType.NANOBOT to 28L, ResourceType.DATA_CORE to 30L,
+        ResourceType.ANCIENT_ARTIFACT to 50L,
+        ResourceType.QUANTUM_CORE to 60L, ResourceType.UNKNOWN_MATTER to 65L,
+        ResourceType.ALIEN_TECH to 70L
+    )
 
     // 탐사 마무리 선택에서 "자원을 더 싣는다"를 골랐을 때 성공할 확률.
     // 실패하면 자원 대신 코인을 잃고, 후속 이벤트도 발생하지 않는다

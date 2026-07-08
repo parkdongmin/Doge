@@ -15,7 +15,8 @@ fun ExpeditionEntity.toDomain() = Expedition(
     endTime = endTime,
     status = ExpeditionStatus.valueOf(status),
     resourcesResult = resourcesResult,
-    discoveredPlanetType = discoveredPlanetType
+    discoveredPlanetType = discoveredPlanetType,
+    coinsEarned = coinsEarned
 )
 
 fun Expedition.toEntity() = ExpeditionEntity(
@@ -28,5 +29,7 @@ fun Expedition.toEntity() = ExpeditionEntity(
     endTime = endTime,
     status = status.name,
     resourcesResult = resourcesResult,
-    discoveredPlanetType = discoveredPlanetType
+    discoveredPlanetType = discoveredPlanetType,
+    resultHandled = true,
+    coinsEarned = coinsEarned
 )

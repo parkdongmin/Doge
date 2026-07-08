@@ -32,16 +32,11 @@ class UserRepositoryImpl(
     }
 
     override suspend fun addCoins(amount: Long) {
-        val current = dao.getUserOnce()?.coins ?: 0L
-        dao.updateCoins(current + amount)
+        dao.addCoinsAtomic(amount)
     }
 
-    override suspend fun deductCoins(amount: Long): Boolean {
-        val current = dao.getUserOnce()?.coins ?: 0L
-        if (current < amount) return false
-        dao.updateCoins(current - amount)
-        return true
-    }
+    override suspend fun deductCoins(amount: Long): Boolean =
+        dao.deductCoinsAtomic(amount) > 0
 
     override suspend fun recordVariantDiscovery(variantId: String) {
         if (variantId.isBlank()) return
