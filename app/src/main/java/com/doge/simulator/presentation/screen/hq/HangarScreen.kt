@@ -147,12 +147,13 @@ private fun SpaceshipCard(
     resources: List<Resource>,
     onUpgrade: () -> Unit
 ) {
+    val isMaxGrade = ship.grade >= GameConstants.MAX_SPACESHIP_GRADE
     val (upgradeCoinCost, upgradeResourceCost) = GameConstants.spaceshipUpgradeCost(ship.grade)
     val canAffordCoins = coins >= upgradeCoinCost
     val canAffordResources = upgradeResourceCost.all { (type, amount) ->
         (resources.firstOrNull { it.type == type }?.amount ?: 0L) >= amount
     }
-    val canUpgrade = canAffordCoins && canAffordResources
+    val canUpgrade = !isMaxGrade && canAffordCoins && canAffordResources
 
     Card(
         shape = RoundedCornerShape(12.dp),
@@ -183,22 +184,27 @@ private fun SpaceshipCard(
             // 강화 비용 표시
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically) {
-                Column {
-                    Text("강화 비용", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
-                    Text("%,d코인".format(upgradeCoinCost),
-                        color = if (canAffordCoins) GoldAccent else StatusRed, style = NumericXSmall)
-                    if (upgradeResourceCost.isNotEmpty()) {
-                        Text(upgradeResourceCost.entries.joinToString(" · ") { "${it.key.displayName}×${it.value}" },
-                            color = if (canAffordResources) TextSecondary else StatusRed,
-                            style = MaterialTheme.typography.labelSmall)
+                if (isMaxGrade) {
+                    Text("최종 등급 (탑승 ${GameConstants.MAX_CREW_CAPACITY}명 달성)", color = GoldAccent,
+                        style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                } else {
+                    Column {
+                        Text("강화 비용", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+                        Text("%,d코인".format(upgradeCoinCost),
+                            color = if (canAffordCoins) GoldAccent else StatusRed, style = NumericXSmall)
+                        if (upgradeResourceCost.isNotEmpty()) {
+                            Text(upgradeResourceCost.entries.joinToString(" · ") { "${it.key.displayName}×${it.value}" },
+                                color = if (canAffordResources) TextSecondary else StatusRed,
+                                style = MaterialTheme.typography.labelSmall)
+                        }
                     }
+                    Button(
+                        onClick = onUpgrade, enabled = canUpgrade,
+                        shape = RoundedCornerShape(6.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = SpaceAccent, contentColor = SpaceDark),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                    ) { Text("강화", style = MaterialTheme.typography.labelMedium) }
                 }
-                Button(
-                    onClick = onUpgrade, enabled = canUpgrade,
-                    shape = RoundedCornerShape(6.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = SpaceAccent, contentColor = SpaceDark),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
-                ) { Text("강화", style = MaterialTheme.typography.labelMedium) }
             }
         }
     }

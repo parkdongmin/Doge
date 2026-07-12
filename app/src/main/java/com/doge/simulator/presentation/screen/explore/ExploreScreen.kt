@@ -807,7 +807,12 @@ private fun TeamBuilderContent(
                         modifier = Modifier.padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(astronaut.specialty.icon, fontSize = 20.sp)
+                        Image(
+                            painter = painterResource(astronaut.specialty.characterImageRes(astronaut.grade)),
+                            contentDescription = null,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.size(40.dp)
+                        )
                         Spacer(modifier = Modifier.width(10.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(

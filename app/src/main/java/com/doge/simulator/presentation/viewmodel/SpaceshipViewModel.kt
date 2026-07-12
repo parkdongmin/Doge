@@ -61,6 +61,7 @@ class SpaceshipViewModel @Inject constructor(
                 UpgradeSpaceshipUseCase.Result.Success -> showMessage("${spaceship.name} 강화 완료!")
                 UpgradeSpaceshipUseCase.Result.InsufficientCoins -> showMessage("코인이 부족합니다")
                 UpgradeSpaceshipUseCase.Result.InsufficientResources -> showMessage("자원이 부족합니다")
+                UpgradeSpaceshipUseCase.Result.MaxGradeReached -> showMessage("이미 최종 등급입니다")
             }
         }
     }

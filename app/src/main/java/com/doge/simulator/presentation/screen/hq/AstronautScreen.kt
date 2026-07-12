@@ -1,6 +1,7 @@
 package com.doge.simulator.presentation.screen.hq
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -12,6 +13,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -200,7 +203,12 @@ private fun RecruitmentCandidateCard(
             modifier = Modifier.padding(12.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(candidate.specialty.icon, fontSize = 24.sp)
+            Image(
+                painter = painterResource(candidate.specialty.characterImageRes(candidate.grade)),
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.size(44.dp)
+            )
             Spacer(modifier = Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -251,7 +259,12 @@ private fun AstronautCard(
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(astronaut.specialty.icon, fontSize = 28.sp)
+                Image(
+                    painter = painterResource(astronaut.specialty.characterImageRes(astronaut.grade)),
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.size(48.dp)
+                )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp),

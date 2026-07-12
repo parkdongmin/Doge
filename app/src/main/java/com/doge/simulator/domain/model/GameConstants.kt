@@ -72,15 +72,17 @@ object GameConstants {
     const val SCOUT_CARGO_BASE = 40
     const val SCOUT_SUCCESS_RATE_BASE = 0.70f
 
-    // 우주선 강화 비용. 6등급 이후엔 유적·외계 문명 자원까지 소모처로 사용
+    // 최대 등급. spaceship_2/4/6/8 4단계 이미지에 맞춰 탑승 인원 8명(그림상 최종 형태)에서 강화 종료
+    const val MAX_SPACESHIP_GRADE = 6
+    const val MAX_CREW_CAPACITY = 8
+
+    // 우주선 강화 비용 (1등급 → MAX_SPACESHIP_GRADE 등급까지, 총 5회)
     fun spaceshipUpgradeCost(currentGrade: Int): Pair<Long, Map<ResourceType, Int>> = when (currentGrade) {
         1 -> 2_000L to mapOf(ResourceType.IRON_ORE to 5)
         2 -> 5_000L to mapOf(ResourceType.IRON_ORE to 5, ResourceType.MAGMA_STONE to 3)
         3 -> 12_000L to mapOf(ResourceType.MAGMA_STONE to 5, ResourceType.ENERGY_CORE to 3)
         4 -> 25_000L to mapOf(ResourceType.ENERGY_CORE to 5, ResourceType.CRYSTAL to 2)
-        5 -> 50_000L to mapOf(ResourceType.CRYSTAL to 5, ResourceType.RARE_EARTH to 3)
-        6 -> 90_000L to mapOf(ResourceType.RARE_EARTH to 3, ResourceType.DATA_CORE to 2)
-        else -> 150_000L to mapOf(ResourceType.ALIEN_TECH to 2, ResourceType.UNKNOWN_MATTER to 1)
+        else -> 50_000L to mapOf(ResourceType.CRYSTAL to 5, ResourceType.RARE_EARTH to 3)
     }
 
     // 강화당 스탯 증가량

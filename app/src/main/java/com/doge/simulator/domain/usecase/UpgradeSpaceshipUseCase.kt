@@ -17,9 +17,12 @@ class UpgradeSpaceshipUseCase @Inject constructor(
         object Success : Result()
         object InsufficientCoins : Result()
         object InsufficientResources : Result()
+        object MaxGradeReached : Result()
     }
 
     suspend operator fun invoke(spaceship: Spaceship): Result {
+        if (spaceship.grade >= GameConstants.MAX_SPACESHIP_GRADE) return Result.MaxGradeReached
+
         val (coinCost, resourceCost) = GameConstants.spaceshipUpgradeCost(spaceship.grade)
         val coins = userRepository.getCoins().first()
         if (coins < coinCost) return Result.InsufficientCoins
@@ -35,7 +38,7 @@ class UpgradeSpaceshipUseCase @Inject constructor(
         spaceshipRepository.upgrade(
             id = spaceship.id,
             grade = newGrade,
-            crewCapacity = spaceship.crewCapacity + GameConstants.UPGRADE_CREW_PER_GRADE,
+            crewCapacity = minOf(GameConstants.MAX_CREW_CAPACITY, spaceship.crewCapacity + GameConstants.UPGRADE_CREW_PER_GRADE),
             speed = minOf(100, spaceship.speed + GameConstants.UPGRADE_SPEED_PER_GRADE),
             cargo = minOf(100, spaceship.cargo + GameConstants.UPGRADE_CARGO_PER_GRADE),
             successRate = minOf(0.95f, spaceship.successRate + GameConstants.UPGRADE_SUCCESS_RATE_PER_GRADE)
