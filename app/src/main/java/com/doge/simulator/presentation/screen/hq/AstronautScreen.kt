@@ -98,7 +98,6 @@ fun AstronautScreen(
                     RecruitmentSection(
                         pool = recruitmentPool,
                         coins = coins,
-                        existingCount = astronauts.size,
                         canHire = astronauts.size < researchLab.maxAstronauts,
                         onHire = { viewModel.hireFromPool(it) },
                         onRefreshAd = { viewModel.refreshPoolWithAd() }
@@ -141,7 +140,6 @@ fun AstronautScreen(
 private fun RecruitmentSection(
     pool: RecruitmentPool,
     coins: Long,
-    existingCount: Int,
     canHire: Boolean,
     onHire: (Int) -> Unit,
     onRefreshAd: () -> Unit
@@ -171,8 +169,8 @@ private fun RecruitmentSection(
         slots.forEachIndexed { index, candidate ->
             RecruitmentCandidateCard(
                 candidate = candidate,
-                cost = candidate?.hireCost(existingCount),
-                canHire = canHire && candidate != null && coins >= (candidate.hireCost(existingCount)),
+                cost = candidate?.hireCost(),
+                canHire = canHire && candidate != null && coins >= candidate.hireCost(),
                 onHire = { onHire(index) }
             )
         }

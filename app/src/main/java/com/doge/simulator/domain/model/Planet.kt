@@ -28,4 +28,4 @@ data class Planet(
 
 // 강화 레벨이 오를수록 실제 생산량도 함께 오르도록 보정한 값
 val Planet.effectiveProduction: Long
-    get() = (production * GameConstants.planetLevelMultiplier(level)).toLong()
+    get() = (production * GameConstants.PLANET_PRODUCTION_SCALE * GameConstants.planetLevelMultiplier(level)).toLong()

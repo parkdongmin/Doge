@@ -10,10 +10,12 @@ data class RecruitmentCandidate(
     val grade: AstronautGrade,
     val proficiency: Int
 ) {
-    fun hireCost(existingAstronautCount: Int): Long {
-        val base = GameConstants.ASTRONAUT_BASE_HIRE_COST +
-                existingAstronautCount * GameConstants.ASTRONAUT_HIRE_COST_PER_EXISTING
-        return (base * grade.hireCostMultiplier).toLong()
+    // 같은 등급 안에서도 숙련도 롤이 높을수록 조금 더 비싸짐 (등급 경계를 넘어서지는 않음)
+    fun hireCost(): Long {
+        val range = grade.startProficiencyRange
+        val positionInGrade = (proficiency - range.first).toFloat() / (range.last - range.first)
+        val proficiencyMultiplier = 1.0f + positionInGrade.coerceIn(0f, 1f) * GameConstants.HIRE_COST_PROFICIENCY_SPREAD
+        return (GameConstants.ASTRONAUT_BASE_HIRE_COST * grade.hireCostMultiplier * proficiencyMultiplier).toLong()
     }
 
     companion object {
