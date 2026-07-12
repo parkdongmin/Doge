@@ -817,7 +817,8 @@ private fun TeamBuilderContent(
                             )
                             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(astronaut.specialty.displayName, color = SpaceAccent, style = MaterialTheme.typography.labelSmall)
-                                Text("Lv.${astronaut.level}", color = GoldAccent, style = MaterialTheme.typography.labelSmall)
+                                Text(astronaut.grade.displayName, color = GoldAccent, style = MaterialTheme.typography.labelSmall)
+                                Text("숙련도 ${astronaut.proficiency}", color = GoldAccent, style = MaterialTheme.typography.labelSmall)
                             }
                         }
                         if (selected) Text("✓", color = SpaceAccent, style = MaterialTheme.typography.bodyMedium)

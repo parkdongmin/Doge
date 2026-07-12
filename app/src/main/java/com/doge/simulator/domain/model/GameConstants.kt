@@ -55,6 +55,14 @@ object GameConstants {
     const val ADVANCED_TRAINING_COST_COINS = 800L
     val ADVANCED_TRAINING_RESOURCE_COST = mapOf(ResourceType.BIOMASS to 3)
 
+    // 훈련 시 숙련도 증가량 (등급 캡을 넘지 않도록 클램프됨)
+    const val BASIC_TRAINING_PROFICIENCY_GAIN = 5
+    const val ADVANCED_TRAINING_PROFICIENCY_GAIN = 20
+
+    // ── 모집 센터 ─────────────────────────────────────────────────────
+    const val RECRUITMENT_POOL_SIZE = 5
+    val RECRUITMENT_REFRESH_INTERVAL_MS = TimeUnit.HOURS.toMillis(3)
+
     // ── 우주선 ────────────────────────────────────────────────────────
     const val SCOUT_SHIP_BASE_COST = 1_000L
 
@@ -116,14 +124,19 @@ object GameConstants {
         10 to TierUnlockCondition(RarityTier.LEGENDARY,1, "LEGENDARY 행성 1개+")
     )
 
-    // 탐사 성공 시 행성 발견 확률 — 초반 체감을 위해 기본값을 올림 (후반은 레벨 보너스로 이미 충분히 오름)
-    const val PLANET_DISCOVERY_BASE_CHANCE = 1f
+    // 탐사 성공 시 행성 발견 확률. 천체 분석 레벨(+3%/레벨)과 행성 카테고리 보너스(+10%)로 후반에 상승,
+    // 최종 상한은 discoveryChance 계산부(CompleteExpeditionUseCase)에서 80%로 코어스
+    const val PLANET_DISCOVERY_BASE_CHANCE = 0.35f
     const val PLANET_DISCOVERY_PLANET_CATEGORY_BONUS = 0.10f
     const val PLANET_DISCOVERY_CELESTIAL_BONUS_PER_LEVEL = 0.03f
 
-    // 전문 분야 일치 시 보너스
-    const val SPECIALTY_MATCH_SUCCESS_BONUS = 0.05f
-    const val SPECIALTY_MATCH_RESOURCE_BONUS = 0.5f
+    // 전문 분야 일치 시 보너스 (숙련도 기반)
+    // 성공률: 매칭되는 전문가 중 최고 숙련도(MAX) 1명 기준 — 숙련도 100이면 최대치 보너스
+    const val SPECIALTY_PROFICIENCY_SUCCESS_COEFFICIENT = 0.25f
+    // 자원량: 매칭되는 전문가들의 숙련도 합산 기준 — 인원이 많고 숙련도가 높을수록 커짐
+    const val SPECIALTY_PROFICIENCY_RESOURCE_COEFFICIENT = 0.5f
+    // 자원량: 파견 인원수 자체도 기여 (매칭 여부 무관, 1명 초과 인원당 가산)
+    const val CREW_SIZE_RESOURCE_BONUS_PER_HEAD = 0.15
 
     // 탐사 성공 시 행성 발견 여부와 무관하게 지급되는 기본 코인 보상.
     // 초반에 코인을 다 쓰고 행성도 못 찾았을 때 완전히 무수입 상태가 되는 것을 막기 위한 안전망

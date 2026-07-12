@@ -9,6 +9,7 @@ import com.doge.simulator.data.local.dao.EventLogDao
 import com.doge.simulator.data.local.dao.ExpeditionDao
 import com.doge.simulator.data.local.dao.ExpeditionReportDao
 import com.doge.simulator.data.local.dao.PlanetDao
+import com.doge.simulator.data.local.dao.RecruitmentDao
 import com.doge.simulator.data.local.dao.ResearchLabDao
 import com.doge.simulator.data.local.dao.ResourceDao
 import com.doge.simulator.data.local.dao.SpaceshipDao
@@ -19,6 +20,8 @@ import com.doge.simulator.data.local.entity.EventLogEntity
 import com.doge.simulator.data.local.entity.ExpeditionEntity
 import com.doge.simulator.data.local.entity.ExpeditionReportEntity
 import com.doge.simulator.data.local.entity.PlanetEntity
+import com.doge.simulator.data.local.entity.RecruitmentCandidateEntity
+import com.doge.simulator.data.local.entity.RecruitmentMetaEntity
 import com.doge.simulator.data.local.entity.ResearchLabEntity
 import com.doge.simulator.data.local.entity.ResourceEntity
 import com.doge.simulator.data.local.entity.SpaceshipEntity
@@ -39,8 +42,10 @@ import com.doge.simulator.data.local.entity.UserEntity
         StoryProgressEntity::class,
         ExpeditionReportEntity::class,
         StoryEventEntity::class,
+        RecruitmentCandidateEntity::class,
+        RecruitmentMetaEntity::class,
     ],
-    version = 12,
+    version = 13,
     exportSchema = false
 )
 abstract class PlanetDatabase : RoomDatabase() {
@@ -54,6 +59,7 @@ abstract class PlanetDatabase : RoomDatabase() {
     abstract fun researchLabDao(): ResearchLabDao
     abstract fun storyProgressDao(): StoryProgressDao
     abstract fun expeditionReportDao(): ExpeditionReportDao
+    abstract fun recruitmentDao(): RecruitmentDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -290,6 +296,53 @@ abstract class PlanetDatabase : RoomDatabase() {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL(
                     "ALTER TABLE expedition_table ADD COLUMN coinsEarned INTEGER NOT NULL DEFAULT 0"
+                )
+            }
+        }
+
+        val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // astronaut_table 재생성 (level 제거 / grade, proficiency, trainingType 추가)
+                database.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `astronaut_table_new` (
+                        `id` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `specialty` TEXT NOT NULL,
+                        `grade` TEXT NOT NULL DEFAULT 'INTERN',
+                        `proficiency` INTEGER NOT NULL DEFAULT 10,
+                        `status` TEXT NOT NULL,
+                        `trainingEndTime` INTEGER,
+                        `trainingType` TEXT,
+                        `hiredAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )"""
+                )
+                database.execSQL(
+                    """INSERT INTO `astronaut_table_new`
+                        (id, name, specialty, grade, proficiency, status, trainingEndTime, trainingType, hiredAt)
+                       SELECT id, name, specialty, 'INTERN', MIN(level * 5, 50), status, trainingEndTime, NULL, hiredAt
+                       FROM `astronaut_table`"""
+                )
+                database.execSQL("DROP TABLE `astronaut_table`")
+                database.execSQL("ALTER TABLE `astronaut_table_new` RENAME TO `astronaut_table`")
+
+                database.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `recruitment_candidate_table` (
+                        `slotIndex` INTEGER NOT NULL,
+                        `id` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `specialty` TEXT NOT NULL,
+                        `grade` TEXT NOT NULL,
+                        `proficiency` INTEGER NOT NULL,
+                        PRIMARY KEY(`slotIndex`)
+                    )"""
+                )
+                database.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `recruitment_meta_table` (
+                        `id` INTEGER NOT NULL,
+                        `lastRefreshTime` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )"""
                 )
             }
         }

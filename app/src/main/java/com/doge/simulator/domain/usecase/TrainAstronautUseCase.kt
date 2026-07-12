@@ -3,6 +3,7 @@ package com.doge.simulator.domain.usecase
 import com.doge.simulator.domain.model.Astronaut
 import com.doge.simulator.domain.model.AstronautStatus
 import com.doge.simulator.domain.model.GameConstants
+import com.doge.simulator.domain.model.TrainingType
 import com.doge.simulator.domain.repository.AstronautRepository
 import com.doge.simulator.domain.repository.ResearchLabRepository
 import com.doge.simulator.domain.repository.ResourceRepository
@@ -22,10 +23,12 @@ class TrainAstronautUseCase @Inject constructor(
         object InsufficientResources : Result()
         object TrainingSlotFull : Result()
         object AstronautNotIdle : Result()
+        object AlreadyAtCap : Result()
     }
 
     suspend operator fun invoke(astronaut: Astronaut, isAdvanced: Boolean): Result {
         if (astronaut.status != AstronautStatus.IDLE) return Result.AstronautNotIdle
+        if (astronaut.proficiency >= astronaut.grade.proficiencyCap) return Result.AlreadyAtCap
 
         val lab = researchLabRepository.get().first()
         val trainingCount = astronautRepository.getAstronauts().first()
@@ -51,8 +54,9 @@ class TrainAstronautUseCase @Inject constructor(
         val duration = if (isAdvanced) GameConstants.ADVANCED_TRAINING_DURATION_MS
                        else GameConstants.BASIC_TRAINING_DURATION_MS
         val trainingEndTime = System.currentTimeMillis() + duration
+        val trainingType = if (isAdvanced) TrainingType.ADVANCED else TrainingType.BASIC
 
-        astronautRepository.updateStatus(astronaut.id, AstronautStatus.TRAINING, trainingEndTime)
+        astronautRepository.updateStatus(astronaut.id, AstronautStatus.TRAINING, trainingEndTime, trainingType)
         return Result.Success
     }
 }

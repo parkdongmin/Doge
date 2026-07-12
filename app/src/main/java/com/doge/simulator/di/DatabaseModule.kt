@@ -33,7 +33,8 @@ object DatabaseModule {
                 PlanetDatabase.MIGRATION_8_9,
                 PlanetDatabase.MIGRATION_9_10,
                 PlanetDatabase.MIGRATION_10_11,
-                PlanetDatabase.MIGRATION_11_12
+                PlanetDatabase.MIGRATION_11_12,
+                PlanetDatabase.MIGRATION_12_13
             )
             .build()
     }
@@ -49,6 +50,7 @@ object DatabaseModule {
     @Provides fun provideResearchLabDao(db: PlanetDatabase): ResearchLabDao = db.researchLabDao()
     @Provides fun provideStoryProgressDao(db: PlanetDatabase): StoryProgressDao = db.storyProgressDao()
     @Provides fun provideExpeditionReportDao(db: PlanetDatabase): ExpeditionReportDao = db.expeditionReportDao()
+    @Provides fun provideRecruitmentDao(db: PlanetDatabase): RecruitmentDao = db.recruitmentDao()
 
     // ── Repositories ──────────────────────────────────────────────────
     @Provides @Singleton
@@ -80,4 +82,7 @@ object DatabaseModule {
         progressDao: StoryProgressDao,
         reportDao: ExpeditionReportDao
     ): StoryRepository = StoryRepositoryImpl(progressDao, reportDao)
+
+    @Provides @Singleton
+    fun provideRecruitmentRepository(dao: RecruitmentDao): RecruitmentRepository = RecruitmentRepositoryImpl(dao)
 }

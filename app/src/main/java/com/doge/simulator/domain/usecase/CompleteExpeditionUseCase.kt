@@ -40,10 +40,11 @@ class CompleteExpeditionUseCase @Inject constructor(
         val spaceship = spaceshipRepository.getSpaceships().first()
             .firstOrNull { it.id == expedition.spaceshipId }
 
-        // 성공률: 우주선 기본값 + 전문 분야 일치 보너스
+        // 성공률: 우주선 기본값 + 전문 분야 일치 보너스 (매칭 전문가 중 최고 숙련도 1명 기준)
+        val matchingAstronauts = astronauts.filter { it.specialty.relatedCategory == expedition.category }
         val shipBaseRate = spaceship?.successRate ?: GameConstants.SCOUT_SUCCESS_RATE_BASE
-        val specialtyBonus = astronauts.count { it.specialty.relatedCategory == expedition.category } *
-                GameConstants.SPECIALTY_MATCH_SUCCESS_BONUS
+        val maxProficiency = matchingAstronauts.maxOfOrNull { it.proficiency } ?: 0
+        val specialtyBonus = (maxProficiency / 100f) * GameConstants.SPECIALTY_PROFICIENCY_SUCCESS_COEFFICIENT
         val successChance = (shipBaseRate + specialtyBonus).coerceIn(0.1f, 0.95f)
         val isSuccess = Random.nextFloat() < successChance
 
@@ -51,16 +52,16 @@ class CompleteExpeditionUseCase @Inject constructor(
         var discoveredPlanetType: String? = null
 
         if (isSuccess) {
-            // 자원 획득 (cargo 높을수록 더 많이)
+            // 자원 획득 (cargo 높을수록, 파견 인원이 많을수록, 매칭 전문가 숙련도 합이 높을수록 더 많이)
             val cargoMultiplier = 1.0 + ((spaceship?.cargo ?: 50) - 50) / 100.0
+            val crewMultiplier = 1.0 + (astronauts.size - 1).coerceAtLeast(0) * GameConstants.CREW_SIZE_RESOURCE_BONUS_PER_HEAD
+            val proficiencySum = matchingAstronauts.sumOf { it.proficiency }
+            val specialtyMultiplier = 1.0 + (proficiencySum / 100.0) * GameConstants.SPECIALTY_PROFICIENCY_RESOURCE_COEFFICIENT
             val categoryResources = ResourceType.entries.filter { it.category == expedition.category }
-            val hasSpecialtyMatch = astronauts.any { it.specialty.relatedCategory == expedition.category }
 
             categoryResources.forEach { resourceType ->
                 val baseAmount = Random.nextLong(1, 6)
-                val specialtyMultiplier = if (hasSpecialtyMatch)
-                    1.0 + GameConstants.SPECIALTY_MATCH_RESOURCE_BONUS else 1.0
-                val amount = (baseAmount * cargoMultiplier * specialtyMultiplier).toLong().coerceAtLeast(1L)
+                val amount = (baseAmount * cargoMultiplier * crewMultiplier * specialtyMultiplier).toLong().coerceAtLeast(1L)
                 resources[resourceType] = amount
             }
 

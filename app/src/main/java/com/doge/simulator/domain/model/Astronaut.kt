@@ -6,8 +6,10 @@ data class Astronaut(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
     val specialty: AstronautSpecialty,
-    val level: Int = 1,
+    val grade: AstronautGrade,
+    val proficiency: Int,
     val status: AstronautStatus = AstronautStatus.IDLE,
     val trainingEndTime: Long? = null,
+    val trainingType: TrainingType? = null,
     val hiredAt: Long = System.currentTimeMillis()
 )

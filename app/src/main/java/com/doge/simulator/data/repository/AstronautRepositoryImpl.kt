@@ -5,6 +5,7 @@ import com.doge.simulator.data.local.mapper.toDomain
 import com.doge.simulator.data.local.mapper.toEntity
 import com.doge.simulator.domain.model.Astronaut
 import com.doge.simulator.domain.model.AstronautStatus
+import com.doge.simulator.domain.model.TrainingType
 import com.doge.simulator.domain.repository.AstronautRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -19,11 +20,15 @@ class AstronautRepositoryImpl(
     override suspend fun hire(astronaut: Astronaut) =
         dao.insert(astronaut.toEntity())
 
-    override suspend fun updateStatus(id: String, status: AstronautStatus, trainingEndTime: Long?) =
-        dao.updateStatus(id, status.name, trainingEndTime)
+    override suspend fun updateStatus(
+        id: String,
+        status: AstronautStatus,
+        trainingEndTime: Long?,
+        trainingType: TrainingType?
+    ) = dao.updateStatus(id, status.name, trainingEndTime, trainingType?.name)
 
-    override suspend fun completeTraining(id: String, newLevel: Int) =
-        dao.completeTraining(id, newLevel)
+    override suspend fun completeTraining(id: String, newProficiency: Int) =
+        dao.completeTraining(id, newProficiency)
 
     override suspend fun dismiss(id: String) =
         dao.delete(id)

@@ -10,14 +10,17 @@ import androidx.work.workDataOf
 import com.doge.simulator.data.worker.TrainingCompleteWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.doge.simulator.domain.model.Astronaut
-import com.doge.simulator.domain.model.AstronautSpecialty
 import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.AstronautStatus
+import com.doge.simulator.domain.model.RecruitmentPool
 import com.doge.simulator.domain.repository.UserRepository
 import com.doge.simulator.domain.usecase.CompleteTrainingUseCase
+import com.doge.simulator.domain.usecase.EnsureRecruitmentPoolFreshUseCase
 import com.doge.simulator.domain.usecase.GetAstronautsUseCase
+import com.doge.simulator.domain.usecase.GetRecruitmentPoolUseCase
 import com.doge.simulator.domain.usecase.GetResearchLabUseCase
-import com.doge.simulator.domain.usecase.HireAstronautUseCase
+import com.doge.simulator.domain.usecase.HireFromPoolUseCase
+import com.doge.simulator.domain.usecase.RefreshRecruitmentPoolUseCase
 import com.doge.simulator.domain.usecase.TrainAstronautUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
@@ -33,7 +36,10 @@ import javax.inject.Inject
 class AstronautViewModel @Inject constructor(
     private val getAstronautsUseCase: GetAstronautsUseCase,
     private val getResearchLabUseCase: GetResearchLabUseCase,
-    private val hireAstronautUseCase: HireAstronautUseCase,
+    private val getRecruitmentPoolUseCase: GetRecruitmentPoolUseCase,
+    private val hireFromPoolUseCase: HireFromPoolUseCase,
+    private val ensureRecruitmentPoolFreshUseCase: EnsureRecruitmentPoolFreshUseCase,
+    private val refreshRecruitmentPoolUseCase: RefreshRecruitmentPoolUseCase,
     private val trainAstronautUseCase: TrainAstronautUseCase,
     private val completeTrainingUseCase: CompleteTrainingUseCase,
     private val userRepository: UserRepository,
@@ -47,6 +53,9 @@ class AstronautViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000),
             com.doge.simulator.domain.model.ResearchLab())
 
+    val recruitmentPool: StateFlow<RecruitmentPool> = getRecruitmentPoolUseCase()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), RecruitmentPool(emptyList(), 0L))
+
     val coins: StateFlow<Long> = userRepository.getCoins()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
 
@@ -54,11 +63,13 @@ class AstronautViewModel @Inject constructor(
     val message: StateFlow<String?> = _message.asStateFlow()
 
     init {
-        // 1분마다 훈련 완료 체크
+        viewModelScope.launch { ensureRecruitmentPoolFreshUseCase() }
+        // 1분마다 훈련 완료 및 모집 풀 자동 새로고침 체크
         viewModelScope.launch {
             while (true) {
                 delay(60_000L)
                 checkTrainingCompletions()
+                ensureRecruitmentPoolFreshUseCase()
             }
         }
     }
@@ -70,13 +81,21 @@ class AstronautViewModel @Inject constructor(
             .forEach { completeTrainingUseCase(it) }
     }
 
-    fun hire(specialty: AstronautSpecialty) {
+    fun hireFromPool(slotIndex: Int) {
         viewModelScope.launch {
-            when (hireAstronautUseCase(specialty)) {
-                HireAstronautUseCase.Result.Success -> showMessage("${specialty.displayName} 고용 완료!")
-                HireAstronautUseCase.Result.InsufficientCoins -> showMessage("코인이 부족합니다")
-                HireAstronautUseCase.Result.MaxLimitReached -> showMessage("고용 한도에 도달했습니다")
+            when (hireFromPoolUseCase(slotIndex)) {
+                HireFromPoolUseCase.Result.Success -> showMessage("영입 완료!")
+                HireFromPoolUseCase.Result.InsufficientCoins -> showMessage("코인이 부족합니다")
+                HireFromPoolUseCase.Result.MaxLimitReached -> showMessage("고용 한도에 도달했습니다")
+                HireFromPoolUseCase.Result.SlotEmpty -> showMessage("이미 영입된 후보입니다")
             }
+        }
+    }
+
+    fun refreshPoolWithAd() {
+        viewModelScope.launch {
+            refreshRecruitmentPoolUseCase()
+            showMessage("모집 풀이 새로고침되었습니다!")
         }
     }
 
@@ -93,6 +112,7 @@ class AstronautViewModel @Inject constructor(
                 TrainAstronautUseCase.Result.InsufficientResources -> showMessage("자원이 부족합니다")
                 TrainAstronautUseCase.Result.TrainingSlotFull -> showMessage("훈련 슬롯이 가득 찼습니다")
                 TrainAstronautUseCase.Result.AstronautNotIdle -> showMessage("해당 우주인은 현재 사용 중입니다")
+                TrainAstronautUseCase.Result.AlreadyAtCap -> showMessage("이미 등급 숙련도 한계에 도달했습니다")
             }
         }
     }

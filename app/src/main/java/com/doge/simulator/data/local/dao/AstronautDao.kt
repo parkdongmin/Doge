@@ -13,11 +13,11 @@ interface AstronautDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(astronaut: AstronautEntity)
 
-    @Query("UPDATE astronaut_table SET status = :status, trainingEndTime = :trainingEndTime WHERE id = :id")
-    suspend fun updateStatus(id: String, status: String, trainingEndTime: Long?)
+    @Query("UPDATE astronaut_table SET status = :status, trainingEndTime = :trainingEndTime, trainingType = :trainingType WHERE id = :id")
+    suspend fun updateStatus(id: String, status: String, trainingEndTime: Long?, trainingType: String?)
 
-    @Query("UPDATE astronaut_table SET level = :level, status = 'IDLE', trainingEndTime = NULL WHERE id = :id")
-    suspend fun completeTraining(id: String, level: Int)
+    @Query("UPDATE astronaut_table SET proficiency = :proficiency, status = 'IDLE', trainingEndTime = NULL, trainingType = NULL WHERE id = :id")
+    suspend fun completeTraining(id: String, proficiency: Int)
 
     @Query("DELETE FROM astronaut_table WHERE id = :id")
     suspend fun delete(id: String)
