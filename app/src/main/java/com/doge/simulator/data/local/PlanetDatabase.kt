@@ -5,7 +5,6 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.doge.simulator.data.local.dao.AstronautDao
-import com.doge.simulator.data.local.dao.EventLogDao
 import com.doge.simulator.data.local.dao.ExpeditionDao
 import com.doge.simulator.data.local.dao.ExpeditionReportDao
 import com.doge.simulator.data.local.dao.PlanetDao
@@ -16,7 +15,6 @@ import com.doge.simulator.data.local.dao.SpaceshipDao
 import com.doge.simulator.data.local.dao.StoryProgressDao
 import com.doge.simulator.data.local.dao.UserDao
 import com.doge.simulator.data.local.entity.AstronautEntity
-import com.doge.simulator.data.local.entity.EventLogEntity
 import com.doge.simulator.data.local.entity.ExpeditionEntity
 import com.doge.simulator.data.local.entity.ExpeditionReportEntity
 import com.doge.simulator.data.local.entity.PlanetEntity
@@ -33,7 +31,6 @@ import com.doge.simulator.data.local.entity.UserEntity
     entities = [
         PlanetEntity::class,
         UserEntity::class,
-        EventLogEntity::class,
         AstronautEntity::class,
         SpaceshipEntity::class,
         ExpeditionEntity::class,
@@ -45,13 +42,12 @@ import com.doge.simulator.data.local.entity.UserEntity
         RecruitmentCandidateEntity::class,
         RecruitmentMetaEntity::class,
     ],
-    version = 13,
+    version = 14,
     exportSchema = false
 )
 abstract class PlanetDatabase : RoomDatabase() {
     abstract fun planetDao(): PlanetDao
     abstract fun userDao(): UserDao
-    abstract fun eventLogDao(): EventLogDao
     abstract fun astronautDao(): AstronautDao
     abstract fun spaceshipDao(): SpaceshipDao
     abstract fun expeditionDao(): ExpeditionDao
@@ -344,6 +340,13 @@ abstract class PlanetDatabase : RoomDatabase() {
                         PRIMARY KEY(`id`)
                     )"""
                 )
+            }
+        }
+
+        val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // event_log_table 제거 (아무 화면에서도 읽지 않는 로그 전용 테이블이었음)
+                database.execSQL("DROP TABLE IF EXISTS `event_log_table`")
             }
         }
     }

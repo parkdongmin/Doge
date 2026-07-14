@@ -1,13 +1,9 @@
 package com.doge.simulator.domain.usecase
 
-import com.doge.simulator.domain.model.EventLog
-import com.doge.simulator.domain.model.EventLogType
 import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.Planet
 import com.doge.simulator.domain.model.PlanetMetaDataTable
-import com.doge.simulator.domain.model.ResourceType
 import com.doge.simulator.domain.model.effectiveProduction
-import com.doge.simulator.domain.repository.EventLogRepository
 import com.doge.simulator.domain.repository.PlanetRepository
 import com.doge.simulator.domain.repository.ResourceRepository
 import com.doge.simulator.domain.repository.UserRepository
@@ -17,7 +13,6 @@ import kotlin.random.Random
 class CollectProfitUseCase @Inject constructor(
     private val planetRepository: PlanetRepository,
     private val userRepository: UserRepository,
-    private val eventLogRepository: EventLogRepository,
     private val resourceRepository: ResourceRepository
 ) {
     suspend operator fun invoke(planets: List<Planet>) {
@@ -42,27 +37,10 @@ class CollectProfitUseCase @Inject constructor(
             val rarityMultiplier = GameConstants.RARITY_RESOURCE_MULTIPLIER[meta?.rarity] ?: 1.0
             val levelMultiplier = GameConstants.planetLevelMultiplier(planet.level)
 
-            val droppedResources = meta?.resourceDrops.orEmpty().mapNotNull { (type, baseDropChance) ->
+            meta?.resourceDrops.orEmpty().forEach { (type, baseDropChance) ->
                 val amount = rollResourceAmount(elapsedMinutes, baseDropChance, rarityMultiplier, levelMultiplier)
-                if (amount <= 0L) return@mapNotNull null
-                resourceRepository.add(type, amount)
-                type to amount
+                if (amount > 0L) resourceRepository.add(type, amount)
             }
-            val resourceText = droppedResources.takeIf { it.isNotEmpty() }
-                ?.joinToString(", ") { (type, amount) -> "${type.displayName} +$amount" }
-                ?.let { " | $it" }
-                ?: ""
-
-            eventLogRepository.insertLog(
-                EventLog(
-                    type = EventLogType.MAINTENANCE_COLLECTED,
-                    planetId = planet.id,
-                    planetType = planet.type.name,
-                    planetDisplayName = meta?.displayName,
-                    description = "${meta?.displayName ?: planet.type.name}: ${elapsedMinutes}분 수익 +$earned 코인$resourceText",
-                    coinDelta = earned
-                )
-            )
         }
 
         if (totalEarned > 0) userRepository.addCoins(totalEarned)

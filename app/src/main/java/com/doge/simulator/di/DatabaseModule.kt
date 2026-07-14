@@ -34,7 +34,8 @@ object DatabaseModule {
                 PlanetDatabase.MIGRATION_9_10,
                 PlanetDatabase.MIGRATION_10_11,
                 PlanetDatabase.MIGRATION_11_12,
-                PlanetDatabase.MIGRATION_12_13
+                PlanetDatabase.MIGRATION_12_13,
+                PlanetDatabase.MIGRATION_13_14
             )
             .build()
     }
@@ -42,7 +43,6 @@ object DatabaseModule {
     // ── DAOs ──────────────────────────────────────────────────────────
     @Provides fun providePlanetDao(db: PlanetDatabase): PlanetDao = db.planetDao()
     @Provides fun provideUserDao(db: PlanetDatabase): UserDao = db.userDao()
-    @Provides fun provideEventLogDao(db: PlanetDatabase): EventLogDao = db.eventLogDao()
     @Provides fun provideAstronautDao(db: PlanetDatabase): AstronautDao = db.astronautDao()
     @Provides fun provideSpaceshipDao(db: PlanetDatabase): SpaceshipDao = db.spaceshipDao()
     @Provides fun provideExpeditionDao(db: PlanetDatabase): ExpeditionDao = db.expeditionDao()
@@ -58,9 +58,6 @@ object DatabaseModule {
 
     @Provides @Singleton
     fun provideUserRepository(dao: UserDao): UserRepository = UserRepositoryImpl(dao)
-
-    @Provides @Singleton
-    fun provideEventLogRepository(dao: EventLogDao): EventLogRepository = EventLogRepositoryImpl(dao)
 
     @Provides @Singleton
     fun provideAstronautRepository(dao: AstronautDao): AstronautRepository = AstronautRepositoryImpl(dao)
