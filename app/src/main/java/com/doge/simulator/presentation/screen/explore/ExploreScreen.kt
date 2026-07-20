@@ -2,6 +2,7 @@ package com.doge.simulator.presentation.screen.explore
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -18,7 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
@@ -39,6 +40,8 @@ import com.doge.simulator.domain.model.*
 import com.doge.simulator.presentation.viewmodel.ExploreViewModel
 import com.doge.simulator.ui.theme.*
 import java.util.concurrent.TimeUnit
+import kotlin.math.sin
+import kotlin.random.Random
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -92,6 +95,8 @@ fun ExploreScreen(
                 ),
             contentAlignment = Alignment.Center
         ) {
+            TwinklingStars(modifier = Modifier.matchParentSize())
+
             Image(
                 painter = painterResource(com.doge.simulator.R.drawable.bg_explore),
                 contentDescription = null,
@@ -112,6 +117,7 @@ fun ExploreScreen(
         )
         CategoryGrid(
             researchLab = researchLab,
+            activeCountByCategory = activeExpeditions.groupingBy { it.category }.eachCount(),
             onSelectCategory = { category ->
                 viewModel.selectCategory(category)
                 viewModel.openTeamBuilder()
@@ -310,101 +316,45 @@ private fun SlotAndRecordCard(
     }
 }
 
-// ── 행성 + 우주선 애니메이션 ─────────────────────────────────────────
+// ── 반짝이는 별 배경 ──────────────────────────────────────────────────
+private data class StarSpec(
+    val xFraction: Float,
+    val yFraction: Float,
+    val radiusDp: Float,
+    val phase: Float,
+    val speed: Float
+)
+
 @Composable
-private fun PlanetHeroSection(
-    modifier: Modifier = Modifier,
-    storyProgress: com.doge.simulator.domain.model.StoryProgress =
-        com.doge.simulator.domain.model.StoryProgress()
-) {
-    val infiniteTransition = rememberInfiniteTransition(label = "orbit")
-    val angle by infiniteTransition.animateFloat(
+private fun TwinklingStars(modifier: Modifier = Modifier, count: Int = 24) {
+    val stars = remember {
+        List(count) {
+            StarSpec(
+                xFraction = Random.nextFloat(),
+                yFraction = Random.nextFloat(),
+                radiusDp = Random.nextFloat() * 1.2f + 0.6f,
+                phase = Random.nextFloat() * (2f * Math.PI.toFloat()),
+                speed = Random.nextFloat() * 0.8f + 0.6f
+            )
+        }
+    }
+    val infiniteTransition = rememberInfiniteTransition(label = "stars")
+    val time by infiniteTransition.animateFloat(
         initialValue = 0f,
-        targetValue = 360f,
+        targetValue = 2f * Math.PI.toFloat(),
         animationSpec = infiniteRepeatable(
-            animation = tween(12000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
+            animation = tween(6000, easing = LinearEasing)
         ),
-        label = "shipAngle"
+        label = "starTime"
     )
 
-    Box(
-        modifier = modifier.fillMaxWidth(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.fillMaxSize()
-        ) {
-            // 챕터 뱃지
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = SpaceNavy.copy(alpha = 0.7f),
-                border = BorderStroke(1.dp, SpaceBlue.copy(alpha = 0.4f))
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text("📖", fontSize = 11.sp)
-                    Text(
-                        "챕터 ${storyProgress.currentChapter}  ·  ${storyProgress.chapterTitle}",
-                        color = TextSecondary,
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 행성 + 우주선 공전
-            Box(contentAlignment = Alignment.Center) {
-                // 행성 이미지
-                Image(
-                    painter = painterResource(com.doge.simulator.R.drawable.bg_planet_explore),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(160.dp)
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop
-                )
-
-                // 궤도 링 + 공전 우주선
-                Box(
-                    modifier = Modifier.size(240.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Surface(
-                        modifier = Modifier.size(240.dp),
-                        shape = CircleShape,
-                        color = Color.Transparent,
-                        border = BorderStroke(0.5.dp, SpaceBlue.copy(alpha = 0.2f))
-                    ) {}
-
-                    val radians = Math.toRadians(angle.toDouble())
-                    val orbitRadius = 120f
-                    val offsetX = (orbitRadius * Math.cos(radians)).toFloat()
-                    val offsetY = (orbitRadius * Math.sin(radians)).toFloat()
-
-                    Box(
-                        modifier = Modifier
-                            .offset(offsetX.dp, offsetY.dp)
-                            .rotate(angle + 90f)
-                    ) {
-                        Text("🚀", fontSize = 15.sp)
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // 탐사 완료 기록 수
-            Text(
-                "탐사 기록  ${storyProgress.totalRecordsCompleted}건",
-                color = TextDisabled,
-                style = MaterialTheme.typography.labelSmall
+    Canvas(modifier = modifier) {
+        stars.forEach { star ->
+            val alpha = 0.25f + 0.6f * ((sin(time * star.speed + star.phase) + 1f) / 2f)
+            drawCircle(
+                color = Color.White.copy(alpha = alpha),
+                radius = star.radiusDp.dp.toPx(),
+                center = Offset(size.width * star.xFraction, size.height * star.yFraction)
             )
         }
     }
@@ -414,6 +364,7 @@ private fun PlanetHeroSection(
 @Composable
 private fun CategoryGrid(
     researchLab: ResearchLab,
+    activeCountByCategory: Map<ExpeditionCategory, Int>,
     onSelectCategory: (ExpeditionCategory) -> Unit
 ) {
     val unlockedCategories = researchLab.unlockedCategories().toSet()
@@ -429,6 +380,7 @@ private fun CategoryGrid(
             CategoryCard(
                 category = category,
                 isUnlocked = category in unlockedCategories,
+                activeCount = activeCountByCategory[category] ?: 0,
                 modifier = Modifier.weight(1f).fillMaxHeight(),
                 onClick = { onSelectCategory(category) }
             )
@@ -447,6 +399,7 @@ private val categoryColors = mapOf(
 private fun CategoryCard(
     category: ExpeditionCategory,
     isUnlocked: Boolean,
+    activeCount: Int,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
@@ -454,21 +407,29 @@ private fun CategoryCard(
     // 카테고리 대표 자원 아이콘 (첫 번째)
     val representativeResource = ResourceType.entries.firstOrNull { it.category == category }
     val resourceCount = ResourceType.entries.count { it.category == category }
+    val isActive = isUnlocked && activeCount > 0
 
     Surface(
         modifier = modifier.clickable(enabled = isUnlocked, onClick = onClick),
         shape = RoundedCornerShape(12.dp),
-        color = if (isUnlocked) SpaceNavy else SpaceNavy.copy(alpha = 0.45f),
+        color = when {
+            !isUnlocked -> SpaceNavy.copy(alpha = 0.45f)
+            isActive    -> identityColor.copy(alpha = 0.12f)
+            else        -> SpaceNavy
+        },
         border = BorderStroke(
-            1.dp,
-            if (isUnlocked) identityColor.copy(alpha = 0.35f) else SpaceMid.copy(alpha = 0.25f)
+            if (isActive) 1.5.dp else 1.dp,
+            when {
+                !isUnlocked -> SpaceMid.copy(alpha = 0.25f)
+                isActive    -> identityColor
+                else        -> identityColor.copy(alpha = 0.35f)
+            }
         )
     ) {
         Column(
             modifier = Modifier
                 .padding(horizontal = 8.dp, vertical = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // 상단: 카테고리 이름
             Text(
@@ -478,6 +439,8 @@ private fun CategoryCard(
                 fontWeight = FontWeight.Bold,
                 maxLines = 1
             )
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             // 중간: 대표 자원 아이콘 (잠금이면 자물쇠) — 슬롯 높이를 고정해
             // 잠금·해금 카드의 전체 높이가 서로 달라지지 않게 한다
@@ -493,13 +456,56 @@ private fun CategoryCard(
                 }
             }
 
-            // 하단: 자원 종류 수 or 잠금 조건
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // 하단: 탐사중인 팀 수 > 자원 종류 수 > 잠금 조건 순으로 표시
             Text(
-                if (isUnlocked) "${resourceCount}종 자원"
-                else "Lv.${category.researchLevelRequired} 필요",
-                color = if (isUnlocked) TextSecondary else TextDisabled,
+                when {
+                    isActive   -> "🚀 ${activeCount}팀 탐사중"
+                    isUnlocked -> "${resourceCount}종 자원"
+                    else       -> "Lv.${category.researchLevelRequired} 필요"
+                },
+                color = if (isActive) identityColor else if (isUnlocked) TextSecondary else TextDisabled,
                 style = MaterialTheme.typography.labelSmall,
+                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
                 maxLines = 1
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // 진행중 표시 점 3개 — 항상 슬롯을 예약해 카드 높이가 흔들리지 않게 함 (활성/비활성 모두 동일 구조)
+            Box(modifier = Modifier.height(4.dp), contentAlignment = Alignment.Center) {
+                if (isActive) {
+                    ActivityDots(color = identityColor)
+                }
+            }
+        }
+    }
+}
+
+// ── 로딩 표시기처럼 순서대로 밝아지는 점 3개 ─────────────────────────
+@Composable
+private fun ActivityDots(color: Color, modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "activityDots")
+    val time by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 2f * Math.PI.toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(1400, easing = LinearEasing)
+        ),
+        label = "activityDotsTime"
+    )
+
+    Canvas(modifier = modifier.size(width = 18.dp, height = 4.dp)) {
+        val dotRadius = 1.5.dp.toPx()
+        val spacing = 6.dp.toPx()
+        repeat(3) { index ->
+            val phase = index * (2f * Math.PI.toFloat() / 3f)
+            val alpha = 0.2f + 0.8f * ((sin(time - phase) + 1f) / 2f)
+            drawCircle(
+                color = color.copy(alpha = alpha),
+                radius = dotRadius,
+                center = Offset(spacing * index + dotRadius, size.height / 2f)
             )
         }
     }
@@ -665,7 +671,7 @@ private fun TeamBuilderContent(
                     shape = RoundedCornerShape(6.dp),
                     color = when {
                         !isUnlocked -> SpaceNavy.copy(alpha = 0.35f)
-                        selected    -> GoldAccent.copy(alpha = 0.2f)
+                        selected    -> SpaceBlue
                         else        -> SpaceNavy
                     },
                     border = BorderStroke(
@@ -690,7 +696,7 @@ private fun TeamBuilderContent(
                         )
                         Text(
                             GameConstants.TIER_LABELS[tier] ?: "",
-                            color = if (isUnlocked) TextDisabled else TextDisabled.copy(alpha = 0.5f),
+                            color = if (isUnlocked) TextSecondary else TextDisabled.copy(alpha = 0.5f),
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 9.sp
                         )
@@ -978,6 +984,22 @@ private fun ExpeditionResultDialog(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         StatChipMini("⚡ ${planet.production}/분", StatusGreen)
                         StatChipMini("💰 ${"%,d".format(planet.buyPrice)}", GoldAccent)
+                    }
+
+                    if (result.duplicatePlanetCoins > 0) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            color = SpaceBlue.copy(alpha = 0.25f)
+                        ) {
+                            Text(
+                                "이미 도감에 있는 스킨이라, 대신 +${"%,d".format(result.duplicatePlanetCoins)} 코인으로 지급했어요",
+                                color = TextSecondary,
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                            )
+                        }
                     }
                 }
 
