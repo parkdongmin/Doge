@@ -12,6 +12,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import com.doge.simulator.domain.model.Expedition
 import com.doge.simulator.domain.model.ExpeditionCategory
 import com.doge.simulator.domain.model.ExpeditionStatus
+import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.Planet
 import com.doge.simulator.domain.model.PlanetMetaDataTable
 import com.doge.simulator.domain.model.PlanetType
@@ -146,6 +147,7 @@ class ExploreViewModel @Inject constructor(
 
     private suspend fun presentExpeditionResult(expedition: Expedition) {
         val resources = parseResourcesResult(expedition.resourcesResult)
+        var duplicatePlanetCoins = 0L
         val planet = expedition.discoveredPlanetType?.let { typeName ->
             runCatching {
                 val lab = getResearchLabUseCase().first()
@@ -155,16 +157,28 @@ class ExploreViewModel @Inject constructor(
                 val production = (meta.productionMin..meta.productionMax).random()
                 val risk = (meta.riskMin..meta.riskMax).random()
                 val buyPrice = meta.basePrice + production * 20 + risk * 10
-                Planet(
+                val variantId = meta.variants.random().variantId
+                val discoveredPlanet = Planet(
                     type = type,
                     production = production,
                     risk = risk,
                     investment = (meta.investmentMin..meta.investmentMax).random(),
                     eventRate = (meta.eventRateMin..meta.eventRateMax).random(),
-                    variantId = meta.variants.random().variantId,
+                    variantId = variantId,
                     buyPrice = buyPrice,
                     currentValue = buyPrice
-                ) to (ownedCount < lab.maxPlanetSlots)
+                )
+
+                // 이미 도감에 있는 스킨(베리언트)이면 구매 가능한 중복으로 보여주지 않고
+                // 즉시 코인으로 자동 전환 — 재도전 없이 그 자리에서 보상만 지급
+                val isDuplicateVariant = variantId in userRepository.getDiscoveredVariantIds().first()
+                if (isDuplicateVariant) {
+                    duplicatePlanetCoins = (buyPrice * GameConstants.DUPLICATE_PLANET_VARIANT_COIN_RATE).toLong()
+                    userRepository.addCoins(duplicatePlanetCoins)
+                    discoveredPlanet to false
+                } else {
+                    discoveredPlanet to (ownedCount < lab.maxPlanetSlots)
+                }
             }.getOrNull()
         }
 
@@ -175,7 +189,8 @@ class ExploreViewModel @Inject constructor(
                 resources = resources,
                 coinsEarned = expedition.coinsEarned,
                 discoveredPlanet = planet?.first,
-                canBuyPlanet = planet?.second ?: false
+                canBuyPlanet = planet?.second ?: false,
+                duplicatePlanetCoins = duplicatePlanetCoins
             )
         )}
     }

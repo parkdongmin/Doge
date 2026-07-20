@@ -31,4 +31,13 @@ data class ResearchLab(
     // 언락된 탐사 카테고리
     fun unlockedCategories(): List<ExpeditionCategory> =
         ExpeditionCategory.entries.filter { it.researchLevelRequired <= explorationTechLevel }
+
+    companion object {
+        // 탐사 기술은 모든 카테고리가 해금되는 레벨 이후로는 더 줄 효과가 없어 그 지점에서 캡.
+        // 나머지 3개 분야(천체 분석·인사 관리·우주 공학)는 레벨업할수록 계속 실질 효과가 커져 무제한
+        fun maxLevel(field: ResearchField): Int? = when (field) {
+            ResearchField.EXPLORATION_TECH -> ExpeditionCategory.entries.maxOf { it.researchLevelRequired }
+            else -> null
+        }
+    }
 }

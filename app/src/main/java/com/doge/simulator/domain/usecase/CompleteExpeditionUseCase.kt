@@ -5,6 +5,8 @@ import com.doge.simulator.domain.model.Expedition
 import com.doge.simulator.domain.model.ExpeditionCategory
 import com.doge.simulator.domain.model.ExpeditionStatus
 import com.doge.simulator.domain.model.GameConstants
+import com.doge.simulator.domain.model.PlanetMetaDataTable
+import com.doge.simulator.domain.model.PlanetType
 import com.doge.simulator.domain.model.ResourceType
 import com.doge.simulator.domain.repository.AstronautRepository
 import com.doge.simulator.domain.repository.ExpeditionRepository
@@ -119,14 +121,25 @@ class CompleteExpeditionUseCase @Inject constructor(
         return ExpeditionResult(isSuccess, resources, discoveredPlanetType, coinsEarned)
     }
 
+    // 티어별 등급(rarity) 가중치(GameConstants.PLANET_RARITY_WEIGHTS)로 등급을 먼저 정하고,
+    // 그 등급에 속한 행성 종류들 사이에서는 균등 분배 — 고티어라도 커먼/언커먼이 완전히 배제되지 않고,
+    // 레전더리/에픽 비중은 캡이 있어 "무조건 최상급"이 되지 않게 함
     private fun rollPlanetType(tier: Int): String {
-        val tierTypes = when (tier) {
-            1 -> listOf("TERRAN_WET", "TERRAN_DRY", "ISLANDS", "NO_ATMOSPHERE")
-            2 -> listOf("GAS_GIANT_1", "GAS_GIANT_2", "ICE_WORLD", "LAVA_WORLD")
-            3 -> listOf("ASTEROID", "ICE_WORLD", "LAVA_WORLD", "GAS_GIANT_1")
-            4 -> listOf("BLACK_HOLE", "GALAXY", "LAVA_WORLD")
-            else -> listOf("GALAXY", "STAR", "BLACK_HOLE")
+        val rarityWeights = GameConstants.PLANET_RARITY_WEIGHTS[tier]
+            ?: GameConstants.PLANET_RARITY_WEIGHTS.getValue(GameConstants.PLANET_RARITY_WEIGHTS.keys.max())
+        val typesByRarity = PlanetType.entries.groupBy { PlanetMetaDataTable.data.getValue(it).rarity }
+
+        val weightedTypes = rarityWeights.flatMap { (rarity, rarityWeight) ->
+            val typesInRarity = typesByRarity[rarity].orEmpty()
+            typesInRarity.map { type -> type to rarityWeight / typesInRarity.size }
         }
-        return tierTypes.random()
+
+        val totalWeight = weightedTypes.sumOf { it.second.toDouble() }
+        var roll = Random.nextDouble() * totalWeight
+        for ((type, weight) in weightedTypes) {
+            roll -= weight
+            if (roll <= 0) return type.name
+        }
+        return weightedTypes.last().first.name
     }
 }

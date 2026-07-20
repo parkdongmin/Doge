@@ -2,6 +2,7 @@ package com.doge.simulator.domain.usecase
 
 import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.ResearchField
+import com.doge.simulator.domain.model.ResearchLab
 import com.doge.simulator.domain.repository.ResearchLabRepository
 import com.doge.simulator.domain.repository.ResourceRepository
 import com.doge.simulator.domain.repository.UserRepository
@@ -17,11 +18,16 @@ class UpgradeResearchFieldUseCase @Inject constructor(
         data class Success(val newLevel: Int) : Result()
         object InsufficientCoins : Result()
         object InsufficientResources : Result()
+        object MaxLevelReached : Result()
     }
 
     suspend operator fun invoke(field: ResearchField): Result {
         val lab = researchLabRepository.get().first()
         val currentLevel = lab.getLevel(field)
+
+        val maxLevel = ResearchLab.maxLevel(field)
+        if (maxLevel != null && currentLevel >= maxLevel) return Result.MaxLevelReached
+
         val (coinCost, resourceCost) = GameConstants.researchUpgradeCost(currentLevel)
 
         val coins = userRepository.getCoins().first()

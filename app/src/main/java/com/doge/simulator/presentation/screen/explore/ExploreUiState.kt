@@ -21,5 +21,7 @@ data class ExpeditionCompletionResult(
     val resources: Map<ResourceType, Long>,
     val coinsEarned: Long = 0L,
     val discoveredPlanet: Planet?,
-    val canBuyPlanet: Boolean = false
+    val canBuyPlanet: Boolean = false,
+    // 발견한 스킨(variantId)이 이미 도감에 있어 구매 대신 자동 지급된 코인 (0이면 해당 없음)
+    val duplicatePlanetCoins: Long = 0L
 )

@@ -137,6 +137,28 @@ object GameConstants {
     const val PLANET_DISCOVERY_PLANET_CATEGORY_BONUS = 0.10f
     const val PLANET_DISCOVERY_CELESTIAL_BONUS_PER_LEVEL = 0.03f
 
+    // 발견된 행성이 어느 등급(rarity)으로 나올지의 티어별 가중치(%, 등급 총합 100).
+    // 티어가 오를수록 희귀 등급 비중은 커지지만 무제한으로 오르지 않도록 상한을 둠 —
+    // LEGENDARY 최대 5%, EPIC 최대 10% (T10에서도 "가끔 터지는 잭팟" 이상은 아니게),
+    // COMMON은 T10에서도 최소 28% 유지 (고티어만 돌려도 저등급이 아예 안 나오는 역피라미드 방지).
+    // 등급 내 개별 행성 확률은 해당 등급 소속 종류 수로 균등 분배 (rollPlanetType 참고)
+    val PLANET_RARITY_WEIGHTS: Map<Int, Map<RarityTier, Float>> = mapOf(
+        1  to mapOf(RarityTier.COMMON to 90f, RarityTier.UNCOMMON to 10f),
+        2  to mapOf(RarityTier.COMMON to 70f, RarityTier.UNCOMMON to 30f),
+        3  to mapOf(RarityTier.COMMON to 55f, RarityTier.UNCOMMON to 42f, RarityTier.RARE to 3f),
+        4  to mapOf(RarityTier.COMMON to 45f, RarityTier.UNCOMMON to 45f, RarityTier.RARE to 8f, RarityTier.EPIC to 2f),
+        5  to mapOf(RarityTier.COMMON to 40f, RarityTier.UNCOMMON to 43f, RarityTier.RARE to 12f, RarityTier.EPIC to 4f, RarityTier.LEGENDARY to 1f),
+        6  to mapOf(RarityTier.COMMON to 36f, RarityTier.UNCOMMON to 40f, RarityTier.RARE to 16f, RarityTier.EPIC to 6f, RarityTier.LEGENDARY to 2f),
+        7  to mapOf(RarityTier.COMMON to 32f, RarityTier.UNCOMMON to 38f, RarityTier.RARE to 19f, RarityTier.EPIC to 8f, RarityTier.LEGENDARY to 3f),
+        8  to mapOf(RarityTier.COMMON to 30f, RarityTier.UNCOMMON to 36f, RarityTier.RARE to 21f, RarityTier.EPIC to 9f, RarityTier.LEGENDARY to 4f),
+        9  to mapOf(RarityTier.COMMON to 28f, RarityTier.UNCOMMON to 34f, RarityTier.RARE to 23f, RarityTier.EPIC to 10f, RarityTier.LEGENDARY to 5f),
+        10 to mapOf(RarityTier.COMMON to 28f, RarityTier.UNCOMMON to 32f, RarityTier.RARE to 25f, RarityTier.EPIC to 10f, RarityTier.LEGENDARY to 5f)
+    )
+
+    // 발견한 행성이 이미 도감에 있는 베리언트(스킨)와 겹칠 때: 구매 가능한 중복 행성으로 보여주는 대신
+    // 즉시 코인으로 자동 전환. 실제로 구매한 적 없는 "위로 보상" 개념이라 매도가(95%)보다는 낮게 잡음
+    const val DUPLICATE_PLANET_VARIANT_COIN_RATE = 0.3f
+
     // 전문 분야 일치 시 보너스 (숙련도 기반)
     // 성공률: 매칭되는 전문가 중 최고 숙련도(MAX) 1명 기준 — 숙련도 100이면 최대치 보너스
     const val SPECIALTY_PROFICIENCY_SUCCESS_COEFFICIENT = 0.25f

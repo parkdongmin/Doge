@@ -47,6 +47,8 @@ class ResearchLabViewModel @Inject constructor(
                     showMessage("코인이 부족합니다")
                 UpgradeResearchFieldUseCase.Result.InsufficientResources ->
                     showMessage("자원이 부족합니다")
+                UpgradeResearchFieldUseCase.Result.MaxLevelReached ->
+                    showMessage("이미 최대 레벨입니다")
             }
         }
     }
