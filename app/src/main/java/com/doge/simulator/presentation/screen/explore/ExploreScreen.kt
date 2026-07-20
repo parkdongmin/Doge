@@ -163,8 +163,23 @@ fun ExploreScreen(
             result = result,
             coins = coins,
             onBuyPlanet = { result.discoveredPlanet?.let { viewModel.buyDiscoveredPlanet(it) } },
-            onDismiss = { viewModel.dismissResult() }
+            onDismiss = { if (result.isSlotFull) viewModel.convertSlotFullToCoin() else viewModel.dismissResult() },
+            onOpenSwapPicker = { viewModel.openSwapPicker() }
         )
+        if (uiState.isSwapPickerOpen && result.discoveredPlanet != null) {
+            val discovered = result.discoveredPlanet
+            SwapPickerDialog(
+                discoveredPlanet = discovered,
+                discoveredPlanetMeta = PlanetMetaDataTable.data[discovered.type],
+                coins = coins,
+                hasFreeSlot = ownedPlanets.size < researchLab.maxPlanetSlots,
+                ownedPlanets = ownedPlanets,
+                onSellOwned = { viewModel.sellOwnedPlanet(it) },
+                onBuyDiscovered = { viewModel.buyDiscoveredPlanet(discovered) },
+                onConvertToCoin = { viewModel.convertSlotFullToCoin() },
+                onDismiss = { viewModel.closeSwapPicker() }
+            )
+        }
     }
 }
 
@@ -870,12 +885,16 @@ private fun ExpeditionResultDialog(
     result: ExpeditionCompletionResult,
     coins: Long,
     onBuyPlanet: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onOpenSwapPicker: () -> Unit
 ) {
     val planet = result.discoveredPlanet
     val meta = planet?.let { PlanetMetaDataTable.data[it.type] }
 
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnClickOutside = false)
+    ) {
         Card(
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = SpaceNavy),
@@ -965,7 +984,10 @@ private fun ExpeditionResultDialog(
                     Spacer(modifier = Modifier.height(12.dp))
                     HorizontalDivider(color = SpaceMid)
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text("🪐 새로운 행성 발견!", color = SpaceAccent, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                    Text(
+                        "🪐 행성 발견!",
+                        color = SpaceAccent, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold
+                    )
                     Spacer(modifier = Modifier.height(8.dp))
                     val imageUrl = meta.variants.firstOrNull { it.variantId == planet.variantId }?.imageUrl
                     if (imageUrl != null) {
@@ -978,15 +1000,32 @@ private fun ExpeditionResultDialog(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
-                    Text(meta.displayName, color = GoldAccent, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                    Text(
+                        "${meta.displayName} #${planet.variantId.substringAfterLast("-")}",
+                        color = GoldAccent, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold
+                    )
                     Text(meta.description, color = TextSecondary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         StatChipMini("⚡ ${planet.production}/분", StatusGreen)
                         StatChipMini("💰 ${"%,d".format(planet.buyPrice)}", GoldAccent)
+                        if (result.isDuplicateVariant) {
+                            StatChipMini("📖 도감 등록됨", TextSecondary)
+                        } else {
+                            StatChipMini("🆕 도감 미등록", SpaceAccent)
+                        }
                     }
 
-                    if (result.duplicatePlanetCoins > 0) {
+                    if (result.isCurrentlyOwned) {
+                        Text(
+                            "이미 보유 중인 행성이에요. 능력치가 다를 수 있으니 비교해보고 구매하세요",
+                            color = TextDisabled,
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(top = 6.dp)
+                        )
+                    }
+
+                    if (result.isSlotFull) {
                         Spacer(modifier = Modifier.height(10.dp))
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
@@ -994,12 +1033,22 @@ private fun ExpeditionResultDialog(
                             color = SpaceBlue.copy(alpha = 0.25f)
                         ) {
                             Text(
-                                "이미 도감에 있는 스킨이라, 대신 +${"%,d".format(result.duplicatePlanetCoins)} 코인으로 지급했어요",
+                                "행성 슬롯이 가득 찼어요. 그냥 닫으면 " +
+                                    (if (result.isDuplicateVariant) "도감엔 이미 있으니 " else "도감 등록 + ") +
+                                    "${"%,d".format(result.slotFullCoins)}코인, 아니면 보유 행성을 팔고 대신 가질 수 있어요",
                                 color = TextSecondary,
                                 style = MaterialTheme.typography.labelSmall,
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                             )
                         }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = onOpenSwapPicker,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, SpaceAccent),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = SpaceAccent)
+                        ) { Text("보유 행성 팔고 구매하기", fontWeight = FontWeight.Bold) }
                     }
                 }
 
@@ -1011,7 +1060,7 @@ private fun ExpeditionResultDialog(
                         shape = RoundedCornerShape(8.dp),
                         border = BorderStroke(1.dp, SpaceMid),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary)
-                    ) { Text("닫기") }
+                    ) { Text(if (result.isSlotFull) "코인으로 받기" else "닫기") }
                     if (planet != null && result.canBuyPlanet) {
                         Button(
                             onClick = { onBuyPlanet(); onDismiss() },
@@ -1029,6 +1078,156 @@ private fun ExpeditionResultDialog(
                 }
             }
         }
+    }
+}
+
+// ── 슬롯 풀 상태에서 보유 행성을 팔아 자리를 만들고, 새로 발견한 행성을 구매할지 고르는 선택창 ──────
+@Composable
+private fun SwapPickerDialog(
+    discoveredPlanet: Planet,
+    discoveredPlanetMeta: PlanetMetaData?,
+    coins: Long,
+    hasFreeSlot: Boolean,
+    ownedPlanets: List<Planet>,
+    onSellOwned: (planetId: String) -> Unit,
+    onBuyDiscovered: () -> Unit,
+    onConvertToCoin: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sorted = remember(ownedPlanets) {
+        ownedPlanets.sortedBy { it.buyPrice + it.upgradeInvestment }
+    }
+    val discoveredName = "${discoveredPlanetMeta?.displayName ?: discoveredPlanet.type.name} #${discoveredPlanet.variantId.substringAfterLast("-")}"
+    val canBuyNow = hasFreeSlot && coins >= discoveredPlanet.buyPrice
+    // 실수로 잘못 눌러 값비싼 행성을 파는 걸 막기 위한 매도 확인 단계
+    var pendingSell by remember { mutableStateOf<Planet?>(null) }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnClickOutside = false)
+    ) {
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = SpaceNavy),
+            border = BorderStroke(1.dp, SpaceMid),
+            modifier = Modifier.fillMaxWidth(0.92f).wrapContentHeight()
+        ) {
+            Column(modifier = Modifier.padding(22.dp)) {
+                Text(
+                    "$discoveredName 대신 팔 행성을 고르세요",
+                    color = TextPrimary,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    "판매가는 매입가 + 강화 투자액의 95%예요. 여러 개를 팔아 코인을 모은 뒤 구매하기를 눌러도 돼요",
+                    color = TextDisabled,
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
+                )
+                Column(
+                    modifier = Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (sorted.isEmpty()) {
+                        Text("팔 수 있는 보유 행성이 없어요", color = TextDisabled, style = MaterialTheme.typography.labelSmall)
+                    }
+                    sorted.forEach { owned ->
+                        val meta = PlanetMetaDataTable.data[owned.type]
+                        val sellPrice = ((owned.buyPrice + owned.upgradeInvestment) * (1 - GameConstants.SELL_FEE_RATE)).toLong()
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = SpaceMid.copy(alpha = 0.3f),
+                            border = BorderStroke(1.dp, SpaceMid)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(
+                                        "${meta?.displayName ?: owned.type.name} #${owned.variantId.substringAfterLast("-")} Lv.${owned.level}",
+                                        color = TextPrimary,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        "판매가 ${"%,d".format(sellPrice)}코인",
+                                        color = TextSecondary,
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                                Button(
+                                    onClick = { pendingSell = owned },
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = SpaceBlue, contentColor = TextPrimary),
+                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                                ) { Text("매도", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold) }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+                HorizontalDivider(color = SpaceMid)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = onConvertToCoin,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, SpaceMid),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary)
+                    ) { Text("코인으로 받기", style = MaterialTheme.typography.labelSmall) }
+                    Button(
+                        onClick = onBuyDiscovered,
+                        enabled = canBuyNow,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = GoldAccent, contentColor = SpaceDark)
+                    ) {
+                        Text(
+                            if (!hasFreeSlot) "슬롯 필요" else if (!canBuyNow) "코인 부족" else "구매하기",
+                            style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, SpaceMid),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextDisabled)
+                ) { Text("취소 (탐사 결과로 돌아가기)", style = MaterialTheme.typography.labelSmall) }
+            }
+        }
+    }
+
+    pendingSell?.let { target ->
+        val meta = PlanetMetaDataTable.data[target.type]
+        val sellPrice = ((target.buyPrice + target.upgradeInvestment) * (1 - GameConstants.SELL_FEE_RATE)).toLong()
+        AlertDialog(
+            onDismissRequest = { pendingSell = null },
+            title = { Text("정말 파시겠어요?") },
+            text = {
+                Text("${meta?.displayName ?: target.type.name} #${target.variantId.substringAfterLast("-")} Lv.${target.level}을 " +
+                    "${"%,d".format(sellPrice)}코인에 매도합니다. 되돌릴 수 없어요.")
+            },
+            confirmButton = {
+                TextButton(onClick = { onSellOwned(target.id); pendingSell = null }) {
+                    Text("매도", color = StatusRed, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingSell = null }) { Text("취소") }
+            },
+            containerColor = SpaceNavy,
+            titleContentColor = TextPrimary,
+            textContentColor = TextSecondary
+        )
     }
 }
 

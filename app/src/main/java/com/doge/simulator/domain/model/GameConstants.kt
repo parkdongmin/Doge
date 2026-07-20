@@ -45,9 +45,10 @@ object GameConstants {
     // 강화 레벨 1~20: 레벨이 오를수록 코인 생산량·자원 드롭량이 함께 늘어나야 강화 의미가 생김 (레벨당 +10%)
     fun planetLevelMultiplier(level: Int): Double = 1.0 + (level - 1) * 0.10
 
-    // 행성 방치 수익 전역 배율. 탐사 완료 보상을 올리면서 상대적으로 행성 수익 비중을 낮춰
-    // "행성 하나 사면 20~30분 만에 본전 뽑는" 초반 페이백 속도를 늦춤 (타입별 상대 밸런스는 유지)
-    const val PLANET_PRODUCTION_SCALE = 0.6
+    // 행성 방치 수익 전역 배율. 시뮬레이션 결과 0.6에서도 커먼 행성 페이백이 ~50분으로 여전히
+    // 너무 빨라서, 상시 접속 기준 패시브/액티브 수입 비율이 21일 만에 20배까지 벌어짐(탐사 루프가
+    // 조기에 무의미해짐) — 커먼 행성 페이백을 ~3시간대로 늦춰 액티브 탐사 비중을 끌어올림 (타입별 상대 밸런스는 유지)
+    const val PLANET_PRODUCTION_SCALE = 0.15
 
     // ── 우주인 ────────────────────────────────────────────────────────
     const val ASTRONAUT_BASE_HIRE_COST = 500L
@@ -131,10 +132,12 @@ object GameConstants {
         10 to TierUnlockCondition(RarityTier.LEGENDARY,1, "LEGENDARY 행성 1개+")
     )
 
-    // 탐사 성공 시 행성 발견 확률. 천체 분석 레벨(+3%/레벨)과 행성 카테고리 보너스(+10%)로 후반에 상승,
-    // 최종 상한은 discoveryChance 계산부(CompleteExpeditionUseCase)에서 80%로 코어스
-    const val PLANET_DISCOVERY_BASE_CHANCE = 0.35f
-    const val PLANET_DISCOVERY_PLANET_CATEGORY_BONUS = 0.10f
+    // 탐사 성공 시 행성 발견 확률. 천체 분석 레벨(+3%/레벨)과 행성 카테고리 보너스로 후반에 상승,
+    // 최종 상한은 discoveryChance 계산부(CompleteExpeditionUseCase)에서 80%로 코어스.
+    // 기존 0.35+0.10(연구소 투자 없이도 PLANET 카테고리 48%)는 시뮬레이션상 행성 10슬롯이
+    // 하루 안에 다 차버릴 정도로 높아서, 기본값과 카테고리 보너스를 함께 낮춰 슬롯이 차는 속도를 늦춤
+    const val PLANET_DISCOVERY_BASE_CHANCE = 0.18f
+    const val PLANET_DISCOVERY_PLANET_CATEGORY_BONUS = 0.05f
     const val PLANET_DISCOVERY_CELESTIAL_BONUS_PER_LEVEL = 0.03f
 
     // 발견된 행성이 어느 등급(rarity)으로 나올지의 티어별 가중치(%, 등급 총합 100).
@@ -155,9 +158,16 @@ object GameConstants {
         10 to mapOf(RarityTier.COMMON to 28f, RarityTier.UNCOMMON to 32f, RarityTier.RARE to 25f, RarityTier.EPIC to 10f, RarityTier.LEGENDARY to 5f)
     )
 
-    // 발견한 행성이 이미 도감에 있는 베리언트(스킨)와 겹칠 때: 구매 가능한 중복 행성으로 보여주는 대신
-    // 즉시 코인으로 자동 전환. 실제로 구매한 적 없는 "위로 보상" 개념이라 매도가(95%)보다는 낮게 잡음
+    // 발견한 행성이 이미 도감에 있는 베리언트(스킨)와 겹치는데, 행성 슬롯도 가득 차 구매할 수 없을 때
+    // "코인으로 받기"를 고르면 지급되는 금액. (production/risk 등 스탯은 매번 새로 롤되므로 중복이라도
+    // 슬롯 여유가 있으면 정상 구매 가능 — 이 상수는 슬롯이 없을 때의 최후 대안에만 쓰임)
+    // 완전 신규(50%)보다는 낮게 잡음 — 이미 도감엔 등록돼 있어 다시 등록해도 얻는 게 적기 때문
     const val DUPLICATE_PLANET_VARIANT_COIN_RATE = 0.3f
+
+    // 도감에 없던 신규 베리언트인데 행성 슬롯이 가득 차 구매할 수 없을 때, "코인으로 받기"를 고르면
+    // 지급되는 금액. 도감 등록(recordVariantDiscovery)은 슬롯과 무관하게 항상 보장됨.
+    // "완전히 처음 보는 스킨"이라 중복(30%)보다는 후하게 잡음
+    const val SLOT_FULL_DISCOVERY_COIN_RATE = 0.5f
 
     // 전문 분야 일치 시 보너스 (숙련도 기반)
     // 성공률: 매칭되는 전문가 중 최고 숙련도(MAX) 1명 기준 — 숙련도 100이면 최대치 보너스

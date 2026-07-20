@@ -552,7 +552,7 @@ private fun CatalogPlanetCard(
             }
 
             Text(
-                text = meta.displayName,
+                text = "${meta.displayName} #${variantId.substringAfterLast("-")}",
                 color = TextPrimary,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,

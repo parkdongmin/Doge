@@ -12,7 +12,9 @@ data class ExploreUiState(
     val selectedSpaceshipId: String? = null,
     val isDispatching: Boolean = false,
     val dispatchError: String? = null,
-    val completionResult: ExpeditionCompletionResult? = null
+    val completionResult: ExpeditionCompletionResult? = null,
+    // 슬롯 풀 상태에서 신규 행성을 발견했을 때, 보유 행성을 팔고 대신 가질지 고르는 선택창
+    val isSwapPickerOpen: Boolean = false
 )
 
 data class ExpeditionCompletionResult(
@@ -22,6 +24,14 @@ data class ExpeditionCompletionResult(
     val coinsEarned: Long = 0L,
     val discoveredPlanet: Planet?,
     val canBuyPlanet: Boolean = false,
-    // 발견한 스킨(variantId)이 이미 도감에 있어 구매 대신 자동 지급된 코인 (0이면 해당 없음)
-    val duplicatePlanetCoins: Long = 0L
+    // 발견한 행성(variantId)이 이미 도감(전체 발견 기록)에 있는지 — 슬롯 풀일 때 코인 전환가 산정용.
+    // production/risk 등 스탯은 매번 새로 롤되므로 도감에 있어도 구매 자체는 신규와 동일하게 허용한다
+    val isDuplicateVariant: Boolean = false,
+    // 지금 슬롯에 같은 variantId의 행성을 실제로 보유 중인지 — "이미 보유 중이니 능력치를
+    // 비교해보라"는 안내를 띄울지 결정하는 기준 (도감 등록 여부와는 별개)
+    val isCurrentlyOwned: Boolean = false,
+    // 행성 슬롯이 가득 찬 경우: true면 사용자가 "코인으로 받기" 또는 "보유 행성 팔고 구매하기" 중
+    // 하나를 선택해야 함 (slotFullCoins는 코인으로 받을 때 지급될 금액 — 중복이면 더 낮게 책정됨)
+    val isSlotFull: Boolean = false,
+    val slotFullCoins: Long = 0L
 )

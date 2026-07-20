@@ -28,6 +28,7 @@ import com.doge.simulator.domain.usecase.GetExpeditionReportsUseCase
 import com.doge.simulator.domain.usecase.GetOwnedPlanetsUseCase
 import com.doge.simulator.domain.usecase.GetResearchLabUseCase
 import com.doge.simulator.domain.usecase.GetSpaceshipsUseCase
+import com.doge.simulator.domain.usecase.SellPlanetUseCase
 import com.doge.simulator.domain.usecase.StartExpeditionUseCase
 import com.doge.simulator.domain.repository.ResourceRepository
 import com.doge.simulator.domain.repository.StoryRepository
@@ -55,6 +56,7 @@ class ExploreViewModel @Inject constructor(
     private val getResearchLabUseCase: GetResearchLabUseCase,
     private val generatePlanetsUseCase: GeneratePlanetsUseCase,
     private val buyPlanetUseCase: BuyPlanetUseCase,
+    private val sellPlanetUseCase: SellPlanetUseCase,
     private val getOwnedPlanetsUseCase: GetOwnedPlanetsUseCase,
     private val collectProfitUseCase: CollectProfitUseCase,
     private val userRepository: UserRepository,
@@ -147,11 +149,15 @@ class ExploreViewModel @Inject constructor(
 
     private suspend fun presentExpeditionResult(expedition: Expedition) {
         val resources = parseResourcesResult(expedition.resourcesResult)
-        var duplicatePlanetCoins = 0L
+        var slotFullCoins = 0L
+        var isSlotFull = false
+        var isDuplicateVariant = false
+        var isCurrentlyOwned = false
         val planet = expedition.discoveredPlanetType?.let { typeName ->
             runCatching {
                 val lab = getResearchLabUseCase().first()
-                val ownedCount = getOwnedPlanetsUseCase().first().size
+                val ownedPlanets = getOwnedPlanetsUseCase().first()
+                val ownedCount = ownedPlanets.size
                 val type = PlanetType.valueOf(typeName)
                 val meta = PlanetMetaDataTable.data[type] ?: return@runCatching null
                 val production = (meta.productionMin..meta.productionMax).random()
@@ -169,15 +175,25 @@ class ExploreViewModel @Inject constructor(
                     currentValue = buyPrice
                 )
 
-                // 이미 도감에 있는 스킨(베리언트)이면 구매 가능한 중복으로 보여주지 않고
-                // 즉시 코인으로 자동 전환 — 재도전 없이 그 자리에서 보상만 지급
-                val isDuplicateVariant = variantId in userRepository.getDiscoveredVariantIds().first()
-                if (isDuplicateVariant) {
-                    duplicatePlanetCoins = (buyPrice * GameConstants.DUPLICATE_PLANET_VARIANT_COIN_RATE).toLong()
-                    userRepository.addCoins(duplicatePlanetCoins)
-                    discoveredPlanet to false
+                // 도감 등록 여부(전체 발견 기록)와 "지금 슬롯에 실제로 들고 있는지"는 별개 —
+                // 화면에 "이미 보유 중이니 비교해보라"는 안내는 후자(isCurrentlyOwned) 기준으로 띄우고,
+                // 도감 등록 여부(isDuplicateVariant)는 슬롯 풀일 때 코인 전환가 산정에만 쓴다.
+                // production/risk 등 스탯은 매번 새로 롤되므로 같은 행성이라도 이번 롤이 기존 보유분보다
+                // 좋을 수 있어, 구매 자체는 신규 발견과 동일하게 슬롯 여유에 따라서만 판단한다
+                isDuplicateVariant = variantId in userRepository.getDiscoveredVariantIds().first()
+                isCurrentlyOwned = ownedPlanets.any { it.variantId == variantId }
+                if (ownedCount < lab.maxPlanetSlots) {
+                    discoveredPlanet to true
                 } else {
-                    discoveredPlanet to (ownedCount < lab.maxPlanetSlots)
+                    // 슬롯이 가득 차 구매할 수 없는 경우: 여기서 바로 확정하지 않고 "코인으로 받기" 또는
+                    // "보유 행성 팔고 구매하기" 중 하나를 다이얼로그에서 고르게 함 (도감 등록·코인 지급은
+                    // convertSlotFullToCoin에서, 실제 스왑은 buyDiscoveredPlanet에서 처리). 완전 신규
+                    // 발견보다 이미 본 스킨의 코인 전환가를 낮게 잡음(30% vs 50%)
+                    isSlotFull = true
+                    val rate = if (isDuplicateVariant) GameConstants.DUPLICATE_PLANET_VARIANT_COIN_RATE
+                               else GameConstants.SLOT_FULL_DISCOVERY_COIN_RATE
+                    slotFullCoins = (buyPrice * rate).toLong()
+                    discoveredPlanet to false
                 }
             }.getOrNull()
         }
@@ -190,7 +206,10 @@ class ExploreViewModel @Inject constructor(
                 coinsEarned = expedition.coinsEarned,
                 discoveredPlanet = planet?.first,
                 canBuyPlanet = planet?.second ?: false,
-                duplicatePlanetCoins = duplicatePlanetCoins
+                isDuplicateVariant = isDuplicateVariant,
+                isCurrentlyOwned = isCurrentlyOwned,
+                isSlotFull = isSlotFull,
+                slotFullCoins = slotFullCoins
             )
         )}
     }
@@ -284,7 +303,7 @@ class ExploreViewModel @Inject constructor(
             val bought = buyPlanetUseCase(planet)
             if (bought) {
                 val expeditionId = _uiState.value.completionResult?.expeditionId
-                _uiState.update { it.copy(completionResult = null) }
+                _uiState.update { it.copy(completionResult = null, isSwapPickerOpen = false) }
                 expeditionId?.let { expeditionRepository.markResultHandled(it) }
             }
         }
@@ -292,9 +311,33 @@ class ExploreViewModel @Inject constructor(
 
     fun dismissResult() {
         val expeditionId = _uiState.value.completionResult?.expeditionId
-        _uiState.update { it.copy(completionResult = null) }
+        _uiState.update { it.copy(completionResult = null, isSwapPickerOpen = false) }
         if (expeditionId != null) {
             viewModelScope.launch { expeditionRepository.markResultHandled(expeditionId) }
+        }
+    }
+
+    // 슬롯 풀 상태에서 신규 행성을 "코인으로 받기" 선택 시: 도감 등록 + 코인 지급을 이 시점에 확정
+    fun convertSlotFullToCoin() {
+        val result = _uiState.value.completionResult ?: return
+        val planet = result.discoveredPlanet ?: return
+        viewModelScope.launch {
+            userRepository.recordVariantDiscovery(planet.variantId)
+            userRepository.addCoins(result.slotFullCoins)
+            _uiState.update { it.copy(completionResult = null, isSwapPickerOpen = false) }
+            expeditionRepository.markResultHandled(result.expeditionId)
+        }
+    }
+
+    fun openSwapPicker() = _uiState.update { it.copy(isSwapPickerOpen = true) }
+    fun closeSwapPicker() = _uiState.update { it.copy(isSwapPickerOpen = false) }
+
+    // 슬롯 풀 상태에서 보유 행성 하나를 매도 (구매는 별개 액션 — "구매하기" 버튼에서 buyDiscoveredPlanet 호출).
+    // 한 번에 안 되면 여러 개 팔아 코인을 모은 뒤 구매하기를 누를 수 있도록 분리
+    fun sellOwnedPlanet(planetId: String) {
+        viewModelScope.launch {
+            val owned = getOwnedPlanetsUseCase().first().firstOrNull { it.id == planetId } ?: return@launch
+            sellPlanetUseCase(owned)
         }
     }
 }
