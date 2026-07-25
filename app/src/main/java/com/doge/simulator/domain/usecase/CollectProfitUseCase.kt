@@ -15,7 +15,8 @@ class CollectProfitUseCase @Inject constructor(
     private val userRepository: UserRepository,
     private val resourceRepository: ResourceRepository
 ) {
-    suspend operator fun invoke(planets: List<Planet>) {
+    // multiplier: 오프라인 수익 2배 리워드 광고 시청 시 코인에만 적용 (자원 드랍은 배율 미적용)
+    suspend operator fun invoke(planets: List<Planet>, multiplier: Double = 1.0) {
         val now = System.currentTimeMillis()
         var totalEarned = 0L
 
@@ -43,7 +44,7 @@ class CollectProfitUseCase @Inject constructor(
             }
         }
 
-        if (totalEarned > 0) userRepository.addCoins(totalEarned)
+        if (totalEarned > 0) userRepository.addCoins((totalEarned * multiplier).toLong())
     }
 
     // 분당 dropChance(%) × 등급 배율 × 강화 레벨 배율을 경과 시간에 대한 기댓값으로 환산하여 정수 개수를 산출

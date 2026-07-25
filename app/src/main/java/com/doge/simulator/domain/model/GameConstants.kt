@@ -222,4 +222,16 @@ object GameConstants {
         else -> (50_000L + (currentLevel - 9) * 15_000L) to
                 mapOf(ResourceType.ANCIENT_ARTIFACT to 2, ResourceType.QUANTUM_CORE to 1)
     }
+
+    // ── 광고 ──────────────────────────────────────────────────────────
+    // 이 이상 경과해야 "복귀 시 확인 다이얼로그"를 띄움. 미만이면 기존처럼 조용히 1배로 자동 적립
+    const val OFFLINE_PROFIT_DIALOG_THRESHOLD_MINUTES = 10L
+    const val OFFLINE_PROFIT_AD_MULTIPLIER = 2.0
+
+    // 대기시간 스킵 광고 1회당 당길 수 있는 최대 시간 (전체 스킵이 아니라 상한을 둬서 밸런스 보호)
+    val AD_SKIP_MAX_MS = TimeUnit.HOURS.toMillis(4)
+
+    // 전면광고(탐사 결과 dismiss) 빈도 제한: 첫 N회는 노출 안 함, 이후엔 쿨다운 경과해야 노출
+    const val INTERSTITIAL_GRACE_COMPLETIONS = 3
+    val INTERSTITIAL_COOLDOWN_MS = TimeUnit.MINUTES.toMillis(3)
 }

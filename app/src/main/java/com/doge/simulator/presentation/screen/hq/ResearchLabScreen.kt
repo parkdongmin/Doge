@@ -1,6 +1,8 @@
 package com.doge.simulator.presentation.screen.hq
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,6 +13,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -54,23 +58,23 @@ fun ResearchLabScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             message?.let {
-                Surface(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                Surface(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.xs),
                     shape = RoundedCornerShape(8.dp), color = SpaceBlue.copy(0.3f)) {
                     Text(it, color = SpaceAccent, style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(12.dp))
+                        modifier = Modifier.padding(Spacing.md))
                 }
             }
 
             // 보유 코인
-            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.md),
                 horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("총 연구 레벨: ${researchLab.totalLevel}", color = TextSecondary,
                     style = MaterialTheme.typography.bodySmall)
                 Text("%,d 코인".format(coins), color = GoldAccent, style = NumericSmall)
             }
 
-            HorizontalDivider(color = SpaceMid, modifier = Modifier.padding(horizontal = 16.dp))
-            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider(color = SpaceMid, modifier = Modifier.padding(horizontal = Spacing.lg))
+            Spacer(modifier = Modifier.height(Spacing.sm))
 
             ResearchField.entries.forEach { field ->
                 ResearchFieldCard(
@@ -81,10 +85,10 @@ fun ResearchLabScreen(
                     resources = resources,
                     onUpgrade = { viewModel.upgrade(field) }
                 )
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(Spacing.md))
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Spacing.lg))
         }
     }
 }
@@ -131,35 +135,45 @@ private fun ResearchFieldCard(
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg)
+            .textured(shape = RoundedCornerShape(12.dp), baseColor = SpaceNavy.copy(alpha = 0.85f)),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = SpaceNavy.copy(0.85f)),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         border = BorderStroke(1.dp, SpaceBlue)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(Spacing.lg)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(field.icon, fontSize = 28.sp)
-                Spacer(modifier = Modifier.width(12.dp))
+                if (field.iconRes != null) {
+                    Image(
+                        painter = painterResource(field.iconRes),
+                        contentDescription = null,
+                        modifier = Modifier.size(IconGlyphSize.large.value.dp)
+                    )
+                } else {
+                    Text(field.icon, fontSize = IconGlyphSize.large)
+                }
+                Spacer(modifier = Modifier.width(Spacing.md))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(field.displayName, color = TextPrimary, style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(Spacing.xxs))
                     Text(field.description, color = TextSecondary, style = MaterialTheme.typography.labelSmall)
                 }
                 Surface(shape = RoundedCornerShape(6.dp), color = GoldAccent.copy(0.15f),
                     border = BorderStroke(1.dp, GoldAccent.copy(0.3f))) {
                     Text("Lv.$currentLevel", color = GoldAccent, style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
+                        fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.xs))
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Spacing.sm))
             Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(6.dp),
                 color = SpaceBlue.copy(0.2f)) {
                 Text(effectDescription, color = SpaceAccent, style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp))
+                    modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm))
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(Spacing.md))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically) {
                 if (isMaxLevel) {
@@ -168,7 +182,7 @@ private fun ResearchFieldCard(
                 } else {
                     Column {
                         Text("Lv.${currentLevel} → Lv.${currentLevel + 1} 비용",
-                            color = TextDisabled, style = MaterialTheme.typography.labelSmall)
+                            color = TextSecondary, style = MaterialTheme.typography.labelSmall)
                         Text("%,d 코인".format(coinCost),
                             color = if (canAffordCoins) GoldAccent else StatusRed, style = NumericXSmall)
                         if (resourceCost.isNotEmpty()) {
@@ -180,10 +194,13 @@ private fun ResearchFieldCard(
                 }
                 Button(
                     onClick = onUpgrade, enabled = canUpgrade,
+                    modifier = Modifier.widthIn(min = ButtonPadding.minWidth),
                     shape = RoundedCornerShape(6.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = if (canUpgrade) SpaceAccent else SpaceMid,
                         contentColor = SpaceDark),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                    border = ButtonDepth.highlightBorder,
+                    elevation = ButtonDepth.elevation(),
+                    contentPadding = ButtonPadding.ctaInRow
                 ) {
                     Text(if (isMaxLevel) "MAX" else "연구",
                         style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)

@@ -1,5 +1,6 @@
 package com.doge.simulator.presentation.screen.explore
 
+import androidx.annotation.DrawableRes
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -39,6 +40,7 @@ import com.doge.simulator.R
 import com.doge.simulator.domain.model.*
 import com.doge.simulator.presentation.viewmodel.ExploreViewModel
 import com.doge.simulator.ui.theme.*
+import com.doge.simulator.util.findActivity
 import java.util.concurrent.TimeUnit
 import kotlin.math.sin
 import kotlin.random.Random
@@ -60,6 +62,7 @@ fun ExploreScreen(
     val resources by viewModel.resources.collectAsState()
     val unreadCount by viewModel.unreadReportCount.collectAsState()
     val latestReport by viewModel.latestReport.collectAsState()
+    val activity = LocalContext.current.findActivity()
 
     Column(
         modifier = Modifier
@@ -103,7 +106,7 @@ fun ExploreScreen(
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 32.dp, vertical = 8.dp)
+                    .padding(horizontal = 32.dp, vertical = Spacing.sm)
             )
         }
 
@@ -113,7 +116,7 @@ fun ExploreScreen(
             color = Color.White,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(start = 16.dp, bottom = 4.dp)
+            modifier = Modifier.padding(start = Spacing.lg, bottom = Spacing.xs)
         )
         CategoryGrid(
             researchLab = researchLab,
@@ -123,8 +126,6 @@ fun ExploreScreen(
                 viewModel.openTeamBuilder()
             }
         )
-
-        Spacer(modifier = Modifier.navigationBarsPadding())
     }
 
     // ── 팀 빌더 바텀시트 ─────────────────────────────────────────
@@ -135,7 +136,7 @@ fun ExploreScreen(
             containerColor = SpaceNavy,
             dragHandle = {
                 Surface(
-                    modifier = Modifier.padding(vertical = 8.dp).size(40.dp, 4.dp),
+                    modifier = Modifier.padding(vertical = Spacing.sm).size(40.dp, 4.dp),
                     shape = CircleShape, color = SpaceMid
                 ) {}
             }
@@ -162,8 +163,8 @@ fun ExploreScreen(
         ExpeditionResultDialog(
             result = result,
             coins = coins,
-            onBuyPlanet = { result.discoveredPlanet?.let { viewModel.buyDiscoveredPlanet(it) } },
-            onDismiss = { if (result.isSlotFull) viewModel.convertSlotFullToCoin() else viewModel.dismissResult() },
+            onBuyPlanet = { result.discoveredPlanet?.let { viewModel.buyDiscoveredPlanet(it, activity) } },
+            onDismiss = { if (result.isSlotFull) viewModel.convertSlotFullToCoin(activity) else viewModel.dismissResult(activity) },
             onOpenSwapPicker = { viewModel.openSwapPicker() }
         )
         if (uiState.isSwapPickerOpen && result.discoveredPlanet != null) {
@@ -175,8 +176,8 @@ fun ExploreScreen(
                 hasFreeSlot = ownedPlanets.size < researchLab.maxPlanetSlots,
                 ownedPlanets = ownedPlanets,
                 onSellOwned = { viewModel.sellOwnedPlanet(it) },
-                onBuyDiscovered = { viewModel.buyDiscoveredPlanet(discovered) },
-                onConvertToCoin = { viewModel.convertSlotFullToCoin() },
+                onBuyDiscovered = { viewModel.buyDiscoveredPlanet(discovered, activity) },
+                onConvertToCoin = { viewModel.convertSlotFullToCoin(activity) },
                 onDismiss = { viewModel.closeSwapPicker() }
             )
         }
@@ -191,7 +192,7 @@ private fun TopHeader(coins: Long, resources: List<com.doge.simulator.domain.mod
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -204,8 +205,12 @@ private fun TopHeader(coins: Long, resources: List<com.doge.simulator.domain.mod
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("🪙", fontSize = 14.sp)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                Image(
+                    painter = painterResource(R.drawable.ic_ui_coin),
+                    contentDescription = null,
+                    modifier = Modifier.size(IconGlyphSize.small.value.dp)
+                )
                 Text(
                     "%,d".format(coins),
                     color = GoldAccent,
@@ -215,8 +220,8 @@ private fun TopHeader(coins: Long, resources: List<com.doge.simulator.domain.mod
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Spacer(modifier = Modifier.height(Spacing.sm))
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             ExpeditionCategory.entries.forEachIndexed { catIndex, category ->
                 if (catIndex > 0) {
                     item(key = "sep_$catIndex") {
@@ -234,13 +239,13 @@ private fun TopHeader(coins: Long, resources: List<com.doge.simulator.domain.mod
                     val hasAmount = amount > 0
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
                         modifier = Modifier
                             .background(
                                 SpaceNavy.copy(alpha = if (hasAmount) 0.6f else 0.3f),
                                 RoundedCornerShape(6.dp)
                             )
-                            .padding(horizontal = 7.dp, vertical = 4.dp)
+                            .padding(horizontal = Spacing.sm, vertical = Spacing.xs)
                     ) {
                         Image(
                             painter = painterResource(resType.iconRes),
@@ -250,8 +255,7 @@ private fun TopHeader(coins: Long, resources: List<com.doge.simulator.domain.mod
                         Text(
                             amount.toString(),
                             color = if (hasAmount) TextSecondary else TextDisabled,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontSize = 10.sp
+                            style = LabelTiny
                         )
                     }
                 }
@@ -272,24 +276,25 @@ private fun SlotAndRecordCard(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .clickable(onClick = onClick),
+            .padding(horizontal = Spacing.lg)
+            .clickable(onClick = onClick)
+            .textured(shape = RoundedCornerShape(12.dp), baseColor = SpaceNavy.copy(alpha = 0.85f)),
         shape = RoundedCornerShape(12.dp),
-        color = SpaceNavy.copy(alpha = 0.85f),
+        color = Color.Transparent,
         border = BorderStroke(
             1.dp,
             if (unreadCount > 0) GoldAccent.copy(alpha = 0.6f) else SpaceBlue.copy(alpha = 0.5f)
         )
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
                 ) {
                     Text(
                         "탐험 대기 $activeCount/$totalSlots",
@@ -303,13 +308,13 @@ private fun SlotAndRecordCard(
                                 "보고서 ${unreadCount}건",
                                 color = StatusRed,
                                 style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                modifier = Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.xxs)
                             )
                         }
                     }
                 }
                 if (latestReport != null) {
-                    Spacer(modifier = Modifier.height(3.dp))
+                    Spacer(modifier = Modifier.height(Spacing.xs))
                     Text(
                         "${latestReport.recordLabel}  ${latestReport.recordTitle}",
                         color = if (latestReport.isChapterEnding) GoldAccent else TextSecondary,
@@ -318,15 +323,15 @@ private fun SlotAndRecordCard(
                         overflow = TextOverflow.Ellipsis
                     )
                 } else {
-                    Spacer(modifier = Modifier.height(3.dp))
+                    Spacer(modifier = Modifier.height(Spacing.xs))
                     Text(
                         "탐사 기록이 없습니다",
-                        color = TextDisabled,
+                        color = TextSecondary,
                         style = MaterialTheme.typography.labelSmall
                     )
                 }
             }
-            Text("›", color = TextSecondary, fontSize = 18.sp)
+            Text("›", color = TextSecondary, fontSize = IconGlyphSize.medium)
         }
     }
 }
@@ -387,9 +392,9 @@ private fun CategoryGrid(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md)
             .height(IntrinsicSize.Max),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
         ExpeditionCategory.entries.forEach { category ->
             CategoryCard(
@@ -443,7 +448,7 @@ private fun CategoryCard(
     ) {
         Column(
             modifier = Modifier
-                .padding(horizontal = 8.dp, vertical = 16.dp),
+                .padding(horizontal = Spacing.sm, vertical = Spacing.lg),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // 상단: 카테고리 이름
@@ -455,7 +460,7 @@ private fun CategoryCard(
                 maxLines = 1
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(Spacing.md))
 
             // 중간: 대표 자원 아이콘 (잠금이면 자물쇠) — 슬롯 높이를 고정해
             // 잠금·해금 카드의 전체 높이가 서로 달라지지 않게 한다
@@ -467,11 +472,15 @@ private fun CategoryCard(
                         modifier = Modifier.size(36.dp)
                     )
                 } else {
-                    Text("🔒", fontSize = 26.sp)
+                    Image(
+                        painter = painterResource(R.drawable.ic_ui_lock),
+                        contentDescription = null,
+                        modifier = Modifier.size(28.dp)
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(Spacing.md))
 
             // 하단: 탐사중인 팀 수 > 자원 종류 수 > 잠금 조건 순으로 표시
             Text(
@@ -486,7 +495,7 @@ private fun CategoryCard(
                 maxLines = 1
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(Spacing.xs))
 
             // 진행중 표시 점 3개 — 항상 슬롯을 예약해 카드 높이가 흔들리지 않게 함 (활성/비활성 모두 동일 구조)
             Box(modifier = Modifier.height(4.dp), contentAlignment = Alignment.Center) {
@@ -552,13 +561,13 @@ private fun TeamBuilderContent(
             .fillMaxWidth()
             .navigationBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 8.dp)
+            .padding(horizontal = Spacing.xl, vertical = Spacing.sm)
     ) {
         Text(
             "탐사 파견 설정", color = GoldAccent,
             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold
         )
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(Spacing.md))
 
         // ── 다음 해제 목표 배너 ────────────────────────────────────────
         val nextLockedTier = (1..10).firstOrNull { tier ->
@@ -583,11 +592,15 @@ private fun TeamBuilderContent(
                 border = BorderStroke(1.dp, GoldAccent.copy(alpha = 0.25f))
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.md)
                 ) {
-                    Text("🔓", fontSize = 18.sp)
+                    Image(
+                        painter = painterResource(R.drawable.ic_ui_lock),
+                        contentDescription = null,
+                        modifier = Modifier.size(IconGlyphSize.medium.value.dp)
+                    )
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "다음 해제 목표: T$nextLockedTier $locationName",
@@ -595,6 +608,7 @@ private fun TeamBuilderContent(
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold
                         )
+                        Spacer(modifier = Modifier.height(Spacing.xxs))
                         Text(
                             text = "${cond.requiredRarity.name} 등급 이상 행성 ${cond.requiredCount}개 필요",
                             color = TextSecondary,
@@ -612,7 +626,7 @@ private fun TeamBuilderContent(
                             color = if (currentCount >= cond.requiredCount) StatusGreen else TextDisabled,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm)
                         )
                     }
                 }
@@ -625,11 +639,11 @@ private fun TeamBuilderContent(
                 border = BorderStroke(1.dp, StatusGreen.copy(alpha = 0.25f))
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.md)
                 ) {
-                    Text("✅", fontSize = 16.sp)
+                    Text("✅", fontSize = IconGlyphSize.small)
                     Text(
                         text = "모든 탐사 지역 해제 완료!",
                         color = StatusGreen,
@@ -640,10 +654,10 @@ private fun TeamBuilderContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(Spacing.lg))
         SectionLabel("탐사 카테고리")
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Spacer(modifier = Modifier.height(Spacing.sm))
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             unlockedCategories.forEach { category ->
                 val selected = uiState.selectedCategory == category
                 Surface(
@@ -653,10 +667,14 @@ private fun TeamBuilderContent(
                     border = BorderStroke(1.dp, if (selected) SpaceAccent else SpaceMid)
                 ) {
                     Column(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(category.icon, fontSize = 18.sp)
+                        Image(
+                            painter = painterResource(category.representativeIconRes),
+                            contentDescription = null,
+                            modifier = Modifier.size(IconGlyphSize.medium.value.dp)
+                        )
                         Text(
                             category.displayName.replace(" 탐사", ""),
                             color = if (selected) TextPrimary else TextSecondary,
@@ -667,10 +685,10 @@ private fun TeamBuilderContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(Spacing.lg))
         SectionLabel("탐사 지역 (티어)")
-        Spacer(modifier = Modifier.height(8.dp))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Spacer(modifier = Modifier.height(Spacing.sm))
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             items((1..10).toList()) { tier ->
                 val condition = GameConstants.TIER_UNLOCK_CONDITIONS[tier]
                 val isUnlocked = condition == null || run {
@@ -699,28 +717,34 @@ private fun TeamBuilderContent(
                     )
                 ) {
                     Column(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                        modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                        verticalArrangement = Arrangement.spacedBy(Spacing.xs)
                     ) {
-                        Text(
-                            if (isUnlocked) "T$tier" else "🔒",
-                            color = if (selected) GoldAccent else if (isUnlocked) TextSecondary else TextDisabled,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+                        if (isUnlocked) {
+                            Text(
+                                "T$tier",
+                                color = if (selected) GoldAccent else TextSecondary,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        } else {
+                            Image(
+                                painter = painterResource(R.drawable.ic_ui_lock),
+                                contentDescription = null,
+                                modifier = Modifier.size(IconGlyphSize.medium.value.dp)
+                            )
+                        }
                         Text(
                             GameConstants.TIER_LABELS[tier] ?: "",
                             color = if (isUnlocked) TextSecondary else TextDisabled.copy(alpha = 0.5f),
-                            style = MaterialTheme.typography.labelSmall,
-                            fontSize = 9.sp
+                            style = LabelTiny
                         )
                         if (!isUnlocked && condition != null) {
                             Text(
                                 condition.label,
                                 color = TextDisabled.copy(alpha = 0.6f),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontSize = 8.sp
+                                style = LabelTiny
                             )
                         }
                     }
@@ -728,9 +752,9 @@ private fun TeamBuilderContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(Spacing.lg))
         SectionLabel("우주선 선택")
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Spacing.sm))
         if (spaceships.isEmpty()) {
             Text(
                 "보유한 우주선이 없습니다. 본부 > 격납고에서 구매하세요.",
@@ -743,7 +767,7 @@ private fun TeamBuilderContent(
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 3.dp)
+                        .padding(vertical = Spacing.xs)
                         .clickable(enabled = !isBusy) { onSelectShip(ship.id) },
                     shape = RoundedCornerShape(8.dp),
                     color = when {
@@ -760,7 +784,7 @@ private fun TeamBuilderContent(
                     )
                 ) {
                     Row(
-                        modifier = Modifier.padding(12.dp),
+                        modifier = Modifier.padding(Spacing.md),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Image(
@@ -769,7 +793,7 @@ private fun TeamBuilderContent(
                             contentScale = ContentScale.Fit,
                             modifier = Modifier.size(36.dp)
                         )
-                        Spacer(modifier = Modifier.width(10.dp))
+                        Spacer(modifier = Modifier.width(Spacing.md))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 "${ship.name} (등급 ${ship.grade})",
@@ -777,6 +801,7 @@ private fun TeamBuilderContent(
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Bold
                             )
+                            Spacer(modifier = Modifier.height(Spacing.xxs))
                             Text(
                                 if (isBusy) "탐사 중 — 복귀 후 사용 가능"
                                 else "탑승 ${ship.crewCapacity}명 · 속도 ${ship.speed} · 적재 ${ship.cargo}",
@@ -793,7 +818,7 @@ private fun TeamBuilderContent(
                                     "탐사 중",
                                     color = StatusRed.copy(alpha = 0.7f),
                                     style = MaterialTheme.typography.labelSmall,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    modifier = Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.xxs)
                                 )
                             }
                             selected -> Text("✓", color = SpaceAccent, style = MaterialTheme.typography.bodyMedium)
@@ -803,9 +828,9 @@ private fun TeamBuilderContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(Spacing.lg))
         SectionLabel("우주인 선택 (${uiState.selectedAstronautIds.size}/${maxCrew}명)")
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Spacing.sm))
         if (idleAstronauts.isEmpty()) {
             Text(
                 "대기 중인 우주인이 없습니다. 본부 > 우주인 센터에서 고용하세요.",
@@ -818,14 +843,14 @@ private fun TeamBuilderContent(
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 3.dp)
+                        .padding(vertical = Spacing.xs)
                         .clickable(enabled = canSelect) { onToggleAstronaut(astronaut.id) },
                     shape = RoundedCornerShape(8.dp),
                     color = if (selected) SpaceBlue else SpaceNavy.copy(alpha = 0.7f),
                     border = BorderStroke(1.dp, if (selected) SpaceAccent else SpaceMid)
                 ) {
                     Row(
-                        modifier = Modifier.padding(12.dp),
+                        modifier = Modifier.padding(Spacing.md),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Image(
@@ -834,14 +859,15 @@ private fun TeamBuilderContent(
                             contentScale = ContentScale.Fit,
                             modifier = Modifier.size(40.dp)
                         )
-                        Spacer(modifier = Modifier.width(10.dp))
+                        Spacer(modifier = Modifier.width(Spacing.md))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 astronaut.name, color = TextPrimary,
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Bold
                             )
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Spacer(modifier = Modifier.height(Spacing.xxs))
+                            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                                 Text(astronaut.specialty.displayName, color = SpaceAccent, style = MaterialTheme.typography.labelSmall)
                                 Text(astronaut.grade.displayName, color = GoldAccent, style = MaterialTheme.typography.labelSmall)
                                 Text("숙련도 ${astronaut.proficiency}", color = GoldAccent, style = MaterialTheme.typography.labelSmall)
@@ -854,11 +880,11 @@ private fun TeamBuilderContent(
         }
 
         uiState.dispatchError?.let {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Spacing.sm))
             Text(it, color = StatusRed, style = MaterialTheme.typography.bodySmall)
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(Spacing.lg))
         Button(
             onClick = onDispatch,
             enabled = !uiState.isDispatching &&
@@ -867,7 +893,9 @@ private fun TeamBuilderContent(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(8.dp),
             colors = ButtonDefaults.buttonColors(containerColor = GoldAccent, contentColor = SpaceDark),
-            contentPadding = PaddingValues(vertical = 14.dp)
+            border = ButtonDepth.highlightBorder,
+            elevation = ButtonDepth.elevation(),
+            contentPadding = ButtonPadding.fullWidthCta
         ) {
             Text(
                 if (uiState.isDispatching) "파견 중..." else "🚀  탐사 파견",
@@ -875,7 +903,7 @@ private fun TeamBuilderContent(
                 fontWeight = FontWeight.Bold
             )
         }
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Spacing.sm))
     }
 }
 
@@ -902,7 +930,7 @@ private fun ExpeditionResultDialog(
             modifier = Modifier.fillMaxWidth(0.92f).wrapContentHeight()
         ) {
             Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()).padding(22.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState()).padding(Spacing.xxl),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
@@ -911,7 +939,7 @@ private fun ExpeditionResultDialog(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(Spacing.lg))
 
                 if (result.coinsEarned > 0) {
                     Surface(
@@ -920,11 +948,18 @@ private fun ExpeditionResultDialog(
                         color = GoldAccent.copy(alpha = 0.12f)
                     ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("💰 탐사 보상", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                                Image(
+                                    painter = painterResource(R.drawable.ic_ui_coin),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(IconGlyphSize.small.value.dp)
+                                )
+                                Text("탐사 보상", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+                            }
                             Text(
                                 "+${"%,d".format(result.coinsEarned)} 코인",
                                 color = GoldAccent,
@@ -933,7 +968,7 @@ private fun ExpeditionResultDialog(
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(Spacing.md))
                 }
 
                 if (result.resources.isNotEmpty()) {
@@ -942,11 +977,11 @@ private fun ExpeditionResultDialog(
                         color = TextSecondary,
                         style = MaterialTheme.typography.labelSmall
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(Spacing.sm))
                     result.resources.entries.chunked(2).forEach { row ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
                         ) {
                             row.forEach { (type, amount) ->
                                 Surface(
@@ -955,13 +990,13 @@ private fun ExpeditionResultDialog(
                                     color = SpaceBlue.copy(0.3f)
                                 ) {
                                     Row(
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                        modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
                                         ) {
                                             Image(
                                                 painter = painterResource(type.iconRes),
@@ -976,19 +1011,26 @@ private fun ExpeditionResultDialog(
                             }
                             if (row.size == 1) Spacer(modifier = Modifier.weight(1f))
                         }
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(Spacing.sm))
                     }
                 }
 
                 if (planet != null && meta != null) {
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(Spacing.md))
                     HorizontalDivider(color = SpaceMid)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        "🪐 행성 발견!",
-                        color = SpaceAccent, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(Spacing.md))
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                        Image(
+                            painter = painterResource(R.drawable.ic_ui_planet),
+                            contentDescription = null,
+                            modifier = Modifier.size(IconGlyphSize.medium.value.dp)
+                        )
+                        Text(
+                            "행성 발견!",
+                            color = SpaceAccent, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(Spacing.sm))
                     val imageUrl = meta.variants.firstOrNull { it.variantId == planet.variantId }?.imageUrl
                     if (imageUrl != null) {
                         AsyncImage(
@@ -998,17 +1040,17 @@ private fun ExpeditionResultDialog(
                             contentScale = ContentScale.Fit,
                             filterQuality = FilterQuality.None
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(Spacing.sm))
                     }
                     Text(
                         "${meta.displayName} #${planet.variantId.substringAfterLast("-")}",
                         color = GoldAccent, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold
                     )
-                    Text(meta.description, color = TextSecondary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        StatChipMini("⚡ ${planet.production}/분", StatusGreen)
-                        StatChipMini("💰 ${"%,d".format(planet.buyPrice)}", GoldAccent)
+                    Text(meta.description, color = TextSecondary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = Spacing.xs))
+                    Spacer(modifier = Modifier.height(Spacing.sm))
+                    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                        StatChipMini("${planet.production}/분", StatusGreen, iconRes = R.drawable.ic_ui_energy)
+                        StatChipMini("%,d".format(planet.buyPrice), GoldAccent, iconRes = R.drawable.ic_ui_coin)
                         if (result.isDuplicateVariant) {
                             StatChipMini("📖 도감 등록됨", TextSecondary)
                         } else {
@@ -1019,14 +1061,14 @@ private fun ExpeditionResultDialog(
                     if (result.isCurrentlyOwned) {
                         Text(
                             "이미 보유 중인 행성이에요. 능력치가 다를 수 있으니 비교해보고 구매하세요",
-                            color = TextDisabled,
+                            color = TextSecondary,
                             style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.padding(top = 6.dp)
+                            modifier = Modifier.padding(top = Spacing.sm)
                         )
                     }
 
                     if (result.isSlotFull) {
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(Spacing.md))
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(8.dp),
@@ -1038,10 +1080,10 @@ private fun ExpeditionResultDialog(
                                     "${"%,d".format(result.slotFullCoins)}코인, 아니면 보유 행성을 팔고 대신 가질 수 있어요",
                                 color = TextSecondary,
                                 style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm)
                             )
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(Spacing.sm))
                         OutlinedButton(
                             onClick = onOpenSwapPicker,
                             modifier = Modifier.fillMaxWidth(),
@@ -1052,8 +1094,8 @@ private fun ExpeditionResultDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Spacer(modifier = Modifier.height(Spacing.lg))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     OutlinedButton(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f),
@@ -1065,9 +1107,11 @@ private fun ExpeditionResultDialog(
                         Button(
                             onClick = { onBuyPlanet(); onDismiss() },
                             enabled = coins >= planet.buyPrice,
-                            modifier = Modifier.weight(2f),
+                            modifier = Modifier.weight(2f).widthIn(min = ButtonPadding.minWidth),
                             shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = GoldAccent, contentColor = SpaceDark)
+                            colors = ButtonDefaults.buttonColors(containerColor = GoldAccent, contentColor = SpaceDark),
+                            border = ButtonDepth.highlightBorder,
+                            elevation = ButtonDepth.elevation()
                         ) {
                             Text(
                                 if (coins >= planet.buyPrice) "구매 ${"%,d".format(planet.buyPrice)}코인" else "코인 부족",
@@ -1112,7 +1156,7 @@ private fun SwapPickerDialog(
             border = BorderStroke(1.dp, SpaceMid),
             modifier = Modifier.fillMaxWidth(0.92f).wrapContentHeight()
         ) {
-            Column(modifier = Modifier.padding(22.dp)) {
+            Column(modifier = Modifier.padding(Spacing.xxl)) {
                 Text(
                     "$discoveredName 대신 팔 행성을 고르세요",
                     color = TextPrimary,
@@ -1121,16 +1165,16 @@ private fun SwapPickerDialog(
                 )
                 Text(
                     "판매가는 매입가 + 강화 투자액의 95%예요. 여러 개를 팔아 코인을 모은 뒤 구매하기를 눌러도 돼요",
-                    color = TextDisabled,
+                    color = TextSecondary,
                     style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
+                    modifier = Modifier.padding(top = Spacing.xs, bottom = Spacing.md)
                 )
                 Column(
                     modifier = Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(Spacing.sm)
                 ) {
                     if (sorted.isEmpty()) {
-                        Text("팔 수 있는 보유 행성이 없어요", color = TextDisabled, style = MaterialTheme.typography.labelSmall)
+                        Text("팔 수 있는 보유 행성이 없어요", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
                     }
                     sorted.forEach { owned ->
                         val meta = PlanetMetaDataTable.data[owned.type]
@@ -1141,7 +1185,7 @@ private fun SwapPickerDialog(
                             border = BorderStroke(1.dp, SpaceMid)
                         ) {
                             Row(
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.md),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -1152,6 +1196,7 @@ private fun SwapPickerDialog(
                                         style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.Bold
                                     )
+                                    Spacer(modifier = Modifier.height(Spacing.xxs))
                                     Text(
                                         "판매가 ${"%,d".format(sellPrice)}코인",
                                         color = TextSecondary,
@@ -1161,19 +1206,21 @@ private fun SwapPickerDialog(
                                 Button(
                                     onClick = { pendingSell = owned },
                                     shape = RoundedCornerShape(8.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = SpaceBlue, contentColor = TextPrimary),
-                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                                    colors = ButtonDefaults.buttonColors(containerColor = StatusRed, contentColor = TextPrimary),
+                                    border = ButtonDepth.highlightBorder,
+                                    elevation = ButtonDepth.elevation(),
+                                    contentPadding = ButtonPadding.listItemAction
                                 ) { Text("매도", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold) }
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(Spacing.lg))
                 HorizontalDivider(color = SpaceMid)
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(Spacing.md))
 
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     OutlinedButton(
                         onClick = onConvertToCoin,
                         modifier = Modifier.weight(1f),
@@ -1184,9 +1231,11 @@ private fun SwapPickerDialog(
                     Button(
                         onClick = onBuyDiscovered,
                         enabled = canBuyNow,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).widthIn(min = ButtonPadding.minWidth),
                         shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = GoldAccent, contentColor = SpaceDark)
+                        colors = ButtonDefaults.buttonColors(containerColor = GoldAccent, contentColor = SpaceDark),
+                        border = ButtonDepth.highlightBorder,
+                        elevation = ButtonDepth.elevation()
                     ) {
                         Text(
                             if (!hasFreeSlot) "슬롯 필요" else if (!canBuyNow) "코인 부족" else "구매하기",
@@ -1194,13 +1243,13 @@ private fun SwapPickerDialog(
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(Spacing.sm))
                 OutlinedButton(
                     onClick = onDismiss,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
                     border = BorderStroke(1.dp, SpaceMid),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextDisabled)
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary)
                 ) { Text("취소 (탐사 결과로 돌아가기)", style = MaterialTheme.typography.labelSmall) }
             }
         }
@@ -1237,9 +1286,18 @@ private fun SectionLabel(text: String) {
 }
 
 @Composable
-private fun StatChipMini(text: String, color: Color) {
+private fun StatChipMini(text: String, color: Color, @DrawableRes iconRes: Int? = null) {
     Surface(shape = RoundedCornerShape(6.dp), color = color.copy(alpha = 0.12f)) {
-        Text(text, color = color, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+        Row(
+            modifier = Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.xxs)
+        ) {
+            if (iconRes != null) {
+                Image(painter = painterResource(iconRes), contentDescription = null, modifier = Modifier.size(12.dp))
+            }
+            Text(text, color = color, style = MaterialTheme.typography.labelSmall)
+        }
     }
 }
 

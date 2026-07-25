@@ -1,5 +1,6 @@
 package com.doge.simulator.presentation.viewmodel
 
+import android.app.Activity
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -7,12 +8,16 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.doge.simulator.ads.RewardPlacement
+import com.doge.simulator.ads.RewardedAdManager
+import com.doge.simulator.ads.RewardedAdResult
 import com.doge.simulator.data.worker.TrainingCompleteWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.doge.simulator.domain.model.Astronaut
 import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.AstronautStatus
 import com.doge.simulator.domain.model.RecruitmentPool
+import com.doge.simulator.domain.repository.AstronautRepository
 import com.doge.simulator.domain.repository.UserRepository
 import com.doge.simulator.domain.usecase.CompleteTrainingUseCase
 import com.doge.simulator.domain.usecase.EnsureRecruitmentPoolFreshUseCase
@@ -42,7 +47,9 @@ class AstronautViewModel @Inject constructor(
     private val refreshRecruitmentPoolUseCase: RefreshRecruitmentPoolUseCase,
     private val trainAstronautUseCase: TrainAstronautUseCase,
     private val completeTrainingUseCase: CompleteTrainingUseCase,
+    private val astronautRepository: AstronautRepository,
     private val userRepository: UserRepository,
+    private val rewardedAdManager: RewardedAdManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -72,6 +79,8 @@ class AstronautViewModel @Inject constructor(
                 ensureRecruitmentPoolFreshUseCase()
             }
         }
+        rewardedAdManager.preload(RewardPlacement.POOL_REFRESH)
+        rewardedAdManager.preload(RewardPlacement.SKIP_WAIT)
     }
 
     private suspend fun checkTrainingCompletions() {
@@ -92,10 +101,36 @@ class AstronautViewModel @Inject constructor(
         }
     }
 
-    fun refreshPoolWithAd() {
-        viewModelScope.launch {
-            refreshRecruitmentPoolUseCase()
-            showMessage("모집 풀이 새로고침되었습니다!")
+    fun refreshPoolWithAd(activity: Activity) {
+        rewardedAdManager.show(activity, RewardPlacement.POOL_REFRESH) { result ->
+            viewModelScope.launch {
+                if (result is RewardedAdResult.Earned) {
+                    refreshRecruitmentPoolUseCase()
+                    showMessage("모집 풀이 새로고침되었습니다!")
+                } else {
+                    showMessage("광고를 끝까지 시청해야 새로고침할 수 있어요")
+                }
+            }
+        }
+    }
+
+    fun skipTrainingWait(astronaut: Astronaut, activity: Activity) {
+        val endTime = astronaut.trainingEndTime ?: return
+        rewardedAdManager.show(activity, RewardPlacement.SKIP_WAIT) { result ->
+            viewModelScope.launch {
+                if (result is RewardedAdResult.Earned) {
+                    val now = System.currentTimeMillis()
+                    val newEndTime = maxOf(now, endTime - GameConstants.AD_SKIP_MAX_MS)
+                    astronautRepository.updateStatus(
+                        astronaut.id, AstronautStatus.TRAINING, newEndTime, astronaut.trainingType
+                    )
+                    scheduleTrainingWorkerAt(astronaut.id, newEndTime)
+                    if (newEndTime <= now) checkTrainingCompletions()
+                    showMessage("훈련 대기시간이 단축되었습니다!")
+                } else {
+                    showMessage("광고를 끝까지 시청해야 단축할 수 있어요")
+                }
+            }
         }
     }
 
@@ -125,6 +160,11 @@ class AstronautViewModel @Inject constructor(
             .build()
         WorkManager.getInstance(context)
             .enqueueUniqueWork("training_$astronautId", ExistingWorkPolicy.REPLACE, request)
+    }
+
+    private fun scheduleTrainingWorkerAt(astronautId: String, endTime: Long) {
+        val delayMs = (endTime - System.currentTimeMillis()).coerceAtLeast(0L)
+        scheduleTrainingWorker(astronautId, "", delayMs)
     }
 
     private suspend fun showMessage(msg: String) {

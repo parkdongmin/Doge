@@ -1,6 +1,7 @@
 package com.doge.simulator.presentation.screen.rank
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -12,9 +13,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.doge.simulator.R
 import com.doge.simulator.domain.model.LeaderboardEntry
 import com.doge.simulator.presentation.component.ContextualBottomBar
 import com.doge.simulator.presentation.viewmodel.RankViewModel
@@ -32,6 +36,26 @@ fun RankScreen(
 
     LaunchedEffect(Unit) { viewModel.syncAndLoad() }
 
+    RankScreenContent(
+        entries = entries,
+        myRank = myRank,
+        isLoading = isLoading,
+        myUid = myUid,
+        onHomeClick = onHomeClick,
+        onRefresh = { viewModel.refresh() }
+    )
+}
+
+/** 서버 연동 없이 순수 UI만 렌더링 — 프리뷰·향후 테스트에서 재사용 */
+@Composable
+private fun RankScreenContent(
+    entries: List<LeaderboardEntry>,
+    myRank: Int?,
+    isLoading: Boolean,
+    myUid: String?,
+    onHomeClick: () -> Unit,
+    onRefresh: () -> Unit
+) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -44,17 +68,24 @@ fun RankScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                    .padding(horizontal = Spacing.xl, vertical = Spacing.lg),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    text = "🏆 랭킹",
-                    color = GoldAccent,
-                    style = MaterialTheme.typography.titleMedium
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    Image(
+                        painter = painterResource(R.drawable.ic_ui_trophy),
+                        contentDescription = null,
+                        modifier = Modifier.size(IconGlyphSize.medium.value.dp)
+                    )
+                    Text(
+                        text = "랭킹",
+                        color = GoldAccent,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
                 if (!isLoading) {
-                    TextButton(onClick = { viewModel.refresh() }) {
+                    TextButton(onClick = onRefresh) {
                         Text("새로고침", color = SpaceAccent, style = MaterialTheme.typography.labelMedium)
                     }
                 } else {
@@ -71,7 +102,7 @@ fun RankScreen(
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 4.dp),
+                        .padding(horizontal = Spacing.xl, vertical = Spacing.xs),
                     shape = RoundedCornerShape(6.dp),
                     color = GoldAccent.copy(alpha = 0.12f),
                     border = BorderStroke(1.dp, GoldAccent.copy(alpha = 0.4f))
@@ -79,7 +110,7 @@ fun RankScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 18.dp, vertical = 12.dp),
+                            .padding(horizontal = Spacing.xl, vertical = Spacing.md),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
@@ -97,23 +128,27 @@ fun RankScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Spacing.sm))
 
             if (isLoading && entries.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         CircularProgressIndicator(color = SpaceAccent)
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(Spacing.md))
                         Text("랭킹 불러오는 중...", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
                     }
                 }
             } else if (entries.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("🏆", fontSize = 48.sp)
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Image(
+                            painter = painterResource(R.drawable.ic_ui_trophy),
+                            contentDescription = null,
+                            modifier = Modifier.size(IconGlyphSize.xlarge.value.dp)
+                        )
+                        Spacer(modifier = Modifier.height(Spacing.md))
                         Text("아직 랭킹 데이터가 없습니다", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
-                        Text("탐험 후 행성을 구매해 순위에 올려보세요!", color = TextDisabled, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+                        Text("탐험 후 행성을 구매해 순위에 올려보세요!", color = TextSecondary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = Spacing.xs))
                     }
                 }
             } else {
@@ -122,7 +157,7 @@ fun RankScreen(
                     contentPadding = PaddingValues(
                         start = 16.dp, end = 16.dp, top = 4.dp, bottom = 90.dp
                     ),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(Spacing.sm)
                 ) {
                     itemsIndexed(entries) { _, entry ->
                         RankEntryCard(
@@ -147,11 +182,17 @@ private fun RankEntryCard(
     entry: LeaderboardEntry,
     isMe: Boolean
 ) {
-    val (rankIcon, rankColor) = when (entry.rank) {
-        1 -> "🥇" to GoldAccent
-        2 -> "🥈" to Color_Silver
-        3 -> "🥉" to Color_Bronze
-        else -> "#${entry.rank}" to TextSecondary
+    val rankMedalRes = when (entry.rank) {
+        1 -> R.drawable.ic_ui_medal_gold
+        2 -> R.drawable.ic_ui_medal_silver
+        3 -> R.drawable.ic_ui_medal_bronze
+        else -> null
+    }
+    val rankColor = when (entry.rank) {
+        1 -> GoldAccent
+        2 -> Color_Silver
+        3 -> Color_Bronze
+        else -> TextSecondary
     }
     val borderColor = when {
         isMe -> GoldAccent.copy(alpha = 0.6f)
@@ -173,16 +214,25 @@ private fun RankEntryCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(horizontal = Spacing.lg, vertical = Spacing.lg),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // ── 순위 ──────────────────────────────────────────────
-            Text(
-                text = rankIcon,
-                color = rankColor,
-                style = if (entry.rank <= 3) NumericMedium else NumericSmall,
-                modifier = Modifier.widthIn(min = 48.dp)
-            )
+            Box(modifier = Modifier.widthIn(min = 48.dp), contentAlignment = Alignment.CenterStart) {
+                if (rankMedalRes != null) {
+                    Image(
+                        painter = painterResource(rankMedalRes),
+                        contentDescription = null,
+                        modifier = Modifier.size(32.dp)
+                    )
+                } else {
+                    Text(
+                        text = "#${entry.rank}",
+                        color = rankColor,
+                        style = NumericSmall
+                    )
+                }
+            }
 
             // ── 이름 + 행성 수 ────────────────────────────────────
             Column(modifier = Modifier.weight(1f)) {
@@ -193,7 +243,7 @@ private fun RankEntryCard(
                         style = MaterialTheme.typography.bodyMedium
                     )
                     if (isMe) {
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(Spacing.sm))
                         Surface(
                             shape = RoundedCornerShape(2.dp),
                             color = GoldAccent.copy(alpha = 0.18f)
@@ -202,16 +252,24 @@ private fun RankEntryCard(
                                 text = "나",
                                 color = GoldAccent,
                                 style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                modifier = Modifier.padding(horizontal = Spacing.xs, vertical = Spacing.xxs)
                             )
                         }
                     }
                 }
-                Text(
-                    text = "🪐 ${entry.planetCount}개",
-                    color = TextDisabled,
-                    style = MaterialTheme.typography.labelSmall
-                )
+                Spacer(modifier = Modifier.height(Spacing.xxs))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
+                    Image(
+                        painter = painterResource(R.drawable.ic_ui_planet),
+                        contentDescription = null,
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Text(
+                        text = "${entry.planetCount}개",
+                        color = TextSecondary,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
             }
 
             // ── 총 자산 ───────────────────────────────────────────
@@ -223,7 +281,7 @@ private fun RankEntryCard(
                 )
                 Text(
                     text = "코인",
-                    color = TextDisabled,
+                    color = TextSecondary,
                     style = MaterialTheme.typography.labelSmall
                 )
             }
@@ -241,3 +299,48 @@ private fun formatAsset(value: Long): String = when {
 // 은·동 메달 전용 색상
 private val Color_Silver = androidx.compose.ui.graphics.Color(0xFFB0BEC5)
 private val Color_Bronze = androidx.compose.ui.graphics.Color(0xFFCD7F32)
+
+// ─── 프리뷰 전용: 실 서버(Firestore)에 데이터를 넣지 않고 화면만 미리 보기 위한 가짜 데이터 ───
+private fun fakeLeaderboardEntries(count: Int): List<LeaderboardEntry> = List(count) { index ->
+    val rank = index + 1
+    LeaderboardEntry(
+        uid = "preview_user_$rank",
+        displayName = "도지플레이어$rank",
+        totalAsset = (800_000_000L - rank * 12_000_000L).coerceAtLeast(30_000L),
+        coins = (400_000_000L - rank * 6_000_000L).coerceAtLeast(10_000L),
+        planetCount = (40 - rank / 2).coerceAtLeast(1),
+        rank = rank
+    )
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF00020E, heightDp = 800)
+@Composable
+private fun RankScreenPreview() {
+    val fakeEntries = fakeLeaderboardEntries(50)
+    DogeTheme {
+        RankScreenContent(
+            entries = fakeEntries,
+            myRank = 17,
+            isLoading = false,
+            myUid = "preview_user_17",
+            onHomeClick = {},
+            onRefresh = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF00020E, heightDp = 800)
+@Composable
+private fun RankScreenPreview_TopRank() {
+    val fakeEntries = fakeLeaderboardEntries(50)
+    DogeTheme {
+        RankScreenContent(
+            entries = fakeEntries,
+            myRank = 1,
+            isLoading = false,
+            myUid = "preview_user_1",
+            onHomeClick = {},
+            onRefresh = {}
+        )
+    }
+}

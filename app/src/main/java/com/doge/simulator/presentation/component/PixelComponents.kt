@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -36,18 +37,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.doge.simulator.ui.theme.ButtonDepth
+import com.doge.simulator.ui.theme.ButtonPadding
 import com.doge.simulator.ui.theme.GoldAccent
 import com.doge.simulator.ui.theme.NumericSmall
 import com.doge.simulator.ui.theme.SpaceBlue
 import com.doge.simulator.ui.theme.SpaceDark
+import com.doge.simulator.ui.theme.SpaceLight
 import com.doge.simulator.ui.theme.SpaceMid
 import com.doge.simulator.ui.theme.SpaceNavy
+import com.doge.simulator.ui.theme.Spacing
 import com.doge.simulator.ui.theme.StatusGreen
 import com.doge.simulator.ui.theme.StatusRed
 import com.doge.simulator.ui.theme.StatusYellow
 import com.doge.simulator.ui.theme.TextPrimary
 import com.doge.simulator.ui.theme.TextSecondary
+import com.doge.simulator.ui.theme.textured
 import kotlinx.coroutines.delay
 
 // ─── 픽셀 테두리 카드 ─────────────────────────────────────────────
@@ -57,9 +64,9 @@ fun PixelBorderCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
-        modifier = modifier,
+        modifier = modifier.textured(shape = RoundedCornerShape(4.dp), baseColor = SpaceNavy),
         shape = RoundedCornerShape(4.dp),
-        colors = CardDefaults.cardColors(containerColor = SpaceNavy),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         border = BorderStroke(1.dp, SpaceBlue),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         content = { Column(content = content) }
@@ -74,11 +81,13 @@ fun PixelButton(
     modifier: Modifier = Modifier,
     containerColor: Color = SpaceBlue,
     contentColor: Color = GoldAccent,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    contentPadding: PaddingValues = ButtonPadding.ctaInRow,
+    minWidth: Dp = ButtonPadding.minWidth
 ) {
     Button(
         onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.widthIn(min = minWidth),
         enabled = enabled,
         shape = RoundedCornerShape(4.dp),
         colors = ButtonDefaults.buttonColors(
@@ -87,7 +96,7 @@ fun PixelButton(
             disabledContainerColor = SpaceMid,
             disabledContentColor = TextSecondary
         ),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+        contentPadding = contentPadding
     ) {
         Text(text = text, style = MaterialTheme.typography.bodyMedium)
     }
@@ -235,7 +244,7 @@ fun ContextualBottomBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 14.dp),
+                .padding(horizontal = Spacing.xl, vertical = Spacing.lg),
             horizontalArrangement = if (secondaryLabel != null) Arrangement.SpaceBetween else Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -243,10 +252,12 @@ fun ContextualBottomBar(
                 onClick = onHomeClick,
                 shape = RoundedCornerShape(4.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = SpaceBlue,
+                    containerColor = SpaceLight,
                     contentColor = TextPrimary
                 ),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
+                border = ButtonDepth.highlightBorder,
+                elevation = ButtonDepth.elevation(),
+                contentPadding = ButtonPadding.ctaInRow
             ) {
                 Text("🏠  홈으로", style = MaterialTheme.typography.bodySmall)
             }
@@ -259,7 +270,9 @@ fun ContextualBottomBar(
                         containerColor = GoldAccent,
                         contentColor = SpaceDark
                     ),
-                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
+                    border = ButtonDepth.highlightBorder,
+                    elevation = ButtonDepth.elevation(),
+                    contentPadding = ButtonPadding.ctaInRow
                 ) {
                     Text(secondaryLabel, style = MaterialTheme.typography.bodySmall)
                 }

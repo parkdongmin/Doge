@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.doge.simulator.R
 import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.Resource
 import com.doge.simulator.presentation.viewmodel.AssetViewModel
@@ -45,17 +46,16 @@ fun AssetScreen(
             .background(SpaceDark)
             .verticalScroll(rememberScrollState())
             .statusBarsPadding()
-            .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 24.dp)
-            .navigationBarsPadding()
+            .padding(start = Spacing.xl, end = Spacing.xl, top = Spacing.lg, bottom = Spacing.xxl)
     ) {
         // ── 상태 메시지 ────────────────────────────────────────────────
         message?.let {
             Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp),
                 color = SpaceBlue.copy(alpha = 0.3f)) {
                 Text(it, color = SpaceAccent, style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
+                    modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm))
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Spacing.sm))
         }
 
         // ── 헤더 ──────────────────────────────────────────────────────
@@ -65,26 +65,28 @@ fun AssetScreen(
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(Spacing.xs))
         Text(
             text = "보유 자산과 자원 현황을 확인하세요",
             color = TextSecondary,
             style = MaterialTheme.typography.bodySmall
         )
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(Spacing.xl))
 
         // ── 총 자산 히어로 카드 ────────────────────────────────────────
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .textured(shape = RoundedCornerShape(16.dp), baseColor = SpaceNavy.copy(alpha = 0.85f)),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = SpaceNavy.copy(alpha = 0.85f)),
+            colors = CardDefaults.cardColors(containerColor = Color.Transparent),
             border = BorderStroke(1.dp, GoldAccent.copy(alpha = 0.4f))
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp)
+                    .padding(Spacing.xl)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -97,7 +99,7 @@ fun AssetScreen(
                             color = TextSecondary,
                             style = MaterialTheme.typography.bodySmall
                         )
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(Spacing.sm))
                         Text(
                             text = "%,.2f".format(displayTotalAsset.toDouble()),
                             color = GoldAccent,
@@ -112,11 +114,15 @@ fun AssetScreen(
                             border = BorderStroke(1.dp, StatusGreen.copy(alpha = 0.3f))
                         ) {
                             Column(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.md),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text(text = "⚡", fontSize = 18.sp)
-                                Spacer(modifier = Modifier.height(4.dp))
+                                Image(
+                                    painter = painterResource(R.drawable.ic_ui_energy),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(IconGlyphSize.medium.value.dp)
+                                )
+                                Spacer(modifier = Modifier.height(Spacing.xs))
                                 Text(
                                     text = "+%,d".format(state.netProductionPerMin),
                                     color = StatusGreen,
@@ -135,24 +141,28 @@ fun AssetScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(Spacing.xl))
 
         // ── 보유 자원 섹션 ─────────────────────────────────────────────
         SectionHeader(title = "보유 자원")
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(Spacing.md))
 
         if (resources.isEmpty()) {
-            Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
-                color = SpaceNavy.copy(alpha = 0.85f), border = BorderStroke(1.dp, SpaceMid)) {
+            Surface(modifier = Modifier
+                .fillMaxWidth()
+                .textured(shape = RoundedCornerShape(12.dp), baseColor = SpaceNavy.copy(alpha = 0.85f)), shape = RoundedCornerShape(12.dp),
+                color = Color.Transparent, border = BorderStroke(1.dp, SpaceMid)) {
                 Text("탐사를 통해 자원을 획득하세요", color = TextSecondary,
                     style = MaterialTheme.typography.bodySmall,
-                    modifier = androidx.compose.ui.Modifier.padding(16.dp))
+                    modifier = androidx.compose.ui.Modifier.padding(Spacing.lg))
             }
         } else {
-            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = SpaceNavy.copy(alpha = 0.85f)),
+            Card(modifier = Modifier
+                .fillMaxWidth()
+                .textured(shape = RoundedCornerShape(12.dp), baseColor = SpaceNavy.copy(alpha = 0.85f)), shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
                 border = BorderStroke(1.dp, SpaceMid)) {
-                Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                Column(modifier = Modifier.padding(vertical = Spacing.xs)) {
                     resources.forEachIndexed { index, resource ->
                         ResourceRow(
                             iconRes = resource.type.iconRes,
@@ -164,26 +174,28 @@ fun AssetScreen(
                         )
                         if (index < resources.size - 1) {
                             HorizontalDivider(color = SpaceMid.copy(alpha = 0.5f),
-                                modifier = Modifier.padding(horizontal = 16.dp))
+                                modifier = Modifier.padding(horizontal = Spacing.lg))
                         }
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(Spacing.xl))
 
         // ── 보유 자산 섹션 ─────────────────────────────────────────────
         SectionHeader(title = "보유 자산")
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(Spacing.md))
 
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .textured(shape = RoundedCornerShape(12.dp), baseColor = SpaceNavy.copy(alpha = 0.85f)),
             shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = SpaceNavy.copy(alpha = 0.85f)),
+            colors = CardDefaults.cardColors(containerColor = Color.Transparent),
             border = BorderStroke(1.dp, SpaceMid)
         ) {
-            Column(modifier = Modifier.padding(vertical = 4.dp)) {
+            Column(modifier = Modifier.padding(vertical = Spacing.xs)) {
                 ResourceRow(
                     icon = "🟡",
                     name = "DGT",
@@ -192,7 +204,7 @@ fun AssetScreen(
                         "+%,d / 분".format(state.netProductionPerMin) else null,
                     changePositive = true
                 )
-                HorizontalDivider(color = SpaceMid.copy(alpha = 0.5f), modifier = Modifier.padding(horizontal = 16.dp))
+                HorizontalDivider(color = SpaceMid.copy(alpha = 0.5f), modifier = Modifier.padding(horizontal = Spacing.lg))
                 ResourceRow(
                     icon = "🟢",
                     name = "USDT",
@@ -200,7 +212,7 @@ fun AssetScreen(
                     changePercent = null,
                     changePositive = true
                 )
-                HorizontalDivider(color = SpaceMid.copy(alpha = 0.5f), modifier = Modifier.padding(horizontal = 16.dp))
+                HorizontalDivider(color = SpaceMid.copy(alpha = 0.5f), modifier = Modifier.padding(horizontal = Spacing.lg))
                 ResourceRow(
                     icon = "🌌",
                     name = "NFT 자산",
@@ -213,12 +225,12 @@ fun AssetScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(Spacing.lg))
 
         // ── 요약 스탯 ──────────────────────────────────────────────────
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
             SummaryCard(
                 modifier = Modifier.weight(1f),
@@ -238,7 +250,7 @@ fun AssetScreen(
         }
 
         if (state.netProductionPerMin > 0L) {
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(Spacing.md))
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(10.dp),
@@ -246,11 +258,15 @@ fun AssetScreen(
                 border = BorderStroke(1.dp, StatusGreen.copy(alpha = 0.2f))
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
                 ) {
-                    Text(text = "⚡", fontSize = 16.sp)
+                    Image(
+                        painter = painterResource(R.drawable.ic_ui_energy),
+                        contentDescription = null,
+                        modifier = Modifier.size(IconGlyphSize.small.value.dp)
+                    )
                     Text(
                         text = "분당 순생산",
                         color = TextSecondary,
@@ -267,7 +283,7 @@ fun AssetScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(Spacing.lg))
 
         OutlinedButton(
             onClick = onRankClick,
@@ -276,7 +292,14 @@ fun AssetScreen(
             colors = ButtonDefaults.outlinedButtonColors(contentColor = SpaceAccent),
             border = BorderStroke(1.dp, SpaceAccent.copy(alpha = 0.5f))
         ) {
-            Text(text = "🏆  랭킹 보기", style = MaterialTheme.typography.bodyMedium)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                Image(
+                    painter = painterResource(R.drawable.ic_ui_trophy),
+                    contentDescription = null,
+                    modifier = Modifier.size(IconGlyphSize.small.value.dp)
+                )
+                Text(text = "랭킹 보기", style = MaterialTheme.typography.bodyMedium)
+            }
         }
     }
 
@@ -311,14 +334,14 @@ private fun SellResourceDialog(
             border = BorderStroke(1.dp, SpaceMid),
             modifier = Modifier.fillMaxWidth(0.9f).wrapContentHeight()
         ) {
-            Column(modifier = Modifier.padding(22.dp)) {
+            Column(modifier = Modifier.padding(Spacing.xxl)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Image(
                         painter = painterResource(resource.type.iconRes),
                         contentDescription = resource.type.displayName,
                         modifier = Modifier.size(28.dp)
                     )
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(Spacing.md))
                     Text(
                         resource.type.displayName,
                         color = TextPrimary,
@@ -326,14 +349,14 @@ private fun SellResourceDialog(
                         fontWeight = FontWeight.Bold
                     )
                 }
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(Spacing.xs))
                 Text(
                     "보유 수량: ${"%,d".format(resource.amount)}개 · 단가 ${"%,d".format(unitPrice)}코인/개",
                     color = TextSecondary,
                     style = MaterialTheme.typography.labelSmall
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(Spacing.lg))
 
                 OutlinedTextField(
                     value = quantityText,
@@ -355,11 +378,11 @@ private fun SellResourceDialog(
                         if (quantity > resource.amount) "보유 수량을 초과했습니다" else "1개 이상 입력하세요",
                         color = StatusRed,
                         style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.padding(top = 4.dp)
+                        modifier = Modifier.padding(top = Spacing.xs)
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(Spacing.lg))
 
                 Surface(
                     shape = RoundedCornerShape(8.dp),
@@ -367,7 +390,7 @@ private fun SellResourceDialog(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.md),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -381,9 +404,9 @@ private fun SellResourceDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(Spacing.lg))
 
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     OutlinedButton(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f),
@@ -394,9 +417,12 @@ private fun SellResourceDialog(
                     Button(
                         onClick = { onConfirm(quantity) },
                         enabled = isValid,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f),
                         shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = GoldAccent, contentColor = SpaceDark)
+                        colors = ButtonDefaults.buttonColors(containerColor = GoldAccent, contentColor = SpaceDark),
+                        border = ButtonDepth.highlightBorder,
+                        elevation = ButtonDepth.elevation()
                     ) { Text("판매", fontWeight = FontWeight.Bold) }
                 }
             }
@@ -428,7 +454,7 @@ private fun ResourceRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (iconRes != null) {
@@ -438,9 +464,9 @@ private fun ResourceRow(
                 modifier = Modifier.size(24.dp)
             )
         } else {
-            Text(text = icon.orEmpty(), fontSize = 20.sp)
+            Text(text = icon.orEmpty(), fontSize = IconGlyphSize.medium)
         }
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(Spacing.md))
         Text(
             text = name,
             color = TextPrimary,
@@ -463,10 +489,10 @@ private fun ResourceRow(
             }
         }
         if (onSell != null) {
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(Spacing.sm))
             OutlinedButton(
                 onClick = onSell,
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                contentPadding = ButtonPadding.listItemAction,
                 shape = RoundedCornerShape(6.dp),
                 border = BorderStroke(1.dp, GoldAccent.copy(alpha = 0.5f)),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = GoldAccent)
@@ -487,22 +513,22 @@ private fun SummaryCard(
     valueColor: Color = TextPrimary
 ) {
     Card(
-        modifier = modifier,
+        modifier = modifier.textured(shape = RoundedCornerShape(12.dp), baseColor = SpaceNavy.copy(alpha = 0.85f)),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = SpaceNavy.copy(alpha = 0.85f)),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         border = BorderStroke(1.dp, SpaceMid)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp)
+                .padding(Spacing.lg)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = icon, fontSize = 14.sp)
-                Spacer(modifier = Modifier.width(6.dp))
+                Text(text = icon, fontSize = IconGlyphSize.small)
+                Spacer(modifier = Modifier.width(Spacing.sm))
                 Text(text = label, color = TextSecondary, style = MaterialTheme.typography.labelSmall)
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Spacing.sm))
             Text(text = value, color = valueColor, style = NumericSmall, fontWeight = FontWeight.Bold)
             Text(text = unit, color = valueColor.copy(alpha = 0.6f), style = MaterialTheme.typography.labelSmall)
         }

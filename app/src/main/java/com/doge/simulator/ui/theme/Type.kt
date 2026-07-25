@@ -64,6 +64,28 @@ val NumericXSmall = TextStyle(
     letterSpacing = 0.sp
 )
 
+// ─── 라벨보다 한 단계 작은 보조 텍스트 (PfStardust) ───────────────
+/** Typography.labelSmall(10sp) 아래 단계 — 뱃지/미니스탯 등 더 작은 보조 라벨 */
+val LabelTiny = TextStyle(
+    fontFamily = PfStardustFamily,
+    fontWeight = FontWeight.ExtraBold,
+    fontSize = 9.sp,
+    lineHeight = 11.sp,
+    letterSpacing = 0.5.sp
+)
+
+// ─── 이모지/글리프 아이콘 크기 (Text로 렌더링되는 아이콘) ──────────
+/**
+ * fontSize로 그리는 이모지/글리프 아이콘용 스케일.
+ * 실사용 클러스터(14~16 / 18~20 / 26~28 / 36~48sp)를 4단계로 정리했다.
+ */
+object IconGlyphSize {
+    val small = 16.sp   // 인라인 텍스트 옆 아이콘 (⚡🪙›  등)
+    val medium = 20.sp  // 리스트 행/카드 아이콘
+    val large = 28.sp   // 카드 헤더·잠금 아이콘
+    val xlarge = 48.sp  // 빈 상태/스플래시 아이콘
+}
+
 // ─── 앱 전체 Typography (PfStardust) ─────────────────────────────
 val PixelTypography = Typography(
     displayLarge = TextStyle(

@@ -37,7 +37,7 @@ fun HQScreen(navController: NavController) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 12.dp)
+                .padding(start = Spacing.xl, end = Spacing.xl, top = Spacing.lg, bottom = Spacing.md)
         ) {
             Text(
                 text = "정거장",
@@ -45,6 +45,7 @@ fun HQScreen(navController: NavController) {
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
+            Spacer(modifier = Modifier.height(Spacing.xxs))
             Text(
                 text = "시설을 관리하여 탐사 역량을 강화하세요",
                 color = TextSecondary,
@@ -96,7 +97,7 @@ fun HQScreen(navController: NavController) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .fillMaxHeight()
-                    .padding(horizontal = 32.dp, vertical = 8.dp)
+                    .padding(horizontal = 32.dp, vertical = Spacing.sm)
             )
         }
 
@@ -104,7 +105,7 @@ fun HQScreen(navController: NavController) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp)
+                .padding(horizontal = Spacing.xl, vertical = Spacing.lg)
         ) {
             HQFacilityCard(
                 icon = "👨‍🚀",
@@ -113,7 +114,7 @@ fun HQScreen(navController: NavController) {
                 description = "우주인 고용 및 훈련 관리",
                 onClick = { navController.navigate(NavRoutes.Astronaut.route) }
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(Spacing.md))
             HQFacilityCard(
                 icon = "🚀",
                 iconRes = R.drawable.spaceship_2,
@@ -121,9 +122,10 @@ fun HQScreen(navController: NavController) {
                 description = "우주선 구매 및 강화",
                 onClick = { navController.navigate(NavRoutes.Hangar.route) }
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(Spacing.md))
             HQFacilityCard(
                 icon = "🔭",
+                iconRes = R.drawable.ic_space_station_research,
                 title = "연구소",
                 description = "탐사 기술·천체 분석·인사·공학 연구",
                 onClick = { navController.navigate(NavRoutes.ResearchLab.route) }
@@ -143,15 +145,16 @@ private fun HQFacilityCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable(onClick = onClick)
+            .textured(shape = RoundedCornerShape(12.dp), baseColor = SpaceNavy.copy(alpha = 0.85f)),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = SpaceNavy.copy(alpha = 0.85f)),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         border = BorderStroke(1.dp, SpaceBlue)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
+                .padding(Spacing.xl),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (iconRes != null) {
@@ -163,7 +166,7 @@ private fun HQFacilityCard(
             } else {
                 Text(text = icon, fontSize = 36.sp)
             }
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(Spacing.lg))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
@@ -171,14 +174,14 @@ private fun HQFacilityCard(
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(Spacing.xxs))
                 Text(
                     text = description,
                     color = TextSecondary,
                     style = MaterialTheme.typography.bodySmall
                 )
             }
-            Text(text = ">", color = TextDisabled, style = MaterialTheme.typography.bodyMedium)
+            Text(text = ">", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }

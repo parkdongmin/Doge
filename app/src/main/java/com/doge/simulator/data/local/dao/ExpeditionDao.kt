@@ -35,4 +35,7 @@ interface ExpeditionDao {
 
     @Query("UPDATE expedition_table SET resultHandled = 1 WHERE id = :id")
     suspend fun markResultHandled(id: String)
+
+    @Query("UPDATE expedition_table SET endTime = :endTime WHERE id = :id")
+    suspend fun updateEndTime(id: String, endTime: Long)
 }

@@ -1,5 +1,6 @@
 package com.doge.simulator.presentation.viewmodel
 
+import android.app.Activity
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -7,6 +8,8 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.doge.simulator.ads.AdFrequencyGate
+import com.doge.simulator.ads.InterstitialAdManager
 import com.doge.simulator.data.worker.ExplorationCompleteWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.doge.simulator.domain.model.Expedition
@@ -64,6 +67,8 @@ class ExploreViewModel @Inject constructor(
     private val storyRepository: StoryRepository,
     private val expeditionRepository: ExpeditionRepository,
     private val getExpeditionReportsUseCase: GetExpeditionReportsUseCase,
+    private val interstitialAdManager: InterstitialAdManager,
+    private val adFrequencyGate: AdFrequencyGate,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -108,11 +113,12 @@ class ExploreViewModel @Inject constructor(
     val uiState: StateFlow<ExploreUiState> = _uiState.asStateFlow()
 
     init {
+        // 앱 복귀 시점의 최초 수집(오프라인 수익 2배 다이얼로그 포함)은 AppSessionViewModel이 전담하므로
+        // 여기서 즉시 1회 수집하지 않는다 — 안 그러면 같은 경과시간이 중복 적립될 수 있다
         viewModelScope.launch {
             userRepository.initialize()
-            val planets = getOwnedPlanetsUseCase().first()
-            if (planets.isNotEmpty()) collectProfitUseCase(planets)
         }
+        interstitialAdManager.preload()
         // 60초마다 수익 누적
         viewModelScope.launch {
             while (true) {
@@ -298,7 +304,11 @@ class ExploreViewModel @Inject constructor(
     }
 
     // ── 결과 처리 ─────────────────────────────────────────────────────
-    fun buyDiscoveredPlanet(planet: Planet) {
+    fun buyDiscoveredPlanet(planet: Planet, activity: Activity) {
+        maybeShowInterstitial(activity) { buyDiscoveredPlanetInternal(planet) }
+    }
+
+    private fun buyDiscoveredPlanetInternal(planet: Planet) {
         viewModelScope.launch {
             val bought = buyPlanetUseCase(planet)
             if (bought) {
@@ -309,7 +319,11 @@ class ExploreViewModel @Inject constructor(
         }
     }
 
-    fun dismissResult() {
+    fun dismissResult(activity: Activity) {
+        maybeShowInterstitial(activity) { dismissResultInternal() }
+    }
+
+    private fun dismissResultInternal() {
         val expeditionId = _uiState.value.completionResult?.expeditionId
         _uiState.update { it.copy(completionResult = null, isSwapPickerOpen = false) }
         if (expeditionId != null) {
@@ -318,7 +332,11 @@ class ExploreViewModel @Inject constructor(
     }
 
     // 슬롯 풀 상태에서 신규 행성을 "코인으로 받기" 선택 시: 도감 등록 + 코인 지급을 이 시점에 확정
-    fun convertSlotFullToCoin() {
+    fun convertSlotFullToCoin(activity: Activity) {
+        maybeShowInterstitial(activity) { convertSlotFullToCoinInternal() }
+    }
+
+    private fun convertSlotFullToCoinInternal() {
         val result = _uiState.value.completionResult ?: return
         val planet = result.discoveredPlanet ?: return
         viewModelScope.launch {
@@ -326,6 +344,20 @@ class ExploreViewModel @Inject constructor(
             userRepository.addCoins(result.slotFullCoins)
             _uiState.update { it.copy(completionResult = null, isSwapPickerOpen = false) }
             expeditionRepository.markResultHandled(result.expeditionId)
+        }
+    }
+
+    // 탐사 결과 dismiss 시 빈도 제한(첫 N회 제외, 쿨다운)을 통과하면 전면광고를 먼저 보여주고
+    // 닫힌 후 실제 dismiss 로직(after)을 실행. 통과 못하면 바로 실행
+    private fun maybeShowInterstitial(activity: Activity, after: () -> Unit) {
+        adFrequencyGate.recordExpeditionCompleted()
+        if (adFrequencyGate.shouldShowInterstitial()) {
+            interstitialAdManager.show(activity) {
+                adFrequencyGate.recordInterstitialShown()
+                after()
+            }
+        } else {
+            after()
         }
     }
 

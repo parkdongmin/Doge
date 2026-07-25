@@ -2,6 +2,7 @@ package com.doge.simulator.presentation.screen.hq
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,6 +16,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -53,15 +55,15 @@ fun HangarScreen(
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             message?.let {
-                Surface(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                Surface(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.xs),
                     shape = RoundedCornerShape(8.dp), color = SpaceBlue.copy(0.3f)) {
                     Text(it, color = SpaceAccent, style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
+                        modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm))
                 }
             }
 
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.md),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -75,23 +77,24 @@ fun HangarScreen(
                 }
             }
 
-            HorizontalDivider(color = SpaceMid, modifier = Modifier.padding(horizontal = 16.dp))
+            HorizontalDivider(color = SpaceMid, modifier = Modifier.padding(horizontal = Spacing.lg))
 
             LazyColumn(
-                modifier = Modifier.weight(1f).navigationBarsPadding(),
+                modifier = Modifier.weight(1f),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(Spacing.md)
             ) {
                 // 구매 버튼
                 item {
                     val canBuy = spaceships.size < researchLab.maxSpaceships && coins >= GameConstants.SCOUT_SHIP_BASE_COST
                     Card(
                         shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = SpaceNavy.copy(0.85f)),
-                        border = BorderStroke(1.dp, GoldAccent.copy(0.4f))
+                        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                        border = BorderStroke(1.dp, GoldAccent.copy(0.4f)),
+                        modifier = Modifier.textured(shape = RoundedCornerShape(12.dp), baseColor = SpaceNavy.copy(alpha = 0.85f))
                     ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            modifier = Modifier.fillMaxWidth().padding(Spacing.lg),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Image(
@@ -100,7 +103,7 @@ fun HangarScreen(
                                 contentScale = ContentScale.Fit,
                                 modifier = Modifier.size(48.dp)
                             )
-                            Spacer(modifier = Modifier.width(14.dp))
+                            Spacer(modifier = Modifier.width(Spacing.lg))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text("정찰선", color = TextPrimary, style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Bold)
@@ -112,7 +115,9 @@ fun HangarScreen(
                                 enabled = canBuy,
                                 shape = RoundedCornerShape(6.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = GoldAccent, contentColor = SpaceDark),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                                border = ButtonDepth.highlightBorder,
+                                elevation = ButtonDepth.elevation(),
+                                contentPadding = ButtonPadding.listItemAction
                             ) {
                                 Text("%,d코인".format(GameConstants.SCOUT_SHIP_BASE_COST),
                                     style = MaterialTheme.typography.labelMedium)
@@ -123,12 +128,12 @@ fun HangarScreen(
 
                 if (spaceships.isNotEmpty()) {
                     item {
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(Spacing.xs))
                         HorizontalDivider(color = SpaceMid)
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(Spacing.xs))
                         Text("보유 우주선", color = GoldAccent, style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(Spacing.sm))
                     }
                     items(spaceships, key = { it.id }) { ship ->
                         SpaceshipCard(ship = ship, coins = coins, resources = resources,
@@ -157,10 +162,11 @@ private fun SpaceshipCard(
 
     Card(
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = SpaceNavy.copy(0.85f)),
-        border = BorderStroke(1.dp, SpaceMid)
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        border = BorderStroke(1.dp, SpaceMid),
+        modifier = Modifier.textured(shape = RoundedCornerShape(12.dp), baseColor = SpaceNavy.copy(alpha = 0.85f))
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Column(modifier = Modifier.padding(Spacing.lg)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Image(
                     painter = painterResource(spaceshipImageRes(ship.crewCapacity)),
@@ -168,11 +174,12 @@ private fun SpaceshipCard(
                     contentScale = ContentScale.Fit,
                     modifier = Modifier.size(44.dp)
                 )
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(Spacing.md))
                 Column(modifier = Modifier.weight(1f)) {
                     Text("${ship.name}  (등급 ${ship.grade})", color = TextPrimary,
                         style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Spacer(modifier = Modifier.height(Spacing.xxs))
+                    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                         MiniStat("탑승", "${ship.crewCapacity}명", TextPrimary)
                         MiniStat("속도", "${ship.speed}", SpaceAccent)
                         MiniStat("적재", "${ship.cargo}", GoldAccent)
@@ -180,7 +187,7 @@ private fun SpaceshipCard(
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(Spacing.md))
             // 강화 비용 표시
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically) {
@@ -200,9 +207,12 @@ private fun SpaceshipCard(
                     }
                     Button(
                         onClick = onUpgrade, enabled = canUpgrade,
+                        modifier = Modifier.widthIn(min = ButtonPadding.minWidth),
                         shape = RoundedCornerShape(6.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = SpaceAccent, contentColor = SpaceDark),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                        border = ButtonDepth.highlightBorder,
+                        elevation = ButtonDepth.elevation(),
+                        contentPadding = ButtonPadding.listItemAction
                     ) { Text("강화", style = MaterialTheme.typography.labelMedium) }
                 }
             }
@@ -220,7 +230,7 @@ private fun spaceshipImageRes(crewCapacity: Int): Int = when {
 @Composable
 private fun MiniStat(label: String, value: String, color: androidx.compose.ui.graphics.Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, color = TextDisabled, style = MaterialTheme.typography.labelSmall, fontSize = 9.sp)
+        Text(label, color = TextSecondary, style = LabelTiny)
         Text(value, color = color, style = MaterialTheme.typography.labelSmall)
     }
 }

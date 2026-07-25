@@ -18,7 +18,12 @@ import com.doge.simulator.presentation.screen.MainScreen
 import com.doge.simulator.presentation.screen.SplashScreen
 import com.doge.simulator.presentation.screen.auth.LoginScreen
 import com.doge.simulator.ui.theme.DogeTheme
+import com.google.android.gms.ads.MobileAds
+import com.google.android.ump.ConsentInformation
+import com.google.android.ump.ConsentRequestParameters
+import com.google.android.ump.UserMessagingPlatform
 import dagger.hilt.android.AndroidEntryPoint
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -33,12 +38,17 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission()
     ) { /* 허용 여부와 무관하게 별도 처리 없음 */ }
 
+    private val adsInitialized = AtomicBoolean(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
         // 알림 권한 요청 (Android 13+)
         requestNotificationPermissionIfNeeded()
+
+        // 동의(UMP) 처리 후 광고 SDK 초기화
+        requestConsentAndInitializeAds()
 
         // 최초 실행 시 딥링크 추출 (FCM 알림 탭 또는 URL scheme)
         _deepLink.value = extractDeepLink(intent)
@@ -102,6 +112,35 @@ class MainActivity : ComponentActivity() {
 
         // 2. FCM data payload의 deepLink 필드
         return intent?.getStringExtra("deepLink")
+    }
+
+    /**
+     * UMP(User Messaging Platform)로 동의 정보를 갱신하고, 필요 시 동의 폼을 띄운다.
+     * 동의 처리가 끝나면(또는 지역상 불필요하다고 판단되면) 광고 SDK를 초기화한다.
+     */
+    private fun requestConsentAndInitializeAds() {
+        val params = ConsentRequestParameters.Builder().build()
+        val consentInformation: ConsentInformation = UserMessagingPlatform.getConsentInformation(this)
+        consentInformation.requestConsentInfoUpdate(
+            this,
+            params,
+            {
+                UserMessagingPlatform.loadAndShowConsentFormIfRequired(this) {
+                    // formError 유무와 무관하게 이 시점엔 동의 처리가 끝난 상태이므로 광고 SDK 초기화 진행
+                    initializeMobileAdsSdk()
+                }
+            },
+            { initializeMobileAdsSdk() }
+        )
+        // 이미 동의가 확보돼 있어 폼이 필요 없는 경우, 콜백을 기다리지 않고 바로 초기화
+        if (consentInformation.canRequestAds()) {
+            initializeMobileAdsSdk()
+        }
+    }
+
+    private fun initializeMobileAdsSdk() {
+        if (adsInitialized.getAndSet(true)) return
+        MobileAds.initialize(this) {}
     }
 
     private fun requestNotificationPermissionIfNeeded() {

@@ -9,12 +9,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
+import com.doge.simulator.presentation.component.OfflineProfitDialog
 import com.doge.simulator.presentation.navigation.BottomNavItem
 import com.doge.simulator.presentation.navigation.NavRoutes
 import com.doge.simulator.presentation.screen.asset.AssetScreen
@@ -27,7 +33,9 @@ import com.doge.simulator.presentation.screen.hq.ResearchLabScreen
 import com.doge.simulator.presentation.screen.planet.PlanetDetailScreen
 import com.doge.simulator.presentation.screen.planet.PlanetScreen
 import com.doge.simulator.presentation.screen.rank.RankScreen
+import com.doge.simulator.presentation.viewmodel.AppSessionViewModel
 import com.doge.simulator.ui.theme.*
+import com.doge.simulator.util.findActivity
 import kotlinx.coroutines.flow.StateFlow
 
 @Composable
@@ -36,6 +44,18 @@ fun MainScreen(deepLinkFlow: StateFlow<String?>) {
     val deepLink by deepLinkFlow.collectAsState()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+
+    val appSessionViewModel: AppSessionViewModel = hiltViewModel()
+    val pendingOfflineProfit by appSessionViewModel.pendingOfflineProfit.collectAsState()
+    val activity = LocalContext.current.findActivity()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) appSessionViewModel.checkPendingProfit()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     val bottomNavItems = listOf(
         BottomNavItem.Explore,
@@ -148,6 +168,15 @@ fun MainScreen(deepLinkFlow: StateFlow<String?>) {
                     .onSizeChanged { navBarHeightPx = it.height }
             )
         }
+    }
+
+    // ── 오프라인 수익 확인 다이얼로그 (탭과 무관하게 최상단에 노출) ──
+    pendingOfflineProfit?.let { pending ->
+        OfflineProfitDialog(
+            coins = pending.coins,
+            onClaimWithAd = { appSessionViewModel.claimWithAd(activity) },
+            onClaimFree = { appSessionViewModel.claimFree() }
+        )
     }
 }
 
