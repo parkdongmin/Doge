@@ -30,3 +30,7 @@ enum class ResourceType(
     ALIEN_TECH("외계 기술", ExpeditionCategory.ALIEN_CIVILIZATION, R.drawable.ic_resource_alien_tech),
     QUANTUM_CORE("양자 코어", ExpeditionCategory.ALIEN_CIVILIZATION, R.drawable.ic_resource_quantum_core)
 }
+
+// 카테고리를 대표하는 자원 아이콘 (첫 번째 자원) — 탐사 카테고리 UI 전반에서 재사용
+val ExpeditionCategory.representativeIconRes: Int
+    @DrawableRes get() = ResourceType.entries.first { it.category == this }.iconRes
