@@ -74,13 +74,14 @@ val LabelTiny = TextStyle(
     letterSpacing = 0.5.sp
 )
 
-// ─── 이모지/글리프 아이콘 크기 (Text로 렌더링되는 아이콘) ──────────
+// ─── 아이콘 크기 (Image 아이콘 dp 변환 + 일부 글리프 Text용) ──────────
 /**
- * fontSize로 그리는 이모지/글리프 아이콘용 스케일.
+ * 커스텀 이미지 아이콘의 크기(.value.dp로 변환해 사용)와,
+ * "›" 같은 순수 타이포그래피 글리프의 fontSize로 쓰는 스케일.
  * 실사용 클러스터(14~16 / 18~20 / 26~28 / 36~48sp)를 4단계로 정리했다.
  */
 object IconGlyphSize {
-    val small = 16.sp   // 인라인 텍스트 옆 아이콘 (⚡🪙›  등)
+    val small = 16.sp   // 인라인 텍스트 옆 아이콘
     val medium = 20.sp  // 리스트 행/카드 아이콘
     val large = 28.sp   // 카드 헤더·잠금 아이콘
     val xlarge = 48.sp  // 빈 상태/스플래시 아이콘

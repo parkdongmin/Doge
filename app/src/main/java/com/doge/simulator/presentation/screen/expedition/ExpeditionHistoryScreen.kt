@@ -19,8 +19,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.doge.simulator.R
 import com.doge.simulator.domain.model.Astronaut
 import com.doge.simulator.domain.model.Expedition
 import com.doge.simulator.domain.model.ExpeditionReport
@@ -79,7 +79,11 @@ fun ExpeditionHistoryScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("📡", fontSize = IconGlyphSize.xlarge)
+                    Image(
+                        painter = painterResource(R.drawable.ic_ui_no_signal),
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp)
+                    )
                     Spacer(modifier = Modifier.height(Spacing.md))
                     Text("탐사 기록이 없습니다", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
                     Text("탐사를 완료하면 이야기가 쌓입니다", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
@@ -102,12 +106,20 @@ fun ExpeditionHistoryScreen(
                 // ── 진행 중인 탐사 ────────────────────────────────────
                 if (activeExpeditions.isNotEmpty()) {
                     item {
-                        Text(
-                            "🚀  진행 중인 탐사",
-                            color = SpaceAccent,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Image(
+                                painter = painterResource(R.drawable.ic_ui_rocket),
+                                contentDescription = null,
+                                modifier = Modifier.size(IconGlyphSize.large.value.dp)
+                            )
+                            Spacer(modifier = Modifier.width(Spacing.xs))
+                            Text(
+                                "진행 중인 탐사",
+                                color = SpaceAccent,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                     items(activeExpeditions, key = { "active_${it.id}" }) { expedition ->
                         ActiveExpeditionCard(
@@ -123,12 +135,20 @@ fun ExpeditionHistoryScreen(
                 val pending = allReports.filter { !it.isRead || it.hasPendingChoices }
                 if (pending.isNotEmpty()) {
                     item {
-                        Text(
-                            "📬  미확인 보고서",
-                            color = GoldAccent,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Image(
+                                painter = painterResource(R.drawable.ic_ui_mailbox),
+                                contentDescription = null,
+                                modifier = Modifier.size(IconGlyphSize.large.value.dp)
+                            )
+                            Spacer(modifier = Modifier.width(Spacing.xs))
+                            Text(
+                                "미확인 보고서",
+                                color = GoldAccent,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                     items(pending, key = { "pending_${it.expeditionId}" }) { report ->
                         ReportCard(
@@ -145,12 +165,20 @@ fun ExpeditionHistoryScreen(
                 val completed = allReports.filter { it.isRead && !it.hasPendingChoices }
                 if (completed.isNotEmpty()) {
                     item {
-                        Text(
-                            "📖  탐사 기록",
-                            color = TextSecondary,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Image(
+                                painter = painterResource(R.drawable.ic_ui_logbook),
+                                contentDescription = null,
+                                modifier = Modifier.size(IconGlyphSize.large.value.dp)
+                            )
+                            Spacer(modifier = Modifier.width(Spacing.xs))
+                            Text(
+                                "탐사 기록",
+                                color = TextSecondary,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                     items(completed, key = { "done_${it.expeditionId}" }) { report ->
                         ReportCard(report = report, isPending = false)
@@ -240,18 +268,32 @@ private fun ActiveExpeditionCard(
                     onClick = onSkipWaitAd,
                     contentPadding = ButtonPadding.textInline
                 ) {
-                    Text("⏩ 광고로 4시간 당기기", color = SpaceAccent, style = MaterialTheme.typography.labelSmall)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                        Image(
+                            painter = painterResource(R.drawable.ic_ui_ad),
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text("광고로 4시간 당기기", color = SpaceAccent, style = MaterialTheme.typography.labelSmall)
+                    }
                 }
             }
 
             if (teamNames.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(Spacing.xs))
-                Text(
-                    "👥 ${teamNames.joinToString(", ")}",
-                    color = TextSecondary,
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
+                    Image(
+                        painter = painterResource(R.drawable.ic_ui_crew),
+                        contentDescription = null,
+                        modifier = Modifier.size(IconGlyphSize.small.value.dp)
+                    )
+                    Text(
+                        teamNames.joinToString(", "),
+                        color = TextSecondary,
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(Spacing.md))
@@ -327,7 +369,11 @@ private fun ReportCard(
                     }
                 }
                 if (report.isChapterEnding) {
-                    Text("⭐", fontSize = IconGlyphSize.small)
+                    Image(
+                        painter = painterResource(R.drawable.ic_ui_star),
+                        contentDescription = null,
+                        modifier = Modifier.size(IconGlyphSize.small.value.dp)
+                    )
                 }
             }
 
@@ -391,7 +437,11 @@ private fun EventCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
             ) {
-                Text(if (event.isPending) "❗" else "✅", fontSize = 12.sp)
+                Image(
+                    painter = painterResource(if (event.isPending) R.drawable.ic_ui_pending else R.drawable.ic_ui_check),
+                    contentDescription = null,
+                    modifier = Modifier.size(12.dp)
+                )
                 Text(
                     event.title,
                     color = TextPrimary,
@@ -456,11 +506,21 @@ private fun EventCard(
                 // 선택 완료 표시
                 Spacer(modifier = Modifier.height(Spacing.sm))
                 if (event.outcomeNote != null) {
-                    Text(
-                        event.outcomeNote,
-                        color = StatusRed,
-                        style = MaterialTheme.typography.labelSmall
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
+                    ) {
+                        Image(
+                            painter = painterResource(R.drawable.ic_ui_danger),
+                            contentDescription = null,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Text(
+                            event.outcomeNote,
+                            color = StatusRed,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
                 } else {
                     val chosen = event.choiceAt(event.selectedChoiceIndex)
                     if (chosen != null) {

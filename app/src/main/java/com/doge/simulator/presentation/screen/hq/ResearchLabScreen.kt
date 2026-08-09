@@ -143,15 +143,11 @@ private fun ResearchFieldCard(
     ) {
         Column(modifier = Modifier.padding(Spacing.lg)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (field.iconRes != null) {
-                    Image(
-                        painter = painterResource(field.iconRes),
-                        contentDescription = null,
-                        modifier = Modifier.size(IconGlyphSize.large.value.dp)
-                    )
-                } else {
-                    Text(field.icon, fontSize = IconGlyphSize.large)
-                }
+                Image(
+                    painter = painterResource(field.iconRes),
+                    contentDescription = null,
+                    modifier = Modifier.size(IconGlyphSize.large.value.dp)
+                )
                 Spacer(modifier = Modifier.width(Spacing.md))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(field.displayName, color = TextPrimary, style = MaterialTheme.typography.bodyMedium,

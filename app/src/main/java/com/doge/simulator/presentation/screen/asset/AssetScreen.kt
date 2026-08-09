@@ -197,7 +197,7 @@ fun AssetScreen(
         ) {
             Column(modifier = Modifier.padding(vertical = Spacing.xs)) {
                 ResourceRow(
-                    icon = "🟡",
+                    iconRes = R.drawable.ic_ui_coin,
                     name = "DGT",
                     amount = "%,.2f".format(displayCoins.toDouble()),
                     changePercent = if (state.netProductionPerMin > 0L)
@@ -206,7 +206,7 @@ fun AssetScreen(
                 )
                 HorizontalDivider(color = SpaceMid.copy(alpha = 0.5f), modifier = Modifier.padding(horizontal = Spacing.lg))
                 ResourceRow(
-                    icon = "🟢",
+                    iconRes = R.drawable.ic_ui_usdt,
                     name = "USDT",
                     amount = "%,.2f".format(state.totalMarketValue.toDouble() / 1000.0),
                     changePercent = null,
@@ -214,7 +214,7 @@ fun AssetScreen(
                 )
                 HorizontalDivider(color = SpaceMid.copy(alpha = 0.5f), modifier = Modifier.padding(horizontal = Spacing.lg))
                 ResourceRow(
-                    icon = "🌌",
+                    iconRes = R.drawable.ic_ui_nft_asset,
                     name = "NFT 자산",
                     amount = "${state.planetCount}",
                     changePercent = null,
@@ -234,14 +234,14 @@ fun AssetScreen(
         ) {
             SummaryCard(
                 modifier = Modifier.weight(1f),
-                icon = "📊",
+                iconRes = R.drawable.ic_ui_stat_market,
                 label = "행성 시세 합계",
                 value = "%,d".format(state.totalMarketValue),
                 unit = "코인"
             )
             SummaryCard(
                 modifier = Modifier.weight(1f),
-                icon = "📈",
+                iconRes = R.drawable.ic_ui_stat_profit,
                 label = "누적 순수익",
                 value = "%,d".format(state.totalProfit),
                 unit = "코인",
@@ -447,8 +447,7 @@ private fun ResourceRow(
     changePercent: String?,
     changePositive: Boolean,
     unit: String = "",
-    @DrawableRes iconRes: Int? = null,
-    icon: String? = null,
+    @DrawableRes iconRes: Int,
     onSell: (() -> Unit)? = null
 ) {
     Row(
@@ -457,15 +456,11 @@ private fun ResourceRow(
             .padding(horizontal = Spacing.lg, vertical = Spacing.md),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (iconRes != null) {
-            androidx.compose.foundation.Image(
-                painter = painterResource(iconRes),
-                contentDescription = name,
-                modifier = Modifier.size(24.dp)
-            )
-        } else {
-            Text(text = icon.orEmpty(), fontSize = IconGlyphSize.medium)
-        }
+        androidx.compose.foundation.Image(
+            painter = painterResource(iconRes),
+            contentDescription = name,
+            modifier = Modifier.size(24.dp)
+        )
         Spacer(modifier = Modifier.width(Spacing.md))
         Text(
             text = name,
@@ -506,7 +501,7 @@ private fun ResourceRow(
 @Composable
 private fun SummaryCard(
     modifier: Modifier = Modifier,
-    icon: String,
+    @DrawableRes iconRes: Int,
     label: String,
     value: String,
     unit: String,
@@ -524,7 +519,11 @@ private fun SummaryCard(
                 .padding(Spacing.lg)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = icon, fontSize = IconGlyphSize.small)
+                Image(
+                    painter = painterResource(iconRes),
+                    contentDescription = label,
+                    modifier = Modifier.size(16.dp)
+                )
                 Spacer(modifier = Modifier.width(Spacing.sm))
                 Text(text = label, color = TextSecondary, style = MaterialTheme.typography.labelSmall)
             }

@@ -31,6 +31,7 @@ import com.doge.simulator.domain.model.effectiveProduction
 import com.doge.simulator.presentation.component.PlanetLevelBadge
 import com.doge.simulator.presentation.component.rememberLiveCoinDisplay
 import com.doge.simulator.presentation.viewmodel.PlanetViewModel
+import com.doge.simulator.presentation.viewmodel.UpgradeMessageTone
 import com.doge.simulator.ui.theme.*
 import com.doge.simulator.util.findActivity
 
@@ -253,19 +254,30 @@ fun PlanetDetailScreen(
             // ── 강화 메시지 ─────────────────────────────────────────
             upgradeMessage?.let { msg ->
                 Spacer(modifier = Modifier.height(Spacing.sm))
-                Surface(shape = RoundedCornerShape(4.dp),
-                    color = when {
-                        msg.contains("성공") -> StatusGreen.copy(0.15f)
-                        msg.contains("실패") -> StatusRed.copy(0.15f)
-                        else -> SpaceMid.copy(0.5f)
-                    },
-                    modifier = Modifier.fillMaxWidth()) {
-                    Text(msg, color = when {
-                        msg.contains("성공") -> StatusGreen
-                        msg.contains("실패") -> StatusRed
-                        else -> TextSecondary
-                    }, style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm))
+                val tint = when (msg.tone) {
+                    UpgradeMessageTone.SUCCESS -> StatusGreen
+                    UpgradeMessageTone.FAIL -> StatusRed
+                    UpgradeMessageTone.INFO -> TextSecondary
+                }
+                Surface(
+                    shape = RoundedCornerShape(4.dp),
+                    color = tint.copy(alpha = if (msg.tone == UpgradeMessageTone.INFO) 0.5f else 0.15f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
+                    ) {
+                        if (msg.iconRes != null) {
+                            Image(
+                                painter = painterResource(msg.iconRes),
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Text(msg.text, color = tint, style = MaterialTheme.typography.bodySmall)
+                    }
                 }
             }
 
@@ -309,16 +321,38 @@ fun PlanetDetailScreen(
                                 Spacer(modifier = Modifier.height(Spacing.xxs))
                                 Text("Lv.${planet.level} → Lv.${planet.level + 1}",
                                     color = TextPrimary, style = MaterialTheme.typography.bodySmall)
-                                Text("성공률 ${(successRate * 100).toInt()}% · ${if (isDangerZone) "⚠ 실패 시 레벨 하락" else "실패 시 레벨 유지"}",
-                                    color = if (isDangerZone) StatusYellow else TextSecondary,
-                                    style = MaterialTheme.typography.labelSmall)
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
+                                    Text("성공률 ${(successRate * 100).toInt()}% · ",
+                                        color = if (isDangerZone) StatusYellow else TextSecondary,
+                                        style = MaterialTheme.typography.labelSmall)
+                                    if (isDangerZone) {
+                                        Image(
+                                            painter = painterResource(R.drawable.ic_ui_danger),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(IconGlyphSize.small.value.dp)
+                                        )
+                                    }
+                                    Text(if (isDangerZone) "실패 시 레벨 하락" else "실패 시 레벨 유지",
+                                        color = if (isDangerZone) StatusYellow else TextSecondary,
+                                        style = MaterialTheme.typography.labelSmall)
+                                }
                             }
                             Surface(shape = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
                                 color = if (isDangerZone) StatusYellow.copy(0.15f) else SpaceBlue.copy(0.3f)) {
-                                Text(if (isDangerZone) "⚠ 위험구간" else "안전구간",
-                                    color = if (isDangerZone) StatusYellow else SpaceAccent,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    modifier = Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.xs))
+                                Row(verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(Spacing.xxs),
+                                    modifier = Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.xs)) {
+                                    if (isDangerZone) {
+                                        Image(
+                                            painter = painterResource(R.drawable.ic_ui_danger),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(IconGlyphSize.small.value.dp)
+                                        )
+                                    }
+                                    Text(if (isDangerZone) "위험구간" else "안전구간",
+                                        color = if (isDangerZone) StatusYellow else SpaceAccent,
+                                        style = MaterialTheme.typography.labelSmall)
+                                }
                             }
                         }
                         Spacer(modifier = Modifier.height(Spacing.md))

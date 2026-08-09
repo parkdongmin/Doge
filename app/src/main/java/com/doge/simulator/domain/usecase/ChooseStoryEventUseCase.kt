@@ -32,7 +32,7 @@ class ChooseStoryEventUseCase @Inject constructor(
                 val penalty = (amount * 80).coerceAtLeast(150L)
                 userRepository.deductCoins(penalty)
                 val flavor = StoryContent.departureFailureFlavors.random()
-                storyRepository.selectEventChoice(event.id, event.expeditionId, choiceIndex, "⚠ $flavor (코인 -$penalty)")
+                storyRepository.selectEventChoice(event.id, event.expeditionId, choiceIndex, "$flavor (코인 -$penalty)")
             }
             return
         }

@@ -314,7 +314,14 @@ private fun AstronautCard(
                         style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
                     if (remaining > 60_000L) {
                         TextButton(onClick = onSkipWaitAd, contentPadding = ButtonPadding.textInline) {
-                            Text("⏩ 광고로 4시간 당기기", color = SpaceAccent, style = MaterialTheme.typography.labelSmall)
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                                Image(
+                                    painter = painterResource(R.drawable.ic_ui_ad),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text("광고로 4시간 당기기", color = SpaceAccent, style = MaterialTheme.typography.labelSmall)
+                            }
                         }
                     }
                 }

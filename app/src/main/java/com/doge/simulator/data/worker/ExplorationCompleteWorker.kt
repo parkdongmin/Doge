@@ -54,8 +54,8 @@ class ExplorationCompleteWorker @AssistedInject constructor(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_bottom_navi_explore_on)
-            .setContentTitle("탐사 완료! 🚀")
+            .setSmallIcon(R.drawable.ic_research_explore_skills)
+            .setContentTitle("탐사 완료!")
             .setContentText(if (count == 1) "탐사가 완료되었습니다. 결과를 확인하세요!"
                             else "${count}개의 탐사가 완료되었습니다!")
             .setPriority(NotificationCompat.PRIORITY_HIGH)

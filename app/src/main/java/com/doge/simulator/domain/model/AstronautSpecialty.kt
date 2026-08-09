@@ -5,13 +5,12 @@ import com.doge.simulator.R
 
 enum class AstronautSpecialty(
     val displayName: String,
-    val icon: String,
     val relatedCategory: ExpeditionCategory
 ) {
-    MINERAL("광물 전문가", "⛏️", ExpeditionCategory.MINERAL),
-    PLANET("행성 탐사가", "🪐", ExpeditionCategory.PLANET),
-    RUINS("유적 발굴가", "🏛️", ExpeditionCategory.RUINS),
-    ALIEN_CIVILIZATION("외계 연구가", "👽", ExpeditionCategory.ALIEN_CIVILIZATION);
+    MINERAL("광물 전문가", ExpeditionCategory.MINERAL),
+    PLANET("행성 탐사가", ExpeditionCategory.PLANET),
+    RUINS("유적 발굴가", ExpeditionCategory.RUINS),
+    ALIEN_CIVILIZATION("외계 연구가", ExpeditionCategory.ALIEN_CIVILIZATION);
 
     // 전문 분야 × 등급(인턴~레전드) 조합별 캐릭터 이미지
     @DrawableRes

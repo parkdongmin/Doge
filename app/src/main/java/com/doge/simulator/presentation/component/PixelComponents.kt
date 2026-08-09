@@ -9,6 +9,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -37,8 +39,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.doge.simulator.R
 import com.doge.simulator.ui.theme.ButtonDepth
 import com.doge.simulator.ui.theme.ButtonPadding
 import com.doge.simulator.ui.theme.GoldAccent
@@ -259,7 +263,14 @@ fun ContextualBottomBar(
                 elevation = ButtonDepth.elevation(),
                 contentPadding = ButtonPadding.ctaInRow
             ) {
-                Text("🏠  홈으로", style = MaterialTheme.typography.bodySmall)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    Image(
+                        painter = painterResource(R.drawable.ic_ui_home),
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text("홈으로", style = MaterialTheme.typography.bodySmall)
+                }
             }
 
             if (secondaryLabel != null && onSecondaryClick != null) {

@@ -72,8 +72,8 @@ class PlanetMaintenanceWorker @AssistedInject constructor(
         val bodyText = "${planetCount}개 행성 약 %,d 코인 누적 · $remainingText".format(totalCoins)
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_bottom_navi_planet_on)
-            .setContentTitle("⚡ 행성 수익 알림")
+            .setSmallIcon(R.drawable.ic_ui_planet)
+            .setContentTitle("행성 수익 알림")
             .setContentText(bodyText)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setContentIntent(pendingIntent)

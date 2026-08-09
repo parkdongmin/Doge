@@ -3,6 +3,7 @@ package com.doge.simulator.presentation.viewmodel
 import android.app.Activity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.doge.simulator.R
 import com.doge.simulator.ads.RewardPlacement
 import com.doge.simulator.ads.RewardedAdManager
 import com.doge.simulator.ads.RewardedAdResult
@@ -24,6 +25,10 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class UndoableUpgradeFailure(val planetId: String, val previousLevel: Int, val investment: Long)
+
+enum class UpgradeMessageTone { SUCCESS, FAIL, INFO }
+
+data class UpgradeMessage(val text: String, val tone: UpgradeMessageTone, val iconRes: Int?)
 
 @HiltViewModel
 class PlanetViewModel @Inject constructor(
@@ -52,8 +57,8 @@ class PlanetViewModel @Inject constructor(
     val resources = getResourcesUseCase()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private val _upgradeMessage = MutableStateFlow<String?>(null)
-    val upgradeMessage: StateFlow<String?> = _upgradeMessage.asStateFlow()
+    private val _upgradeMessage = MutableStateFlow<UpgradeMessage?>(null)
+    val upgradeMessage: StateFlow<UpgradeMessage?> = _upgradeMessage.asStateFlow()
 
     private val _undoableFailure = MutableStateFlow<UndoableUpgradeFailure?>(null)
     val undoableFailure: StateFlow<UndoableUpgradeFailure?> = _undoableFailure.asStateFlow()
@@ -66,17 +71,21 @@ class PlanetViewModel @Inject constructor(
         viewModelScope.launch {
             val msg = when (val result = upgradePlanetUseCase(planet)) {
                 is UpgradePlanetUseCase.Result.Success ->
-                    "🎉 강화 성공! Lv.${result.newLevel}"
+                    UpgradeMessage("강화 성공! Lv.${result.newLevel}", UpgradeMessageTone.SUCCESS, R.drawable.ic_ui_levelup)
                 is UpgradePlanetUseCase.Result.Failed -> {
                     if (result.levelDropped) {
                         _undoableFailure.value = UndoableUpgradeFailure(planet.id, result.previousLevel, result.investment)
                     }
-                    if (result.levelDropped) "💥 강화 실패 — Lv.${result.currentLevel}으로 하락"
-                    else "😞 강화 실패 — 레벨 유지"
+                    val text = if (result.levelDropped) "강화 실패 — Lv.${result.currentLevel}으로 하락"
+                        else "강화 실패 — 레벨 유지"
+                    UpgradeMessage(text, UpgradeMessageTone.FAIL, R.drawable.ic_ui_setback)
                 }
-                UpgradePlanetUseCase.Result.MaxLevel -> "이미 최대 레벨입니다"
-                UpgradePlanetUseCase.Result.InsufficientCoins -> "코인이 부족합니다"
-                UpgradePlanetUseCase.Result.InsufficientResources -> "자원이 부족합니다"
+                UpgradePlanetUseCase.Result.MaxLevel ->
+                    UpgradeMessage("이미 최대 레벨입니다", UpgradeMessageTone.INFO, null)
+                UpgradePlanetUseCase.Result.InsufficientCoins ->
+                    UpgradeMessage("코인이 부족합니다", UpgradeMessageTone.INFO, null)
+                UpgradePlanetUseCase.Result.InsufficientResources ->
+                    UpgradeMessage("자원이 부족합니다", UpgradeMessageTone.INFO, null)
             }
             _upgradeMessage.value = msg
             delay(3000)
@@ -92,11 +101,13 @@ class PlanetViewModel @Inject constructor(
                 if (result is RewardedAdResult.Earned) {
                     undoPlanetUpgradeUseCase(failure.planetId, failure.previousLevel, failure.investment)
                     _undoableFailure.value = null
-                    _upgradeMessage.value = "🔄 레벨이 복구되었습니다! Lv.${failure.previousLevel}"
+                    _upgradeMessage.value = UpgradeMessage(
+                        "레벨이 복구되었습니다! Lv.${failure.previousLevel}", UpgradeMessageTone.SUCCESS, R.drawable.ic_ui_rewind
+                    )
                     delay(3000)
                     _upgradeMessage.value = null
                 } else {
-                    _upgradeMessage.value = "광고를 끝까지 시청해야 되돌릴 수 있어요"
+                    _upgradeMessage.value = UpgradeMessage("광고를 끝까지 시청해야 되돌릴 수 있어요", UpgradeMessageTone.INFO, null)
                     delay(3000)
                     _upgradeMessage.value = null
                 }

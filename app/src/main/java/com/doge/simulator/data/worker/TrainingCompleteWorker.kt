@@ -55,8 +55,8 @@ class TrainingCompleteWorker @AssistedInject constructor(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_bottom_navi_planet_on)
-            .setContentTitle("훈련 완료! 👨‍🚀")
+            .setSmallIcon(R.drawable.ic_space_station_research)
+            .setContentTitle("훈련 완료!")
             .setContentText("$name 의 훈련이 완료되었습니다!")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setContentIntent(pendingIntent)

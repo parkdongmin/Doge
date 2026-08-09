@@ -30,7 +30,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -483,15 +482,26 @@ private fun CategoryCard(
             Spacer(modifier = Modifier.height(Spacing.md))
 
             // 하단: 탐사중인 팀 수 > 자원 종류 수 > 잠금 조건 순으로 표시
-            Text(
-                when {
-                    isActive   -> "🚀 ${activeCount}팀 탐사중"
-                    isUnlocked -> "${resourceCount}종 자원"
-                    else       -> "Lv.${category.researchLevelRequired} 필요"
-                },
-                color = if (isActive) identityColor else if (isUnlocked) TextSecondary else TextDisabled,
+            if (isActive) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
+                    Image(
+                        painter = painterResource(R.drawable.ic_ui_rocket),
+                        contentDescription = null,
+                        modifier = Modifier.size(IconGlyphSize.small.value.dp)
+                    )
+                    Text(
+                        "${activeCount}팀 탐사중",
+                        color = identityColor,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                }
+            } else Text(
+                if (isUnlocked) "${resourceCount}종 자원" else "Lv.${category.researchLevelRequired} 필요",
+                color = if (isUnlocked) TextSecondary else TextDisabled,
                 style = MaterialTheme.typography.labelSmall,
-                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+                fontWeight = FontWeight.Normal,
                 maxLines = 1
             )
 
@@ -643,7 +653,11 @@ private fun TeamBuilderContent(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(Spacing.md)
                 ) {
-                    Text("✅", fontSize = IconGlyphSize.small)
+                    Image(
+                        painter = painterResource(R.drawable.ic_ui_check),
+                        contentDescription = null,
+                        modifier = Modifier.size(IconGlyphSize.small.value.dp)
+                    )
                     Text(
                         text = "모든 탐사 지역 해제 완료!",
                         color = StatusGreen,
@@ -809,8 +823,8 @@ private fun TeamBuilderContent(
                                 style = MaterialTheme.typography.labelSmall
                             )
                         }
-                        when {
-                            isBusy -> Surface(
+                        if (isBusy) {
+                            Surface(
                                 shape = RoundedCornerShape(4.dp),
                                 color = StatusRed.copy(alpha = 0.15f)
                             ) {
@@ -821,7 +835,6 @@ private fun TeamBuilderContent(
                                     modifier = Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.xxs)
                                 )
                             }
-                            selected -> Text("✓", color = SpaceAccent, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                 }
@@ -873,7 +886,6 @@ private fun TeamBuilderContent(
                                 Text("숙련도 ${astronaut.proficiency}", color = GoldAccent, style = MaterialTheme.typography.labelSmall)
                             }
                         }
-                        if (selected) Text("✓", color = SpaceAccent, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             }
@@ -897,11 +909,26 @@ private fun TeamBuilderContent(
             elevation = ButtonDepth.elevation(),
             contentPadding = ButtonPadding.fullWidthCta
         ) {
-            Text(
-                if (uiState.isDispatching) "파견 중..." else "🚀  탐사 파견",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold
-            )
+            if (uiState.isDispatching) {
+                Text(
+                    "파견 중...",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    Image(
+                        painter = painterResource(R.drawable.ic_ui_rocket),
+                        contentDescription = null,
+                        modifier = Modifier.size(IconGlyphSize.small.value.dp)
+                    )
+                    Text(
+                        "탐사 파견",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         }
         Spacer(modifier = Modifier.height(Spacing.sm))
     }
@@ -933,12 +960,19 @@ private fun ExpeditionResultDialog(
                 modifier = Modifier.verticalScroll(rememberScrollState()).padding(Spacing.xxl),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    if (result.success) "✨ 탐사 성공!" else "😞 탐사 실패",
-                    color = if (result.success) GoldAccent else TextSecondary,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    Image(
+                        painter = painterResource(if (result.success) R.drawable.ic_ui_success else R.drawable.ic_ui_fail),
+                        contentDescription = null,
+                        modifier = Modifier.size(IconGlyphSize.large.value.dp)
+                    )
+                    Text(
+                        if (result.success) "탐사 성공!" else "탐사 실패",
+                        color = if (result.success) GoldAccent else TextSecondary,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
                 Spacer(modifier = Modifier.height(Spacing.lg))
 
                 if (result.coinsEarned > 0) {
@@ -1052,9 +1086,9 @@ private fun ExpeditionResultDialog(
                         StatChipMini("${planet.production}/분", StatusGreen, iconRes = R.drawable.ic_ui_energy)
                         StatChipMini("%,d".format(planet.buyPrice), GoldAccent, iconRes = R.drawable.ic_ui_coin)
                         if (result.isDuplicateVariant) {
-                            StatChipMini("📖 도감 등록됨", TextSecondary)
+                            StatChipMini("도감 등록됨", TextSecondary, iconRes = R.drawable.ic_ui_logbook)
                         } else {
-                            StatChipMini("🆕 도감 미등록", SpaceAccent)
+                            StatChipMini("도감 미등록", SpaceAccent, iconRes = R.drawable.ic_ui_new)
                         }
                     }
 

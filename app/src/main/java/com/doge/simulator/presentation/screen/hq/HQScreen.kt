@@ -19,7 +19,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.doge.simulator.R
 import com.doge.simulator.presentation.navigation.NavRoutes
@@ -108,7 +107,6 @@ fun HQScreen(navController: NavController) {
                 .padding(horizontal = Spacing.xl, vertical = Spacing.lg)
         ) {
             HQFacilityCard(
-                icon = "👨‍🚀",
                 iconRes = R.drawable.character_1,
                 title = "우주인 센터",
                 description = "우주인 고용 및 훈련 관리",
@@ -116,7 +114,6 @@ fun HQScreen(navController: NavController) {
             )
             Spacer(modifier = Modifier.height(Spacing.md))
             HQFacilityCard(
-                icon = "🚀",
                 iconRes = R.drawable.spaceship_2,
                 title = "격납고",
                 description = "우주선 구매 및 강화",
@@ -124,7 +121,6 @@ fun HQScreen(navController: NavController) {
             )
             Spacer(modifier = Modifier.height(Spacing.md))
             HQFacilityCard(
-                icon = "🔭",
                 iconRes = R.drawable.ic_space_station_research,
                 title = "연구소",
                 description = "탐사 기술·천체 분석·인사·공학 연구",
@@ -136,8 +132,7 @@ fun HQScreen(navController: NavController) {
 
 @Composable
 private fun HQFacilityCard(
-    icon: String,
-    @DrawableRes iconRes: Int? = null,
+    @DrawableRes iconRes: Int,
     title: String,
     description: String,
     onClick: () -> Unit
@@ -157,15 +152,11 @@ private fun HQFacilityCard(
                 .padding(Spacing.xl),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (iconRes != null) {
-                Image(
-                    painter = painterResource(iconRes),
-                    contentDescription = null,
-                    modifier = Modifier.size(44.dp)
-                )
-            } else {
-                Text(text = icon, fontSize = 36.sp)
-            }
+            Image(
+                painter = painterResource(iconRes),
+                contentDescription = null,
+                modifier = Modifier.size(44.dp)
+            )
             Spacer(modifier = Modifier.width(Spacing.lg))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
