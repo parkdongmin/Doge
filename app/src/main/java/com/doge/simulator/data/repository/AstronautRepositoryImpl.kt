@@ -30,6 +30,9 @@ class AstronautRepositoryImpl(
     override suspend fun completeTraining(id: String, newProficiency: Int) =
         dao.completeTraining(id, newProficiency)
 
+    override suspend fun extendTraining(id: String, trainingEndTime: Long, trainingType: TrainingType?): Boolean =
+        dao.extendTraining(id, trainingEndTime, trainingType?.name) > 0
+
     override suspend fun dismiss(id: String) =
         dao.delete(id)
 }

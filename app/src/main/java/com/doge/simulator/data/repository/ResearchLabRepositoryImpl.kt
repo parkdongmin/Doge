@@ -23,14 +23,15 @@ class ResearchLabRepositoryImpl(
         } ?: ResearchLab()
     }
 
-    override suspend fun upgradeField(field: ResearchField, newLevel: Int) {
+    override suspend fun upgradeField(field: ResearchField, expectedLevel: Int, newLevel: Int): Boolean {
         dao.insertIfNotExists()
-        when (field) {
-            ResearchField.EXPLORATION_TECH -> dao.updateExplorationTech(newLevel)
-            ResearchField.CELESTIAL_ANALYSIS -> dao.updateCelestialAnalysis(newLevel)
-            ResearchField.HR_MANAGEMENT -> dao.updateHr(newLevel)
-            ResearchField.SPACE_ENGINEERING -> dao.updateEngineering(newLevel)
+        val rows = when (field) {
+            ResearchField.EXPLORATION_TECH -> dao.updateExplorationTech(expectedLevel, newLevel)
+            ResearchField.CELESTIAL_ANALYSIS -> dao.updateCelestialAnalysis(expectedLevel, newLevel)
+            ResearchField.HR_MANAGEMENT -> dao.updateHr(expectedLevel, newLevel)
+            ResearchField.SPACE_ENGINEERING -> dao.updateEngineering(expectedLevel, newLevel)
         }
+        return rows > 0
     }
 
     override suspend fun initialize() {

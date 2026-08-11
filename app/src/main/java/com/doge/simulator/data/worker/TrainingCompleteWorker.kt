@@ -25,7 +25,7 @@ class TrainingCompleteWorker @AssistedInject constructor(
     private val completeTrainingUseCase: CompleteTrainingUseCase
 ) : CoroutineWorker(context, params) {
 
-    override suspend fun doWork(): Result {
+    override suspend fun doWork(): Result = try {
         val astronautId = inputData.getString(KEY_ASTRONAUT_ID)
         val now = System.currentTimeMillis()
 
@@ -42,7 +42,11 @@ class TrainingCompleteWorker @AssistedInject constructor(
             sendTrainingNotification(astronaut.name)
         }
 
-        return Result.success()
+        Result.success()
+    } catch (e: Exception) {
+        // 일시적 실패는 재시도 — 포그라운드 폴링이 게임 상태는 self-heal하지만, 재시도가
+        // 없으면 이 워커가 담당하는 완료 알림만 조용히 영영 안 뜨게 된다
+        Result.retry()
     }
 
     private fun sendTrainingNotification(name: String) {

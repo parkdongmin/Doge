@@ -11,7 +11,7 @@ import androidx.work.WorkerParameters
 import com.doge.simulator.MainActivity
 import com.doge.simulator.R
 import com.doge.simulator.domain.model.GameConstants
-import com.doge.simulator.domain.model.effectiveProduction
+import com.doge.simulator.domain.model.preciseProduction
 import com.doge.simulator.domain.repository.PlanetRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -24,7 +24,14 @@ class PlanetMaintenanceWorker @AssistedInject constructor(
     private val planetRepository: PlanetRepository
 ) : CoroutineWorker(context, params) {
 
-    override suspend fun doWork(): Result {
+    override suspend fun doWork(): Result = try {
+        doWorkInner()
+    } catch (e: Exception) {
+        // 일시적 실패는 재시도 — 안 그러면 이 워커가 담당하는 알림만 조용히 영영 안 뜨게 된다
+        Result.retry()
+    }
+
+    private suspend fun doWorkInner(): Result {
         val planets = planetRepository.getOwnedPlanets().first()
         if (planets.isEmpty()) return Result.success()
 
@@ -48,7 +55,7 @@ class PlanetMaintenanceWorker @AssistedInject constructor(
                 (now - planet.lastProfitTime) / 60_000L,
                 GameConstants.MAX_OFFLINE_MINUTES
             )
-            planet.effectiveProduction * elapsedMinutes
+            (planet.preciseProduction * elapsedMinutes).toLong()
         }
         val remainingHours = ((capMs - elapsedMs) / 3_600_000L).coerceAtLeast(0L)
 

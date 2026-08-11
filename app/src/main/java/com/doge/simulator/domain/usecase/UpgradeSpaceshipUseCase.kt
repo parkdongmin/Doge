@@ -18,6 +18,7 @@ class UpgradeSpaceshipUseCase @Inject constructor(
         object InsufficientCoins : Result()
         object InsufficientResources : Result()
         object MaxGradeReached : Result()
+        object Conflict : Result()
     }
 
     suspend operator fun invoke(spaceship: Spaceship): Result {
@@ -38,14 +39,21 @@ class UpgradeSpaceshipUseCase @Inject constructor(
         }
 
         val newGrade = spaceship.grade + 1
-        spaceshipRepository.upgrade(
+        val applied = spaceshipRepository.upgrade(
             id = spaceship.id,
+            expectedGrade = spaceship.grade,
             grade = newGrade,
             crewCapacity = minOf(GameConstants.MAX_CREW_CAPACITY, spaceship.crewCapacity + GameConstants.UPGRADE_CREW_PER_GRADE),
             speed = minOf(100, spaceship.speed + GameConstants.UPGRADE_SPEED_PER_GRADE),
             cargo = minOf(100, spaceship.cargo + GameConstants.UPGRADE_CARGO_PER_GRADE),
             successRate = minOf(0.95f, spaceship.successRate + GameConstants.UPGRADE_SUCCESS_RATE_PER_GRADE)
         )
+        if (!applied) {
+            // 그사이 다른 강화가 먼저 반영됨 — 지불한 비용 환불
+            userRepository.addCoins(coinCost)
+            for ((refundType, refundAmount) in consumed) resourceRepository.add(refundType, refundAmount)
+            return Result.Conflict
+        }
         return Result.Success
     }
 }

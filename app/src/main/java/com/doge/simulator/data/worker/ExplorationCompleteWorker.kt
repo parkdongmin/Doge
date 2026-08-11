@@ -25,7 +25,7 @@ class ExplorationCompleteWorker @AssistedInject constructor(
     private val completeExpeditionUseCase: CompleteExpeditionUseCase
 ) : CoroutineWorker(context, params) {
 
-    override suspend fun doWork(): Result {
+    override suspend fun doWork(): Result = try {
         val expeditionId = inputData.getString(KEY_EXPEDITION_ID)
 
         // expeditionId가 있으면 해당 탐사만, 없으면 만료된 모든 탐사 처리
@@ -41,7 +41,12 @@ class ExplorationCompleteWorker @AssistedInject constructor(
 
         if (toComplete.isNotEmpty()) sendExpeditionNotification(toComplete.size)
 
-        return Result.success()
+        Result.success()
+    } catch (e: Exception) {
+        // DB 일시 오류 등 순간적인 실패는 그대로 실패 처리하지 않고 재시도 — 어차피 포그라운드
+        // 폴링(ExploreViewModel)도 같은 탐사를 처리하므로 게임 상태 자체는 안전하지만, 재시도가
+        // 없으면 이 워커가 담당하는 알림만 조용히 영영 안 뜨게 된다
+        Result.retry()
     }
 
     private fun sendExpeditionNotification(count: Int) {

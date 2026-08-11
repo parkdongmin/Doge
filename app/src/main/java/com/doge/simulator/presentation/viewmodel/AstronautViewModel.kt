@@ -121,12 +121,19 @@ class AstronautViewModel @Inject constructor(
                 if (result is RewardedAdResult.Earned) {
                     val now = System.currentTimeMillis()
                     val newEndTime = maxOf(now, endTime - GameConstants.AD_SKIP_MAX_MS)
-                    astronautRepository.updateStatus(
-                        astronaut.id, AstronautStatus.TRAINING, newEndTime, astronaut.trainingType
+                    // 광고 시청 도중 훈련이 이미 완료됐다면(status != TRAINING) 반영하지 않음 —
+                    // 그렇지 않으면 이미 끝나서 다른 상태로 넘어갔을 수도 있는 우주인을 훈련 중으로
+                    // 되살리고 숙련도가 중복 지급될 수 있다
+                    val extended = astronautRepository.extendTraining(
+                        astronaut.id, newEndTime, astronaut.trainingType
                     )
-                    scheduleTrainingWorkerAt(astronaut.id, newEndTime)
-                    if (newEndTime <= now) checkTrainingCompletions()
-                    showMessage("훈련 대기시간이 단축되었습니다!")
+                    if (extended) {
+                        scheduleTrainingWorkerAt(astronaut.id, newEndTime)
+                        if (newEndTime <= now) checkTrainingCompletions()
+                        showMessage("훈련 대기시간이 단축되었습니다!")
+                    } else {
+                        showMessage("이미 훈련이 완료되었습니다")
+                    }
                 } else {
                     showMessage("광고를 끝까지 시청해야 단축할 수 있어요")
                 }

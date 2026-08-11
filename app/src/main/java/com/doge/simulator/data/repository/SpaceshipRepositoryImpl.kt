@@ -18,8 +18,8 @@ class SpaceshipRepositoryImpl(
     override suspend fun buy(spaceship: Spaceship) =
         dao.insert(spaceship.toEntity())
 
-    override suspend fun upgrade(id: String, grade: Int, crewCapacity: Int, speed: Int, cargo: Int, successRate: Float) =
-        dao.upgrade(id, grade, crewCapacity, speed, cargo, successRate)
+    override suspend fun upgrade(id: String, expectedGrade: Int, grade: Int, crewCapacity: Int, speed: Int, cargo: Int, successRate: Float): Boolean =
+        dao.upgrade(id, expectedGrade, grade, crewCapacity, speed, cargo, successRate) > 0
 
     override suspend fun sell(id: String) =
         dao.delete(id)

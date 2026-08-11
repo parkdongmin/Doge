@@ -20,6 +20,7 @@ class UpgradeResearchFieldUseCase @Inject constructor(
         object InsufficientCoins : Result()
         object InsufficientResources : Result()
         object MaxLevelReached : Result()
+        object Conflict : Result()
     }
 
     suspend operator fun invoke(field: ResearchField): Result {
@@ -44,7 +45,13 @@ class UpgradeResearchFieldUseCase @Inject constructor(
         }
 
         val newLevel = currentLevel + 1
-        researchLabRepository.upgradeField(field, newLevel)
+        val applied = researchLabRepository.upgradeField(field, currentLevel, newLevel)
+        if (!applied) {
+            // 그사이 다른 강화가 먼저 반영됨 — 지불한 비용 환불
+            userRepository.addCoins(coinCost)
+            for ((refundType, refundAmount) in consumed) resourceRepository.add(refundType, refundAmount)
+            return Result.Conflict
+        }
         return Result.Success(newLevel)
     }
 }
