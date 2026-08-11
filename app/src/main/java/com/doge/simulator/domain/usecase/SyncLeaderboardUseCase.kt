@@ -21,7 +21,10 @@ class SyncLeaderboardUseCase @Inject constructor(
         val user = authRepository.getCurrentUser() ?: return
         val coins = userRepository.getCoins().first()
         val planets = planetRepository.getOwnedPlanets().first()
-        val totalAsset = coins + planets.sumOf { it.currentValue.toLong() }
+        // 행성 가치는 매도가(SellPlanetUseCase)·자산 화면(AssetViewModel)과 동일하게
+        // buyPrice + upgradeInvestment로 계산한다. currentValue는 구매 시점 가격에서
+        // 갱신되지 않는 죽은 필드라 강화 투자액이 리더보드에서 누락되는 문제가 있었다
+        val totalAsset = coins + planets.sumOf { it.buyPrice + it.upgradeInvestment }
         val displayName = user.displayName
             ?.takeIf { it.isNotBlank() }
             ?: "플레이어#${user.uid.take(6)}"
