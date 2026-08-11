@@ -26,11 +26,14 @@ import com.doge.simulator.R
 import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.Planet
 import com.doge.simulator.domain.model.PlanetMetaDataTable
+import com.doge.simulator.domain.model.Resource
 import com.doge.simulator.domain.model.ResourceType
 import com.doge.simulator.domain.model.effectiveProduction
 import com.doge.simulator.presentation.component.PlanetLevelBadge
 import com.doge.simulator.presentation.component.rememberLiveCoinDisplay
 import com.doge.simulator.presentation.viewmodel.PlanetViewModel
+import com.doge.simulator.presentation.viewmodel.UndoableUpgradeFailure
+import com.doge.simulator.presentation.viewmodel.UpgradeMessage
 import com.doge.simulator.presentation.viewmodel.UpgradeMessageTone
 import com.doge.simulator.ui.theme.*
 import com.doge.simulator.util.findActivity
@@ -49,6 +52,7 @@ fun PlanetDetailScreen(
     val undoableFailure by viewModel.undoableFailure.collectAsState()
     val activity = LocalContext.current.findActivity()
     var showSellDialog by remember { mutableStateOf(false) }
+    var showUpgradeSheet by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -91,15 +95,7 @@ fun PlanetDetailScreen(
         val meta = PlanetMetaDataTable.data[planet.type]
         val baseValue = planet.buyPrice + planet.upgradeInvestment
         val profitRate = ((baseValue - planet.buyPrice).toFloat() / planet.buyPrice * 100).toInt()
-        val (upgradeCoinCost, upgradeResourceCost) = GameConstants.planetUpgradeCost(planet.level)
         val coins by viewModel.coins.collectAsState()
-        val canUpgrade = planet.level < GameConstants.PLANET_MAX_LEVEL &&
-                coins >= upgradeCoinCost &&
-                upgradeResourceCost.all { (type, amount) ->
-                    (resources.firstOrNull { it.type == type }?.amount ?: 0L) >= amount
-                }
-        val successRate = GameConstants.UPGRADE_SUCCESS_RATES[planet.level] ?: 0f
-        val isDangerZone = planet.level >= GameConstants.DANGER_ZONE_START
 
         val liveProfit = rememberLiveCoinDisplay(
             baseCoins = planet.totalProfit,
@@ -251,136 +247,25 @@ fun PlanetDetailScreen(
                 }
             }
 
-            // ── 강화 메시지 ─────────────────────────────────────────
-            upgradeMessage?.let { msg ->
-                Spacer(modifier = Modifier.height(Spacing.sm))
-                val tint = when (msg.tone) {
-                    UpgradeMessageTone.SUCCESS -> StatusGreen
-                    UpgradeMessageTone.FAIL -> StatusRed
-                    UpgradeMessageTone.INFO -> TextSecondary
-                }
-                Surface(
-                    shape = RoundedCornerShape(4.dp),
-                    color = tint.copy(alpha = if (msg.tone == UpgradeMessageTone.INFO) 0.5f else 0.15f),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
-                    ) {
-                        if (msg.iconRes != null) {
-                            Image(
-                                painter = painterResource(msg.iconRes),
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Text(msg.text, color = tint, style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            }
-
-            if (undoableFailure != null && undoableFailure?.planetId == planet.id) {
-                Spacer(modifier = Modifier.height(Spacing.sm))
-                OutlinedButton(
-                    onClick = { viewModel.undoFailedUpgrade(activity) },
+            // ── 강화 진입 ───────────────────────────────────────
+            if (planet.level < GameConstants.PLANET_MAX_LEVEL) {
+                Button(
+                    onClick = { showUpgradeSheet = true },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(6.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = SpaceAccent)
+                    colors = ButtonDefaults.buttonColors(containerColor = GoldAccent, contentColor = SpaceDark),
+                    border = ButtonDepth.highlightBorder,
+                    elevation = ButtonDepth.elevation(),
+                    contentPadding = ButtonPadding.fullWidthCta
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                        Image(
-                            painter = painterResource(R.drawable.ic_ui_ad),
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("강화하기", style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                        Text(
+                            "Lv.${planet.level} → Lv.${planet.level + 1}",
+                            style = NumericXSmall,
+                            color = SpaceDark.copy(alpha = 0.7f)
                         )
-                        Text("광고 보고 되돌리기", style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(Spacing.md))
-
-            // ── 행성 강화 카드 ───────────────────────────────────
-            if (planet.level < GameConstants.PLANET_MAX_LEVEL) {
-                Card(shape = RoundedCornerShape(6.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                    border = androidx.compose.foundation.BorderStroke(1.dp,
-                        if (isDangerZone) StatusYellow.copy(0.4f) else SpaceBlue),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .textured(shape = RoundedCornerShape(6.dp), baseColor = SpaceNavy)) {
-                    Column(modifier = Modifier.padding(Spacing.lg)) {
-                        Row(modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically) {
-                            Column {
-                                Text("행성 강화", color = if (isDangerZone) StatusYellow else GoldAccent,
-                                    style = MaterialTheme.typography.labelMedium)
-                                Spacer(modifier = Modifier.height(Spacing.xxs))
-                                Text("Lv.${planet.level} → Lv.${planet.level + 1}",
-                                    color = TextPrimary, style = MaterialTheme.typography.bodySmall)
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
-                                    Text("성공률 ${(successRate * 100).toInt()}% · ",
-                                        color = if (isDangerZone) StatusYellow else TextSecondary,
-                                        style = MaterialTheme.typography.labelSmall)
-                                    if (isDangerZone) {
-                                        Image(
-                                            painter = painterResource(R.drawable.ic_ui_danger),
-                                            contentDescription = null,
-                                            modifier = Modifier.size(IconGlyphSize.small.value.dp)
-                                        )
-                                    }
-                                    Text(if (isDangerZone) "실패 시 레벨 하락" else "실패 시 레벨 유지",
-                                        color = if (isDangerZone) StatusYellow else TextSecondary,
-                                        style = MaterialTheme.typography.labelSmall)
-                                }
-                            }
-                            Surface(shape = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
-                                color = if (isDangerZone) StatusYellow.copy(0.15f) else SpaceBlue.copy(0.3f)) {
-                                Row(verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(Spacing.xxs),
-                                    modifier = Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.xs)) {
-                                    if (isDangerZone) {
-                                        Image(
-                                            painter = painterResource(R.drawable.ic_ui_danger),
-                                            contentDescription = null,
-                                            modifier = Modifier.size(IconGlyphSize.small.value.dp)
-                                        )
-                                    }
-                                    Text(if (isDangerZone) "위험구간" else "안전구간",
-                                        color = if (isDangerZone) StatusYellow else SpaceAccent,
-                                        style = MaterialTheme.typography.labelSmall)
-                                }
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(Spacing.md))
-                        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                            Column {
-                                Text("비용", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
-                                Text("%,d코인".format(upgradeCoinCost),
-                                    color = if (coins >= upgradeCoinCost) GoldAccent else StatusRed,
-                                    style = NumericXSmall)
-                                if (upgradeResourceCost.isNotEmpty()) {
-                                    Text(upgradeResourceCost.entries.joinToString(" · ") { "${it.key.displayName}×${it.value}" },
-                                        color = TextSecondary, style = MaterialTheme.typography.labelSmall)
-                                }
-                            }
-                            Spacer(modifier = Modifier.weight(1f))
-                            Button(
-                                onClick = { viewModel.upgradePlanet(planet) },
-                                enabled = canUpgrade,
-                                shape = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (isDangerZone) StatusYellow else GoldAccent,
-                                    contentColor = SpaceDark),
-                                border = ButtonDepth.highlightBorder,
-                                elevation = ButtonDepth.elevation(),
-                                contentPadding = ButtonPadding.ctaInRow
-                            ) { Text("강화 시도", style = MaterialTheme.typography.labelMedium,
-                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) }
-                        }
                     }
                 }
                 Spacer(modifier = Modifier.height(Spacing.md))
@@ -443,7 +328,190 @@ fun PlanetDetailScreen(
                 onDismiss = { showSellDialog = false }
             )
         }
+
+        if (showUpgradeSheet) {
+            PlanetUpgradeDialog(
+                planet = planet,
+                coins = coins,
+                resources = resources,
+                upgradeMessage = upgradeMessage,
+                undoableFailure = undoableFailure,
+                onUpgrade = { viewModel.upgradePlanet(planet) },
+                onUndo = { viewModel.undoFailedUpgrade(activity) },
+                onDismiss = { showUpgradeSheet = false }
+            )
+        }
     }
+}
+
+@Composable
+private fun PlanetUpgradeDialog(
+    planet: Planet,
+    coins: Long,
+    resources: List<Resource>,
+    upgradeMessage: UpgradeMessage?,
+    undoableFailure: UndoableUpgradeFailure?,
+    onUpgrade: () -> Unit,
+    onUndo: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val isMaxLevel = planet.level >= GameConstants.PLANET_MAX_LEVEL
+    val (upgradeCoinCost, upgradeResourceCost) = GameConstants.planetUpgradeCost(planet.level)
+    val canUpgrade = !isMaxLevel &&
+            coins >= upgradeCoinCost &&
+            upgradeResourceCost.all { (type, amount) ->
+                (resources.firstOrNull { it.type == type }?.amount ?: 0L) >= amount
+            }
+    val successRate = GameConstants.UPGRADE_SUCCESS_RATES[planet.level] ?: 0f
+    val isDangerZone = planet.level >= GameConstants.DANGER_ZONE_START
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = SpaceNavy,
+        shape = RoundedCornerShape(16.dp),
+        title = {
+            Text(text = "행성 강화", color = if (isDangerZone) StatusYellow else GoldAccent,
+                style = MaterialTheme.typography.titleMedium)
+        },
+        text = {
+            Column {
+                if (isMaxLevel) {
+                    Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(6.dp),
+                        color = GoldAccent.copy(0.15f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, GoldAccent.copy(0.4f))) {
+                        Row(
+                            modifier = Modifier.padding(Spacing.lg),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
+                        ) {
+                            Image(
+                                painter = painterResource(R.drawable.ic_ui_trophy),
+                                contentDescription = null,
+                                modifier = Modifier.size(IconGlyphSize.medium.value.dp)
+                            )
+                            Text("최대 레벨 달성!", color = GoldAccent, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                } else {
+                    Row(modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Text("Lv.${planet.level} → Lv.${planet.level + 1}",
+                            color = TextPrimary, style = MaterialTheme.typography.bodyMedium)
+                        Surface(shape = RoundedCornerShape(6.dp),
+                            color = if (isDangerZone) StatusYellow.copy(0.15f) else SpaceBlue.copy(0.3f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(Spacing.xxs),
+                                modifier = Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.xs)) {
+                                if (isDangerZone) {
+                                    Image(
+                                        painter = painterResource(R.drawable.ic_ui_danger),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(IconGlyphSize.small.value.dp)
+                                    )
+                                }
+                                Text(if (isDangerZone) "위험구간" else "안전구간",
+                                    color = if (isDangerZone) StatusYellow else SpaceAccent,
+                                    style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(Spacing.xs))
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
+                        Text("성공률 ${(successRate * 100).toInt()}% · ",
+                            color = if (isDangerZone) StatusYellow else TextSecondary,
+                            style = MaterialTheme.typography.labelSmall)
+                        if (isDangerZone) {
+                            Image(
+                                painter = painterResource(R.drawable.ic_ui_danger),
+                                contentDescription = null,
+                                modifier = Modifier.size(IconGlyphSize.small.value.dp)
+                            )
+                        }
+                        Text(if (isDangerZone) "실패 시 레벨 하락" else "실패 시 레벨 유지",
+                            color = if (isDangerZone) StatusYellow else TextSecondary,
+                            style = MaterialTheme.typography.labelSmall)
+                    }
+                    Spacer(modifier = Modifier.height(Spacing.md))
+                    DetailRow("비용", "%,d 코인".format(upgradeCoinCost),
+                        if (coins >= upgradeCoinCost) GoldAccent else StatusRed)
+                    if (upgradeResourceCost.isNotEmpty()) {
+                        Text(upgradeResourceCost.entries.joinToString(" · ") { "${it.key.displayName}×${it.value}" },
+                            color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+
+                // ── 강화 메시지 ─────────────────────────────────────
+                upgradeMessage?.let { msg ->
+                    Spacer(modifier = Modifier.height(Spacing.md))
+                    val tint = when (msg.tone) {
+                        UpgradeMessageTone.SUCCESS -> StatusGreen
+                        UpgradeMessageTone.FAIL -> StatusRed
+                        UpgradeMessageTone.INFO -> TextSecondary
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = tint.copy(alpha = if (msg.tone == UpgradeMessageTone.INFO) 0.5f else 0.15f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
+                        ) {
+                            if (msg.iconRes != null) {
+                                Image(
+                                    painter = painterResource(msg.iconRes),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Text(msg.text, color = tint, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+
+                if (undoableFailure != null && undoableFailure.planetId == planet.id) {
+                    Spacer(modifier = Modifier.height(Spacing.sm))
+                    OutlinedButton(
+                        onClick = onUndo,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(6.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = SpaceAccent)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                            Image(
+                                painter = painterResource(R.drawable.ic_ui_ad),
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text("광고 보고 되돌리기", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            if (isMaxLevel) {
+                TextButton(onClick = onDismiss) {
+                    Text("확인", color = GoldAccent, style = MaterialTheme.typography.labelMedium)
+                }
+            } else {
+                TextButton(onClick = onUpgrade, enabled = canUpgrade) {
+                    Text("강화 시도",
+                        color = if (canUpgrade) (if (isDangerZone) StatusYellow else GoldAccent) else TextSecondary,
+                        style = MaterialTheme.typography.labelMedium)
+                }
+            }
+        },
+        dismissButton = {
+            if (!isMaxLevel) {
+                TextButton(onClick = onDismiss) {
+                    Text("닫기", color = TextSecondary, style = MaterialTheme.typography.labelMedium)
+                }
+            }
+        }
+    )
 }
 
 @Composable
