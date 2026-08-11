@@ -177,17 +177,20 @@ object GameConstants {
     // 자원량: 파견 인원수 자체도 기여 (매칭 여부 무관, 1명 초과 인원당 가산)
     const val CREW_SIZE_RESOURCE_BONUS_PER_HEAD = 0.15
 
+    // 티어가 오를수록 보상 단가가 완만히 상승하도록 하는 공통 배율. 코인 보상과 탐사 성공 시
+    // 자원 드랍량이 이 배율을 공유해, 고티어 탐사(오래 걸림)가 저티어보다 시간당 효율이 떨어지는
+    // 역전이 생기지 않게 한다. 티어10은 소요 시간(480분) 자체가 커서 선형 배율(1.9배)까지 얹으면
+    // 보상이 과도하게 튀어, 9티어 대비 완만하게만 더 받도록 배율을 낮춰서 고정
+    fun expeditionTierMultiplier(tier: Int): Double =
+        if (tier >= 10) 1.5 else 1.0 + (tier - 1) * 0.1
+
     // 탐사 성공 시 행성 발견 여부와 무관하게 지급되는 기본 코인 보상.
     // 초반에 코인을 다 쓰고 행성도 못 찾았을 때 완전히 무수입 상태가 되는 것을 막기 위한 안전망.
-    // 소요 시간(분)에 비례해 계산 — 예전엔 고티어(오래 걸림)일수록 분당 단가가 오히려 줄어드는 역전이 있어서,
-    // 시간 비례 + 티어당 분당 단가 완만히 상승(+10%/티어)으로 변경
+    // 소요 시간(분)에 비례해 계산
     const val EXPEDITION_COIN_PER_MINUTE = 12L
     fun expeditionSuccessCoinReward(tier: Int): Long {
         val minutes = EXPEDITION_BASE_MINUTES[tier] ?: EXPEDITION_BASE_MINUTES.getValue(EXPEDITION_BASE_MINUTES.keys.max())
-        // 티어10은 소요 시간(480분) 자체가 커서 선형 배율(1.9배)까지 얹으면 보상이 과도하게 튐 —
-        // 9티어(7,776코인) 대비 완만하게만 더 받도록 배율을 낮춰서 고정
-        val tierMultiplier = if (tier >= 10) 1.5 else 1.0 + (tier - 1) * 0.1
-        return (minutes * EXPEDITION_COIN_PER_MINUTE * tierMultiplier).toLong()
+        return (minutes * EXPEDITION_COIN_PER_MINUTE * expeditionTierMultiplier(tier)).toLong()
     }
 
     // 자원 판매 단가 (코인/개) — 행성이 없어 방치 수익이 없을 때 자원을 코인으로 바꿀 수 있는 최소한의 환금 수단.

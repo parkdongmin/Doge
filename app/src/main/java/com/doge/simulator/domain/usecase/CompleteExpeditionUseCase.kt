@@ -54,16 +54,25 @@ class CompleteExpeditionUseCase @Inject constructor(
         var discoveredPlanetType: String? = null
 
         if (isSuccess) {
-            // 자원 획득 (cargo 높을수록, 파견 인원이 많을수록, 매칭 전문가 숙련도 합이 높을수록 더 많이)
+            // 자원 획득 (cargo 높을수록, 파견 인원이 많을수록, 매칭 전문가 숙련도 합이 높을수록,
+            // 소요 시간이 길수록 더 많이). 코인 보상과 같은 방식(소요 시간 비례 + 티어당 완만한
+            // 추가 배율)으로 스케일링해, 고티어(오래 걸림)가 저티어보다 시간당 자원 효율이
+            // 떨어지는 역전이 생기지 않게 한다 — 티어1(10분) 기준 배율은 1로, 기존 랜덤 범위(1~6)와 동일
             val cargoMultiplier = 1.0 + ((spaceship?.cargo ?: 50) - 50) / 100.0
             val crewMultiplier = 1.0 + (astronauts.size - 1).coerceAtLeast(0) * GameConstants.CREW_SIZE_RESOURCE_BONUS_PER_HEAD
             val proficiencySum = matchingAstronauts.sumOf { it.proficiency }
             val specialtyMultiplier = 1.0 + (proficiencySum / 100.0) * GameConstants.SPECIALTY_PROFICIENCY_RESOURCE_COEFFICIENT
+            val tierMinutes = GameConstants.EXPEDITION_BASE_MINUTES[expedition.tier]
+                ?: GameConstants.EXPEDITION_BASE_MINUTES.getValue(GameConstants.EXPEDITION_BASE_MINUTES.keys.max())
+            val tier1Minutes = GameConstants.EXPEDITION_BASE_MINUTES.getValue(1)
+            val durationMultiplier = tierMinutes.toDouble() / tier1Minutes
+            val tierMultiplier = GameConstants.expeditionTierMultiplier(expedition.tier)
             val categoryResources = ResourceType.entries.filter { it.category == expedition.category }
 
             categoryResources.forEach { resourceType ->
                 val baseAmount = Random.nextLong(1, 6)
-                val amount = (baseAmount * cargoMultiplier * crewMultiplier * specialtyMultiplier).toLong().coerceAtLeast(1L)
+                val amount = (baseAmount * durationMultiplier * tierMultiplier *
+                        cargoMultiplier * crewMultiplier * specialtyMultiplier).toLong().coerceAtLeast(1L)
                 resources[resourceType] = amount
             }
 

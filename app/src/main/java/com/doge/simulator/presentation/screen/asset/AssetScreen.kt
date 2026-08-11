@@ -25,6 +25,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.doge.simulator.R
 import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.Resource
+import com.doge.simulator.presentation.component.rememberLiveCoinDisplay
 import com.doge.simulator.presentation.viewmodel.AssetViewModel
 import com.doge.simulator.ui.theme.*
 
@@ -34,8 +35,8 @@ fun AssetScreen(
     viewModel: AssetViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
-    val displayCoins by viewModel.liveCoins.collectAsState()
-    val displayTotalAsset by viewModel.liveTotalAsset.collectAsState()
+    val displayCoins = rememberLiveCoinDisplay(baseCoins = state.coins, netPerMin = state.netProductionPerMin)
+    val displayTotalAsset = displayCoins + state.totalMarketValue
     val message by viewModel.message.collectAsState()
     val resources = state.resources
     var sellDialogResource by remember { mutableStateOf<Resource?>(null) }

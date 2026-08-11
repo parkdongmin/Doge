@@ -2,7 +2,7 @@ package com.doge.simulator.domain.usecase
 
 import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.Planet
-import com.doge.simulator.domain.model.effectiveProduction
+import com.doge.simulator.domain.model.preciseProduction
 import javax.inject.Inject
 
 data class PendingProfit(val coins: Long, val maxElapsedMinutes: Long)
@@ -19,7 +19,7 @@ class PeekPendingProfitUseCase @Inject constructor() {
             val rawElapsed = (now - planet.lastProfitTime) / 60_000L
             val elapsedMinutes = minOf(rawElapsed, GameConstants.MAX_OFFLINE_MINUTES)
             if (elapsedMinutes <= 0) return@forEach
-            totalEarned += planet.effectiveProduction * elapsedMinutes
+            totalEarned += (planet.preciseProduction * elapsedMinutes).toLong()
             maxElapsedMinutes = maxOf(maxElapsedMinutes, elapsedMinutes)
         }
 

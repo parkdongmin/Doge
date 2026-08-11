@@ -52,40 +52,6 @@ class AssetViewModel @Inject constructor(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AssetUiState())
 
-    private val _coinBaseTime = MutableStateFlow(System.currentTimeMillis())
-    private var lastKnownCoins = -1L
-    private val _ticker = MutableStateFlow(0L)
-
-    init {
-        viewModelScope.launch {
-            uiState.collect { state ->
-                if (state.coins != lastKnownCoins) {
-                    lastKnownCoins = state.coins
-                    _coinBaseTime.value = System.currentTimeMillis()
-                }
-            }
-        }
-        viewModelScope.launch {
-            while (true) {
-                delay(1000L)
-                _ticker.value++
-            }
-        }
-    }
-
-    val liveCoins: StateFlow<Long> = combine(uiState, _coinBaseTime, _ticker) { state, baseTime, _ ->
-        if (state.netProductionPerMin <= 0L) {
-            state.coins
-        } else {
-            val elapsedSec = (System.currentTimeMillis() - baseTime) / 1000L
-            state.coins + (elapsedSec * state.netProductionPerMin / 60L)
-        }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
-
-    val liveTotalAsset: StateFlow<Long> = combine(liveCoins, uiState) { live, state ->
-        live + state.totalMarketValue
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
-
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
