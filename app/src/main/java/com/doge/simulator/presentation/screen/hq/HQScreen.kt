@@ -110,21 +110,21 @@ fun HQScreen(navController: NavController) {
                 iconRes = R.drawable.character_1,
                 title = "우주인 센터",
                 description = "우주인 고용 및 훈련 관리",
-                onClick = { navController.navigate(NavRoutes.Astronaut.route) }
+                onClick = { navController.navigate(NavRoutes.Astronaut.route) { launchSingleTop = true } }
             )
             Spacer(modifier = Modifier.height(Spacing.md))
             HQFacilityCard(
                 iconRes = R.drawable.spaceship_2,
                 title = "격납고",
                 description = "우주선 구매 및 강화",
-                onClick = { navController.navigate(NavRoutes.Hangar.route) }
+                onClick = { navController.navigate(NavRoutes.Hangar.route) { launchSingleTop = true } }
             )
             Spacer(modifier = Modifier.height(Spacing.md))
             HQFacilityCard(
                 iconRes = R.drawable.ic_space_station_research,
                 title = "연구소",
                 description = "탐사 기술·천체 분석·인사·공학 연구",
-                onClick = { navController.navigate(NavRoutes.ResearchLab.route) }
+                onClick = { navController.navigate(NavRoutes.ResearchLab.route) { launchSingleTop = true } }
             )
         }
     }

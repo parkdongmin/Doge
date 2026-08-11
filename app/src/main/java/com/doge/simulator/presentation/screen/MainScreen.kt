@@ -67,21 +67,32 @@ fun MainScreen(deepLinkFlow: StateFlow<String?>) {
     var navBarHeightPx by remember { mutableStateOf(0) }
     val density = LocalDensity.current
 
+    // 탭 딥링크는 하단 탭 바 전환과 동일하게 popUpTo·restoreState를 적용해, 새 탭 인스턴스가
+    // 백스택에 계속 쌓이는 것을 막는다 (그대로 두면 알림을 여러 번 탭할 때마다 중복된 탭
+    // 화면이 쌓여 뒤로가기가 한 번에 앱을 종료하지 못하고 중복 화면을 거쳐가게 된다)
+    fun navigateToTab(route: String) {
+        navController.navigate(route) {
+            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
+
     LaunchedEffect(deepLink) {
         when {
             deepLink == null -> Unit
             deepLink!!.startsWith("doge://planet/") -> {
                 val planetId = deepLink!!.removePrefix("doge://planet/")
-                if (planetId.isNotBlank()) navController.navigate(NavRoutes.PlanetDetail.createRoute(planetId))
+                if (planetId.isNotBlank()) {
+                    navController.navigate(NavRoutes.PlanetDetail.createRoute(planetId)) {
+                        launchSingleTop = true
+                    }
+                }
             }
-            deepLink == "doge://explore" ->
-                navController.navigate(NavRoutes.Explore.route) { launchSingleTop = true }
-            deepLink == "doge://planet" ->
-                navController.navigate(NavRoutes.Planet.route) { launchSingleTop = true }
-            deepLink == "doge://hq" ->
-                navController.navigate(NavRoutes.HQ.route) { launchSingleTop = true }
-            deepLink == "doge://asset" ->
-                navController.navigate(NavRoutes.Asset.route) { launchSingleTop = true }
+            deepLink == "doge://explore" -> navigateToTab(NavRoutes.Explore.route)
+            deepLink == "doge://planet" -> navigateToTab(NavRoutes.Planet.route)
+            deepLink == "doge://hq" -> navigateToTab(NavRoutes.HQ.route)
+            deepLink == "doge://asset" -> navigateToTab(NavRoutes.Asset.route)
         }
     }
 
@@ -106,14 +117,14 @@ fun MainScreen(deepLinkFlow: StateFlow<String?>) {
                 composable(NavRoutes.Explore.route) {
                     ExploreScreen(
                         onNavigateToExpeditionHistory = {
-                            navController.navigate(NavRoutes.ExpeditionHistory.route)
+                            navController.navigate(NavRoutes.ExpeditionHistory.route) { launchSingleTop = true }
                         }
                     )
                 }
                 composable(NavRoutes.Planet.route) {
                     PlanetScreen(
                         onPlanetClick = { planetId ->
-                            navController.navigate(NavRoutes.PlanetDetail.createRoute(planetId))
+                            navController.navigate(NavRoutes.PlanetDetail.createRoute(planetId)) { launchSingleTop = true }
                         }
                     )
                 }
@@ -122,7 +133,7 @@ fun MainScreen(deepLinkFlow: StateFlow<String?>) {
                 }
                 composable(NavRoutes.Asset.route) {
                     AssetScreen(
-                        onRankClick = { navController.navigate(NavRoutes.Rank.route) }
+                        onRankClick = { navController.navigate(NavRoutes.Rank.route) { launchSingleTop = true } }
                     )
                 }
 

@@ -105,13 +105,24 @@ class MainActivity : ComponentActivity() {
         _deepLink.value = extractDeepLink(intent)
     }
 
+    // 딥링크를 읽은 뒤 intent에서 제거(consume)한다 — 그대로 두면 회전 등 설정 변경으로
+    // Activity가 재생성될 때 onCreate가 같은 intent로 다시 호출되면서 딥링크 내비게이션이
+    // 재실행돼, 이미 화면을 벗어난 사용자가 갑자기 예전 딥링크 화면으로 되돌아가게 된다
     private fun extractDeepLink(intent: Intent?): String? {
         // 1. doge:// scheme URL (intent-filter로 진입)
         val schemeUrl = intent?.data?.toString()
-        if (!schemeUrl.isNullOrBlank()) return schemeUrl
+        if (!schemeUrl.isNullOrBlank()) {
+            intent.data = null
+            return schemeUrl
+        }
 
         // 2. FCM data payload의 deepLink 필드
-        return intent?.getStringExtra("deepLink")
+        val extra = intent?.getStringExtra("deepLink")
+        if (!extra.isNullOrBlank()) {
+            intent.removeExtra("deepLink")
+            return extra
+        }
+        return null
     }
 
     /**
