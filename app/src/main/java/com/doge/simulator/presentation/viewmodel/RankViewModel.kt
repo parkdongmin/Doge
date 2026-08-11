@@ -26,6 +26,12 @@ class RankViewModel @Inject constructor(
     private val _myRank = MutableStateFlow<Int?>(null)
     val myRank: StateFlow<Int?> = _myRank.asStateFlow()
 
+    // 상위 50명 목록에 없을 때 — 서버에 전체 순위를 매기는 별도 집계 쿼리가 없어 정확한 순위를
+    // 알 수 없다. 이전엔 이 경우 무조건 "51위"로 표시해 실제 순위와 무관하게 늘 같은 값이
+    // 뜨는 오해를 줬다 — 대신 "50위 밖"이라고만 표시한다
+    private val _isOutsideTopRank = MutableStateFlow(false)
+    val isOutsideTopRank: StateFlow<Boolean> = _isOutsideTopRank.asStateFlow()
+
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
@@ -39,12 +45,10 @@ class RankViewModel @Inject constructor(
                 syncLeaderboardUseCase()       // 내 점수 Firestore 업데이트
                 val list = leaderboardRepository.getTopEntries(50)
                 _entries.value = list
-                myUid?.let { uid ->
-                    _myRank.value = list.indexOfFirst { it.uid == uid }
-                        .takeIf { it >= 0 }
-                        ?.plus(1)
-                        ?: (list.size + 1)
-                }
+                val uid = myUid
+                val foundIndex = uid?.let { u -> list.indexOfFirst { it.uid == u } } ?: -1
+                _myRank.value = foundIndex.takeIf { it >= 0 }?.plus(1)
+                _isOutsideTopRank.value = uid != null && foundIndex < 0
             } catch (_: Exception) { /* 네트워크 오류 시 조용히 무시 */ }
             finally { _isLoading.value = false }
         }

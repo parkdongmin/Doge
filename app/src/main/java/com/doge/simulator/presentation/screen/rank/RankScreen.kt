@@ -31,6 +31,7 @@ fun RankScreen(
 ) {
     val entries by viewModel.entries.collectAsState()
     val myRank by viewModel.myRank.collectAsState()
+    val isOutsideTopRank by viewModel.isOutsideTopRank.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val myUid = viewModel.myUid
 
@@ -39,6 +40,7 @@ fun RankScreen(
     RankScreenContent(
         entries = entries,
         myRank = myRank,
+        isOutsideTopRank = isOutsideTopRank,
         isLoading = isLoading,
         myUid = myUid,
         onHomeClick = onHomeClick,
@@ -51,6 +53,7 @@ fun RankScreen(
 private fun RankScreenContent(
     entries: List<LeaderboardEntry>,
     myRank: Int?,
+    isOutsideTopRank: Boolean = false,
     isLoading: Boolean,
     myUid: String?,
     onHomeClick: () -> Unit,
@@ -98,7 +101,7 @@ private fun RankScreenContent(
             }
 
             // ── 내 순위 배너 ──────────────────────────────────────
-            myRank?.let { rank ->
+            if (myRank != null || isOutsideTopRank) {
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -120,7 +123,9 @@ private fun RankScreenContent(
                             style = MaterialTheme.typography.bodySmall
                         )
                         Text(
-                            text = "${rank}위",
+                            // 상위 50명 밖이면 정확한 순위를 알 수 없어(별도 집계 쿼리 없음)
+                            // 가짜 숫자 대신 "50위 밖"으로만 표시
+                            text = myRank?.let { "${it}위" } ?: "50위 밖",
                             color = GoldAccent,
                             style = NumericMedium
                         )

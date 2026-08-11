@@ -34,6 +34,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.doge.simulator.BuildConfig
@@ -180,10 +181,15 @@ private fun launchGoogleSignIn(
             val result = credentialManager.getCredential(activity, request)
             val googleCredential = GoogleIdTokenCredential.createFrom(result.credential.data)
             authViewModel.signInWithGoogle(googleCredential.idToken)
+        } catch (e: GetCredentialCancellationException) {
+            // 사용자가 계정 선택창을 직접 취소한 것이므로 에러 표시 없이 조용히 무시
         } catch (e: GetCredentialException) {
-            // GetCredentialCancellationException은 사용자가 직접 취소한 것이므로 무시
-            val message = e.message ?: "Google 로그인을 사용할 수 없습니다"
-            authViewModel.setError(message)
+            authViewModel.setError(e.message ?: "Google 로그인을 사용할 수 없습니다")
+        } catch (e: Exception) {
+            // GoogleIdTokenCredential.createFrom()이 던지는 GoogleIdTokenParsingException 등은
+            // GetCredentialException이 아니라서 위 catch에 안 걸림 — 여기서 못 잡으면 코루틴이
+            // 죽으면서 앱이 크래시된다
+            authViewModel.setError("Google 로그인 처리 중 오류가 발생했습니다")
         }
     }
 }
