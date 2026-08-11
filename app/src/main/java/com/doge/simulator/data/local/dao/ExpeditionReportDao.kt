@@ -43,8 +43,13 @@ interface ExpeditionReportDao {
     @Query("SELECT * FROM story_event_table WHERE expeditionId = :expeditionId")
     fun observeEventsForReport(expeditionId: String): Flow<List<StoryEventEntity>>
 
-    @Query("UPDATE story_event_table SET selectedChoiceIndex = :choiceIndex, outcomeNote = :outcomeNote WHERE id = :eventId")
-    suspend fun selectChoice(eventId: String, choiceIndex: Int, outcomeNote: String?)
+    // selectedChoiceIndex = -1(미선택) 가드 — 같은 이벤트에 대한 중복 선택(연타 등)이 들어와도
+    // 한 번만 반영되도록 원자적으로 처리. 반환값이 0이면 이미 선택된 이벤트라는 뜻
+    @Query("UPDATE story_event_table SET selectedChoiceIndex = :choiceIndex WHERE id = :eventId AND selectedChoiceIndex = -1")
+    suspend fun claimChoice(eventId: String, choiceIndex: Int): Int
+
+    @Query("UPDATE story_event_table SET outcomeNote = :outcomeNote WHERE id = :eventId")
+    suspend fun setOutcomeNote(eventId: String, outcomeNote: String?)
 
     @Query("SELECT * FROM story_event_table WHERE selectedChoiceIndex = -1")
     fun getPendingEvents(): Flow<List<StoryEventEntity>>

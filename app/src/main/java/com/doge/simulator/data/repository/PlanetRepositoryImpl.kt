@@ -21,9 +21,8 @@ class PlanetRepositoryImpl(
             .map { list -> list.map { it.toDomain() } }
     }
 
-    override suspend fun sellPlanet(planetId: String) {
-        dao.deletePlanet(planetId)
-    }
+    override suspend fun sellPlanet(planetId: String): Boolean =
+        dao.deletePlanet(planetId) > 0
 
     override suspend fun updatePlanetProfit(planetId: String, totalProfit: Long, lastProfitTime: Long) {
         dao.updateProfit(planetId, totalProfit, lastProfitTime)

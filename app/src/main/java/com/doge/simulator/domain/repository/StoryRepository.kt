@@ -15,6 +15,8 @@ interface StoryRepository {
     fun getUnreadCount(): Flow<Int>
     suspend fun saveReport(report: ExpeditionReport)
     suspend fun markReportAsRead(expeditionId: String)
-    suspend fun selectEventChoice(eventId: String, expeditionId: String, choiceIndex: Int, outcomeNote: String? = null)
+    // 반환값이 false면 이미 선택이 끝난 이벤트(중복 처리 방지)라는 뜻
+    suspend fun claimEventChoice(eventId: String, expeditionId: String, choiceIndex: Int): Boolean
+    suspend fun setEventOutcomeNote(eventId: String, expeditionId: String, outcomeNote: String)
     suspend fun addEvent(event: StoryEvent)
 }

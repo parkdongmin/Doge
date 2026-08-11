@@ -56,9 +56,17 @@ class StoryRepositoryImpl @Inject constructor(
     override suspend fun markReportAsRead(expeditionId: String) =
         reportDao.markAsRead(expeditionId)
 
-    override suspend fun selectEventChoice(eventId: String, expeditionId: String, choiceIndex: Int, outcomeNote: String?) {
-        reportDao.selectChoice(eventId, choiceIndex, outcomeNote)
-        // story_event_table만 갱신하면 보고서 Flow가 갱신되지 않으므로 강제로 invalidation을 트리거한다
+    override suspend fun claimEventChoice(eventId: String, expeditionId: String, choiceIndex: Int): Boolean {
+        val claimed = reportDao.claimChoice(eventId, choiceIndex) > 0
+        if (claimed) {
+            // story_event_table만 갱신하면 보고서 Flow가 갱신되지 않으므로 강제로 invalidation을 트리거한다
+            reportDao.touchReport(expeditionId)
+        }
+        return claimed
+    }
+
+    override suspend fun setEventOutcomeNote(eventId: String, expeditionId: String, outcomeNote: String) {
+        reportDao.setOutcomeNote(eventId, outcomeNote)
         reportDao.touchReport(expeditionId)
     }
 

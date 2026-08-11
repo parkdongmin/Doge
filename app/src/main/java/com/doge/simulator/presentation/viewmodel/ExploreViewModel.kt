@@ -311,16 +311,16 @@ class ExploreViewModel @Inject constructor(
     private fun buyDiscoveredPlanetInternal(planet: Planet) {
         // 광고 콜백을 거쳐 여러 번 호출될 수 있어(연타 시 각각 별도의 광고 흐름을 탐), 실제
         // 구매 진입점인 여기서 원자적으로 재진입을 막는다
-        if (_uiState.value.isBuyingPlanet) return
-        _uiState.update { it.copy(isBuyingPlanet = true) }
+        if (_uiState.value.isResolvingDiscovery) return
+        _uiState.update { it.copy(isResolvingDiscovery = true) }
         viewModelScope.launch {
             val bought = buyPlanetUseCase(planet)
             if (bought) {
                 val expeditionId = _uiState.value.completionResult?.expeditionId
-                _uiState.update { it.copy(completionResult = null, isSwapPickerOpen = false, isBuyingPlanet = false) }
+                _uiState.update { it.copy(completionResult = null, isSwapPickerOpen = false, isResolvingDiscovery = false) }
                 expeditionId?.let { expeditionRepository.markResultHandled(it) }
             } else {
-                _uiState.update { it.copy(isBuyingPlanet = false) }
+                _uiState.update { it.copy(isResolvingDiscovery = false) }
             }
         }
     }
@@ -343,12 +343,14 @@ class ExploreViewModel @Inject constructor(
     }
 
     private fun convertSlotFullToCoinInternal() {
+        if (_uiState.value.isResolvingDiscovery) return
         val result = _uiState.value.completionResult ?: return
         val planet = result.discoveredPlanet ?: return
+        _uiState.update { it.copy(isResolvingDiscovery = true) }
         viewModelScope.launch {
             userRepository.recordVariantDiscovery(planet.variantId)
             userRepository.addCoins(result.slotFullCoins)
-            _uiState.update { it.copy(completionResult = null, isSwapPickerOpen = false) }
+            _uiState.update { it.copy(completionResult = null, isSwapPickerOpen = false, isResolvingDiscovery = false) }
             expeditionRepository.markResultHandled(result.expeditionId)
         }
     }

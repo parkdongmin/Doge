@@ -13,8 +13,9 @@ interface PlanetDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPlanet(planet: PlanetEntity)
 
+    // 반환값이 0이면 이미 삭제된 행성(연타 등으로 중복 매도 시도)이라는 뜻
     @Query("DELETE FROM planet_table WHERE id = :planetId")
-    suspend fun deletePlanet(planetId: String)
+    suspend fun deletePlanet(planetId: String): Int
 
     @Query("UPDATE planet_table SET totalProfit = :totalProfit, lastProfitTime = :lastProfitTime WHERE id = :id")
     suspend fun updateProfit(id: String, totalProfit: Long, lastProfitTime: Long)

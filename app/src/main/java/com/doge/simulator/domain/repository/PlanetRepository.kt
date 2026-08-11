@@ -9,7 +9,8 @@ interface PlanetRepository {
 
     fun getOwnedPlanets(): Flow<List<Planet>>
 
-    suspend fun sellPlanet(planetId: String)
+    // 반환값이 false면 이미 삭제된 행성(중복 매도 시도)이라는 뜻
+    suspend fun sellPlanet(planetId: String): Boolean
 
     suspend fun updatePlanetProfit(planetId: String, totalProfit: Long, lastProfitTime: Long)
 

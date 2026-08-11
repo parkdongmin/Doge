@@ -11,11 +11,14 @@ class SellPlanetUseCase @Inject constructor(
     private val userRepository: UserRepository
 ) {
     suspend operator fun invoke(planet: Planet) {
+        // 삭제가 실제로 일어났을 때만 대금을 지급 — 연타 등으로 같은 행성을 두 번 매도
+        // 시도해도 두 번째 호출은 삭제할 행 자체가 없어 코인이 중복 지급되지 않는다
+        if (!planetRepository.sellPlanet(planet.id)) return
+
         val baseValue = planet.buyPrice + planet.upgradeInvestment
         val fee = (baseValue * GameConstants.SELL_FEE_RATE).toLong()
         val proceeds = baseValue - fee
 
-        planetRepository.sellPlanet(planet.id)
         userRepository.addCoins(proceeds)
     }
 }
