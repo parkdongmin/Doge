@@ -30,9 +30,10 @@ class ChooseStoryEventUseCase @Inject constructor(
                 chainFollowUpEvent(event)
             } else {
                 val penalty = (amount * 80).coerceAtLeast(150L)
-                userRepository.deductCoins(penalty)
+                val actualPenalty = userRepository.deductCoinsClamped(penalty)
                 val flavor = StoryContent.departureFailureFlavors.random()
-                storyRepository.selectEventChoice(event.id, event.expeditionId, choiceIndex, "$flavor (코인 -$penalty)")
+                val description = if (actualPenalty > 0) "$flavor (코인 -$actualPenalty)" else flavor
+                storyRepository.selectEventChoice(event.id, event.expeditionId, choiceIndex, description)
             }
             return
         }

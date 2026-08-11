@@ -69,6 +69,8 @@ class PlanetViewModel @Inject constructor(
 
     fun upgradePlanet(planet: Planet) {
         viewModelScope.launch {
+            // 새 강화 시도를 시작하면 이전 실패에 대한 되돌리기는 더 이상 유효하지 않음
+            _undoableFailure.value = null
             val msg = when (val result = upgradePlanetUseCase(planet)) {
                 is UpgradePlanetUseCase.Result.Success ->
                     UpgradeMessage("강화 성공! Lv.${result.newLevel}", UpgradeMessageTone.SUCCESS, R.drawable.ic_ui_levelup)
@@ -90,7 +92,6 @@ class PlanetViewModel @Inject constructor(
             _upgradeMessage.value = msg
             delay(3000)
             _upgradeMessage.value = null
-            _undoableFailure.value = null
         }
     }
 

@@ -1,11 +1,11 @@
 package com.doge.simulator.domain.usecase
 
 import com.doge.simulator.domain.model.GameConstants
+import com.doge.simulator.domain.model.ResourceType
 import com.doge.simulator.domain.model.Spaceship
 import com.doge.simulator.domain.repository.ResourceRepository
 import com.doge.simulator.domain.repository.SpaceshipRepository
 import com.doge.simulator.domain.repository.UserRepository
-import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
 class UpgradeSpaceshipUseCase @Inject constructor(
@@ -24,15 +24,18 @@ class UpgradeSpaceshipUseCase @Inject constructor(
         if (spaceship.grade >= GameConstants.MAX_SPACESHIP_GRADE) return Result.MaxGradeReached
 
         val (coinCost, resourceCost) = GameConstants.spaceshipUpgradeCost(spaceship.grade)
-        val coins = userRepository.getCoins().first()
-        if (coins < coinCost) return Result.InsufficientCoins
 
+        if (!userRepository.deductCoins(coinCost)) return Result.InsufficientCoins
+
+        val consumed = mutableListOf<Pair<ResourceType, Long>>()
         for ((type, amount) in resourceCost) {
-            if (resourceRepository.getAmount(type) < amount) return Result.InsufficientResources
+            if (!resourceRepository.consume(type, amount.toLong())) {
+                userRepository.addCoins(coinCost)
+                for ((refundType, refundAmount) in consumed) resourceRepository.add(refundType, refundAmount)
+                return Result.InsufficientResources
+            }
+            consumed.add(type to amount.toLong())
         }
-
-        userRepository.addCoins(-coinCost)
-        for ((type, amount) in resourceCost) resourceRepository.consume(type, amount.toLong())
 
         val newGrade = spaceship.grade + 1
         spaceshipRepository.upgrade(

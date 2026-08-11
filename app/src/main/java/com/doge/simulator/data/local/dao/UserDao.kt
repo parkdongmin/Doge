@@ -28,4 +28,14 @@ interface UserDao {
 
     @Query("UPDATE user_table SET discoveredVariantIds = :ids WHERE id = 1")
     suspend fun updateDiscoveredVariantIds(ids: String)
+
+    // 페널티 등 "잔액이 부족해도 있는 만큼은 깎여야 하는" 차감용 — 실제로 깎인 금액을 반환한다.
+    // 같은 트랜잭션 안에서 읽고 쓰므로 동시 호출과 겹쳐도 실제 잔액 이상으로 깎이지 않는다
+    @Transaction
+    suspend fun deductCoinsClamped(amount: Long): Long {
+        val current = getUserOnce()?.coins ?: 0L
+        val actual = minOf(amount, current)
+        if (actual > 0) addCoinsAtomic(-actual)
+        return actual
+    }
 }

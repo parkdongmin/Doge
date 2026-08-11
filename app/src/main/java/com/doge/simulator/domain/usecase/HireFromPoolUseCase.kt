@@ -30,10 +30,7 @@ class HireFromPoolUseCase @Inject constructor(
             ?: return Result.SlotEmpty
 
         val cost = candidate.hireCost()
-        val coins = userRepository.getCoins().first()
-        if (coins < cost) return Result.InsufficientCoins
-
-        userRepository.addCoins(-cost)
+        if (!userRepository.deductCoins(cost)) return Result.InsufficientCoins
         astronautRepository.hire(
             Astronaut(
                 name = candidate.name,

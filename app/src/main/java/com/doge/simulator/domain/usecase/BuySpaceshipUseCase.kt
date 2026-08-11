@@ -24,10 +24,7 @@ class BuySpaceshipUseCase @Inject constructor(
         val ships = spaceshipRepository.getSpaceships().first()
         if (ships.size >= lab.maxSpaceships) return Result.MaxLimitReached
 
-        val coins = userRepository.getCoins().first()
-        if (coins < GameConstants.SCOUT_SHIP_BASE_COST) return Result.InsufficientCoins
-
-        userRepository.addCoins(-GameConstants.SCOUT_SHIP_BASE_COST)
+        if (!userRepository.deductCoins(GameConstants.SCOUT_SHIP_BASE_COST)) return Result.InsufficientCoins
         spaceshipRepository.buy(
             Spaceship(
                 name = "정찰선 MK-${ships.size + 1}",

@@ -3,6 +3,7 @@ package com.doge.simulator.domain.usecase
 import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.ResearchField
 import com.doge.simulator.domain.model.ResearchLab
+import com.doge.simulator.domain.model.ResourceType
 import com.doge.simulator.domain.repository.ResearchLabRepository
 import com.doge.simulator.domain.repository.ResourceRepository
 import com.doge.simulator.domain.repository.UserRepository
@@ -30,15 +31,17 @@ class UpgradeResearchFieldUseCase @Inject constructor(
 
         val (coinCost, resourceCost) = GameConstants.researchUpgradeCost(currentLevel)
 
-        val coins = userRepository.getCoins().first()
-        if (coins < coinCost) return Result.InsufficientCoins
+        if (!userRepository.deductCoins(coinCost)) return Result.InsufficientCoins
 
+        val consumed = mutableListOf<Pair<ResourceType, Long>>()
         for ((type, amount) in resourceCost) {
-            if (resourceRepository.getAmount(type) < amount) return Result.InsufficientResources
+            if (!resourceRepository.consume(type, amount.toLong())) {
+                userRepository.addCoins(coinCost)
+                for ((refundType, refundAmount) in consumed) resourceRepository.add(refundType, refundAmount)
+                return Result.InsufficientResources
+            }
+            consumed.add(type to amount.toLong())
         }
-
-        userRepository.addCoins(-coinCost)
-        for ((type, amount) in resourceCost) resourceRepository.consume(type, amount.toLong())
 
         val newLevel = currentLevel + 1
         researchLabRepository.upgradeField(field, newLevel)

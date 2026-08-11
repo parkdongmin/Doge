@@ -2,10 +2,10 @@ package com.doge.simulator.domain.usecase
 
 import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.Planet
+import com.doge.simulator.domain.model.ResourceType
 import com.doge.simulator.domain.repository.PlanetRepository
 import com.doge.simulator.domain.repository.ResourceRepository
 import com.doge.simulator.domain.repository.UserRepository
-import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import kotlin.random.Random
 
@@ -33,16 +33,21 @@ class UpgradePlanetUseCase @Inject constructor(
         if (planet.level >= GameConstants.PLANET_MAX_LEVEL) return Result.MaxLevel
 
         val (coinCost, resourceCost) = GameConstants.planetUpgradeCost(planet.level)
-        val coins = userRepository.getCoins().first()
-        if (coins < coinCost) return Result.InsufficientCoins
 
+        // 코인·자원 차감은 원자적 연산으로 수행 — 잔액/잔량 확인과 차감을 한 번에 처리해
+        // 동시 요청(연타)이 있어도 이중 차감이나 음수 잔액이 발생하지 않는다
+        if (!userRepository.deductCoins(coinCost)) return Result.InsufficientCoins
+
+        val consumed = mutableListOf<Pair<ResourceType, Long>>()
         for ((type, amount) in resourceCost) {
-            if (resourceRepository.getAmount(type) < amount) return Result.InsufficientResources
+            if (!resourceRepository.consume(type, amount.toLong())) {
+                // 자원 부족으로 실패 — 이미 차감한 코인·자원 환불
+                userRepository.addCoins(coinCost)
+                for ((refundType, refundAmount) in consumed) resourceRepository.add(refundType, refundAmount)
+                return Result.InsufficientResources
+            }
+            consumed.add(type to amount.toLong())
         }
-
-        // 비용 차감
-        userRepository.addCoins(-coinCost)
-        for ((type, amount) in resourceCost) resourceRepository.consume(type, amount.toLong())
 
         val totalInvestment = planet.upgradeInvestment + coinCost
 

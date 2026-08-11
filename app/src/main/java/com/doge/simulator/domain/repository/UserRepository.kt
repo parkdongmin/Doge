@@ -8,5 +8,6 @@ interface UserRepository {
     suspend fun initialize()
     suspend fun addCoins(amount: Long)
     suspend fun deductCoins(amount: Long): Boolean
+    suspend fun deductCoinsClamped(amount: Long): Long
     suspend fun recordVariantDiscovery(variantId: String)
 }

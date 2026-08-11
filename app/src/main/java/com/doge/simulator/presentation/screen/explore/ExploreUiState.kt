@@ -14,7 +14,9 @@ data class ExploreUiState(
     val dispatchError: String? = null,
     val completionResult: ExpeditionCompletionResult? = null,
     // 슬롯 풀 상태에서 신규 행성을 발견했을 때, 보유 행성을 팔고 대신 가질지 고르는 선택창
-    val isSwapPickerOpen: Boolean = false
+    val isSwapPickerOpen: Boolean = false,
+    // 구매 처리 중 중복 진입 방지 (연타 시 코인이 두 번 빠지고 행성은 하나만 생기는 것을 막음)
+    val isBuyingPlanet: Boolean = false
 )
 
 data class ExpeditionCompletionResult(
