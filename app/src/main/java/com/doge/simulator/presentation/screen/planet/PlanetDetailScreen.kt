@@ -1,5 +1,14 @@
 package com.doge.simulator.presentation.screen.planet
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -15,10 +24,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -35,8 +47,11 @@ import com.doge.simulator.presentation.viewmodel.PlanetViewModel
 import com.doge.simulator.presentation.viewmodel.UndoableUpgradeFailure
 import com.doge.simulator.presentation.viewmodel.UpgradeMessage
 import com.doge.simulator.presentation.viewmodel.UpgradeMessageTone
+import com.doge.simulator.presentation.viewmodel.UpgradePhase
 import com.doge.simulator.ui.theme.*
+import com.doge.simulator.util.UpgradeHaptic
 import com.doge.simulator.util.findActivity
+import com.doge.simulator.util.vibrateUpgradeResult
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,6 +64,7 @@ fun PlanetDetailScreen(
     val resources by viewModel.resources.collectAsState()
     val planet = planets.firstOrNull { it.id == planetId }
     val upgradeMessage by viewModel.upgradeMessage.collectAsState()
+    val upgradePhase by viewModel.upgradePhase.collectAsState()
     val undoableFailure by viewModel.undoableFailure.collectAsState()
     val activity = LocalContext.current.findActivity()
     var showSellDialog by remember { mutableStateOf(false) }
@@ -247,28 +263,50 @@ fun PlanetDetailScreen(
                 }
             }
 
-            // ── 강화 진입 ───────────────────────────────────────
+            Spacer(modifier = Modifier.height(Spacing.lg))
+
+            // ── 강화·매도 액션 바 ─────────────────────────────────
+            // 페이지의 다른 모든 블록이 풀폭이라, 매도 버튼만 따로 작게 가운데 두면 그것대로
+            // 붕 떠 보인다. 대신 강화(주 액션)와 한 줄에 나란히 두고 비율로 위계를 준다
             if (planet.level < GameConstants.PLANET_MAX_LEVEL) {
-                Button(
-                    onClick = { showUpgradeSheet = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(6.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = GoldAccent, contentColor = SpaceDark),
-                    border = ButtonDepth.highlightBorder,
-                    elevation = ButtonDepth.elevation(),
-                    contentPadding = ButtonPadding.fullWidthCta
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Min),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("강화하기", style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-                        Text(
-                            "Lv.${planet.level} → Lv.${planet.level + 1}",
-                            style = NumericXSmall,
-                            color = SpaceDark.copy(alpha = 0.7f)
-                        )
+                    // 보조 액션은 왼쪽, 주 액션은 오른쪽 — 강화 다이얼로그의 닫기/강화 시도
+                    // 배치와 같은 규칙(안드로이드/머티리얼 관례)
+                    OutlinedButton(
+                        onClick = { showSellDialog = true },
+                        modifier = Modifier.weight(0.32f).fillMaxHeight(),
+                        shape = RoundedCornerShape(6.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = StatusRed),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, StatusRed.copy(alpha = 0.6f)),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text(text = "매도", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Button(
+                        onClick = { showUpgradeSheet = true },
+                        modifier = Modifier.weight(0.68f).fillMaxHeight(),
+                        shape = RoundedCornerShape(6.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = GoldAccent, contentColor = SpaceDark),
+                        border = ButtonDepth.highlightBorder,
+                        elevation = ButtonDepth.elevation(),
+                        contentPadding = ButtonPadding.fullWidthCta
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("강화하기", style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                            Text(
+                                "Lv.${planet.level} → Lv.${planet.level + 1}",
+                                style = NumericXSmall,
+                                color = SpaceDark.copy(alpha = 0.7f)
+                            )
+                        }
                     }
                 }
-                Spacer(modifier = Modifier.height(Spacing.md))
             } else {
                 Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(6.dp),
                     color = GoldAccent.copy(0.15f),
@@ -287,30 +325,15 @@ fun PlanetDetailScreen(
                     }
                 }
                 Spacer(modifier = Modifier.height(Spacing.md))
-            }
-
-            Spacer(modifier = Modifier.height(Spacing.md))
-
-            Button(
-                onClick = { showSellDialog = true },
-                modifier = Modifier
-                    .fillMaxWidth(),
-                shape = RoundedCornerShape(4.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = StatusRed,
-                    contentColor = TextPrimary
-                ),
-                border = ButtonDepth.highlightBorder,
-                elevation = ButtonDepth.elevation(),
-                contentPadding = ButtonPadding.fullWidthCta
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = "매도하기", style = MaterialTheme.typography.bodyMedium)
-                    Text(
-                        text = "%,d 코인 수령 예정".format((baseValue * (1f - GameConstants.SELL_FEE_RATE)).toLong()),
-                        style = NumericXSmall,
-                        color = TextPrimary.copy(alpha = 0.7f)
-                    )
+                OutlinedButton(
+                    onClick = { showSellDialog = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(6.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = StatusRed),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, StatusRed.copy(alpha = 0.6f)),
+                    contentPadding = ButtonPadding.listItemAction
+                ) {
+                    Text(text = "매도하기", style = MaterialTheme.typography.bodySmall)
                 }
             }
 
@@ -335,10 +358,17 @@ fun PlanetDetailScreen(
                 coins = coins,
                 resources = resources,
                 upgradeMessage = upgradeMessage,
+                upgradePhase = upgradePhase,
                 undoableFailure = undoableFailure,
                 onUpgrade = { viewModel.upgradePlanet(planet) },
                 onUndo = { viewModel.undoFailedUpgrade(activity) },
-                onDismiss = { showUpgradeSheet = false }
+                onAcknowledgeResult = { viewModel.dismissUpgradeResult() },
+                onDismiss = {
+                    // 결과를 확인 안 하고 그냥 닫아도, 다음에 다시 열었을 때 지난 결과가
+                    // 남아있지 않도록 초기화한다
+                    viewModel.dismissUpgradeResult()
+                    showUpgradeSheet = false
+                }
             )
         }
     }
@@ -350,9 +380,11 @@ private fun PlanetUpgradeDialog(
     coins: Long,
     resources: List<Resource>,
     upgradeMessage: UpgradeMessage?,
+    upgradePhase: UpgradePhase,
     undoableFailure: UndoableUpgradeFailure?,
     onUpgrade: () -> Unit,
     onUndo: () -> Unit,
+    onAcknowledgeResult: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val isMaxLevel = planet.level >= GameConstants.PLANET_MAX_LEVEL
@@ -364,17 +396,31 @@ private fun PlanetUpgradeDialog(
             }
     val successRate = GameConstants.UPGRADE_SUCCESS_RATES[planet.level] ?: 0f
     val isDangerZone = planet.level >= GameConstants.DANGER_ZONE_START
+    // 결과가 나오는 중(Charging)에는 실수로 중복 시도하거나 다이얼로그를 닫지 못하게 막는다
+    val isResolving = upgradePhase is UpgradePhase.Charging
+    // 결과 공개 중엔 다른 카드들보다 테두리를 강조해 "지금 중요한 순간"이라는 걸 프레임 전체로도 알려준다
+    val borderColor = when {
+        upgradePhase is UpgradePhase.Revealing && upgradePhase.isDangerFail -> StatusRed
+        upgradePhase is UpgradePhase.Revealing && upgradePhase.message.tone == UpgradeMessageTone.SUCCESS -> StatusGreen
+        isDangerZone -> StatusYellow
+        else -> SpaceBlue
+    }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = SpaceNavy,
-        shape = RoundedCornerShape(16.dp),
-        title = {
-            Text(text = "행성 강화", color = if (isDangerZone) StatusYellow else GoldAccent,
-                style = MaterialTheme.typography.titleMedium)
-        },
-        text = {
-            Column {
+    Dialog(
+        onDismissRequest = { if (!isResolving) onDismiss() },
+        properties = DialogProperties(dismissOnClickOutside = !isResolving)
+    ) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = SpaceNavy,
+            border = androidx.compose.foundation.BorderStroke(1.dp, borderColor.copy(alpha = 0.6f)),
+            modifier = Modifier.textured(shape = RoundedCornerShape(16.dp), baseColor = SpaceNavy)
+        ) {
+            Column(modifier = Modifier.padding(Spacing.xl)) {
+                Text(text = "행성 강화", color = if (isDangerZone) StatusYellow else GoldAccent,
+                    style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.height(Spacing.md))
+
                 if (isMaxLevel) {
                     Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(6.dp),
                         color = GoldAccent.copy(0.15f),
@@ -441,32 +487,45 @@ private fun PlanetUpgradeDialog(
                     }
                 }
 
-                // ── 강화 메시지 ─────────────────────────────────────
-                upgradeMessage?.let { msg ->
-                    Spacer(modifier = Modifier.height(Spacing.md))
-                    val tint = when (msg.tone) {
-                        UpgradeMessageTone.SUCCESS -> StatusGreen
-                        UpgradeMessageTone.FAIL -> StatusRed
-                        UpgradeMessageTone.INFO -> TextSecondary
+                // ── 강화 진행 상태(충전 중 / 결과 공개) ───────────────
+                when (upgradePhase) {
+                    is UpgradePhase.Charging -> {
+                        Spacer(modifier = Modifier.height(Spacing.md))
+                        ChargingIndicator(isDangerZone = upgradePhase.isDangerZone)
                     }
-                    Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = tint.copy(alpha = if (msg.tone == UpgradeMessageTone.INFO) 0.5f else 0.15f),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
-                        ) {
-                            if (msg.iconRes != null) {
-                                Image(
-                                    painter = painterResource(msg.iconRes),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp)
-                                )
+                    is UpgradePhase.Revealing -> {
+                        Spacer(modifier = Modifier.height(Spacing.md))
+                        UpgradeRevealCard(message = upgradePhase.message, isDangerFail = upgradePhase.isDangerFail)
+                    }
+                    UpgradePhase.Idle -> {
+                        // 검증 실패(코인/자원 부족·최대 레벨) 등 즉시 표시되는 단순 메시지
+                        upgradeMessage?.let { msg ->
+                            Spacer(modifier = Modifier.height(Spacing.md))
+                            val tint = when (msg.tone) {
+                                UpgradeMessageTone.SUCCESS -> StatusGreen
+                                UpgradeMessageTone.FAIL -> StatusRed
+                                UpgradeMessageTone.INFO -> TextSecondary
                             }
-                            Text(msg.text, color = tint, style = MaterialTheme.typography.bodySmall)
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = tint.copy(alpha = if (msg.tone == UpgradeMessageTone.INFO) 0.5f else 0.15f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
+                                ) {
+                                    if (msg.iconRes != null) {
+                                        Image(
+                                            painter = painterResource(msg.iconRes),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                    Text(msg.text, color = tint, style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
                         }
                     }
                 }
@@ -489,29 +548,165 @@ private fun PlanetUpgradeDialog(
                         }
                     }
                 }
-            }
-        },
-        confirmButton = {
-            if (isMaxLevel) {
-                TextButton(onClick = onDismiss) {
-                    Text("확인", color = GoldAccent, style = MaterialTheme.typography.labelMedium)
-                }
-            } else {
-                TextButton(onClick = onUpgrade, enabled = canUpgrade) {
-                    Text("강화 시도",
-                        color = if (canUpgrade) (if (isDangerZone) StatusYellow else GoldAccent) else TextSecondary,
-                        style = MaterialTheme.typography.labelMedium)
-                }
-            }
-        },
-        dismissButton = {
-            if (!isMaxLevel) {
-                TextButton(onClick = onDismiss) {
-                    Text("닫기", color = TextSecondary, style = MaterialTheme.typography.labelMedium)
+
+                Spacer(modifier = Modifier.height(Spacing.lg))
+
+                // ── 버튼 ─────────────────────────────────────────
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    when {
+                        isMaxLevel -> {
+                            TextButton(onClick = onDismiss) {
+                                Text("확인", color = GoldAccent, style = MaterialTheme.typography.labelMedium)
+                            }
+                        }
+                        upgradePhase is UpgradePhase.Revealing -> {
+                            TextButton(onClick = onDismiss) {
+                                Text("닫기", color = TextSecondary, style = MaterialTheme.typography.labelMedium)
+                            }
+                            TextButton(onClick = onAcknowledgeResult) {
+                                Text("확인", color = GoldAccent, style = MaterialTheme.typography.labelMedium)
+                            }
+                        }
+                        else -> {
+                            TextButton(onClick = onDismiss, enabled = !isResolving) {
+                                Text("닫기", color = TextSecondary, style = MaterialTheme.typography.labelMedium)
+                            }
+                            TextButton(onClick = onUpgrade, enabled = canUpgrade && upgradePhase == UpgradePhase.Idle) {
+                                Text(
+                                    text = if (isResolving) "강화 중..." else "강화 시도",
+                                    color = if (canUpgrade && upgradePhase == UpgradePhase.Idle)
+                                        (if (isDangerZone) StatusYellow else GoldAccent) else TextSecondary,
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
+    }
+}
+
+// 강화 굴림이 진행되는 동안(결과가 이미 나왔더라도 화면엔 아직 안 보여주는 구간) 긴장감을
+// 주는 충전 연출. 위험구간이면 더 빠르고 붉게 펄스쳐 "이번엔 위험하다"는 신호를 미리 준다
+@Composable
+private fun ChargingIndicator(isDangerZone: Boolean) {
+    val transition = rememberInfiniteTransition(label = "upgrade_charge")
+    val pulse by transition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = if (isDangerZone) 260 else 500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "chargePulse"
     )
+    val color = if (isDangerZone) StatusRed else GoldAccent
+
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = color.copy(alpha = 0.08f + 0.10f * pulse),
+        border = androidx.compose.foundation.BorderStroke(1.5.dp, color.copy(alpha = pulse)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = Spacing.md, vertical = Spacing.lg),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Image(
+                painter = painterResource(if (isDangerZone) R.drawable.ic_ui_danger else R.drawable.ic_ui_levelup),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(20.dp)
+                    .graphicsLayer { scaleX = pulse; scaleY = pulse; alpha = pulse }
+            )
+            Spacer(modifier = Modifier.width(Spacing.sm))
+            Text(
+                text = if (isDangerZone) "강화 중… 위험합니다!" else "강화 중…",
+                color = color,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+            )
+        }
+    }
+}
+
+// 강화 결과 공개 — 성공/실패/위험구간 하락을 각각 다른 강도로 연출하고, 공개되는 순간
+// 결과별로 다른 진동 패턴을 재생해 사운드가 없는 지금 상태에서 임팩트를 대신 전달한다
+@Composable
+private fun UpgradeRevealCard(message: UpgradeMessage, isDangerFail: Boolean) {
+    val context = LocalContext.current
+    val scale = remember { Animatable(0.6f) }
+    val shakeX = remember { Animatable(0f) }
+
+    LaunchedEffect(message) {
+        when {
+            message.tone == UpgradeMessageTone.SUCCESS -> {
+                context.vibrateUpgradeResult(UpgradeHaptic.SUCCESS)
+                scale.animateTo(
+                    1f,
+                    animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow)
+                )
+            }
+            isDangerFail -> {
+                context.vibrateUpgradeResult(UpgradeHaptic.DANGER_FAIL)
+                scale.snapTo(1f)
+                repeat(3) {
+                    shakeX.animateTo(14f, animationSpec = tween(55))
+                    shakeX.animateTo(-14f, animationSpec = tween(55))
+                }
+                shakeX.animateTo(0f, animationSpec = tween(55))
+            }
+            else -> {
+                context.vibrateUpgradeResult(UpgradeHaptic.FAIL)
+                scale.snapTo(1f)
+                shakeX.animateTo(8f, animationSpec = tween(50))
+                shakeX.animateTo(0f, animationSpec = tween(50))
+            }
+        }
+    }
+
+    val tint = when {
+        message.tone == UpgradeMessageTone.SUCCESS -> StatusGreen
+        message.tone == UpgradeMessageTone.FAIL && isDangerFail -> StatusRed
+        message.tone == UpgradeMessageTone.FAIL -> StatusYellow
+        else -> TextSecondary
+    }
+
+    Surface(
+        shape = RoundedCornerShape(4.dp),
+        color = tint.copy(alpha = if (message.tone == UpgradeMessageTone.INFO) 0.5f else 0.18f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, tint.copy(alpha = 0.6f)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = scale.value; scaleY = scale.value
+                translationX = shakeX.value
+            }
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
+        ) {
+            if (message.iconRes != null) {
+                Image(
+                    painter = painterResource(message.iconRes),
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            Text(message.text, color = tint, style = MaterialTheme.typography.bodyMedium,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+        }
+    }
 }
 
 @Composable

@@ -5,6 +5,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Android 13+ 알림 표시 권한 -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 강화 결과 등 촉각 피드백용 (일반 권한, 런타임 요청 불필요) -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <application
         android:name=".MyApplication"
