@@ -5,6 +5,7 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import com.doge.simulator.domain.model.RarityTier
 
 enum class UpgradeHaptic { SUCCESS, FAIL, DANGER_FAIL }
 
@@ -17,6 +18,24 @@ fun Context.vibrateUpgradeResult(type: UpgradeHaptic) {
         UpgradeHaptic.SUCCESS -> longArrayOf(0, 40)
         UpgradeHaptic.FAIL -> longArrayOf(0, 30, 60, 30)
         UpgradeHaptic.DANGER_FAIL -> longArrayOf(0, 60, 80, 140)
+    }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        vibrator.vibrate(VibrationEffect.createWaveform(pattern, -1))
+    } else {
+        @Suppress("DEPRECATION")
+        vibrator.vibrate(pattern, -1)
+    }
+}
+
+// 탐사에서 행성을 발견했을 때 리빌 순간 재생 — 희귀도가 높을수록 더 강하고 긴 패턴으로
+// "귀한 걸 뽑았다"는 느낌을 진동만으로 전달한다
+fun Context.vibrateDiscoveryReveal(rarity: RarityTier?) {
+    val vibrator = vibratorOrNull() ?: return
+    val pattern = when (rarity) {
+        RarityTier.COMMON, RarityTier.UNCOMMON, null -> longArrayOf(0, 30)
+        RarityTier.RARE -> longArrayOf(0, 30, 50, 30)
+        RarityTier.EPIC -> longArrayOf(0, 40, 40, 40, 40, 60)
+        RarityTier.LEGENDARY -> longArrayOf(0, 50, 40, 50, 40, 50, 40, 90)
     }
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         vibrator.vibrate(VibrationEffect.createWaveform(pattern, -1))

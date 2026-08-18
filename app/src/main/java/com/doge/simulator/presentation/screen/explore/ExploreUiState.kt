@@ -13,6 +13,9 @@ data class ExploreUiState(
     val isDispatching: Boolean = false,
     val dispatchError: String? = null,
     val completionResult: ExpeditionCompletionResult? = null,
+    // 발견한 행성이 있을 때만 false로 시작 — 신호 분석 연출이 끝나면 true로 바뀌며 카드가 공개된다.
+    // 발견한 행성이 없으면 애초에 스캔 단계를 건너뛰므로 true로 유지
+    val discoveryRevealed: Boolean = true,
     // 슬롯 풀 상태에서 신규 행성을 발견했을 때, 보유 행성을 팔고 대신 가질지 고르는 선택창
     val isSwapPickerOpen: Boolean = false,
     // 발견 결과(구매/코인 전환) 처리 중 중복 진입 방지 — 연타 시 코인이 중복 지급되거나

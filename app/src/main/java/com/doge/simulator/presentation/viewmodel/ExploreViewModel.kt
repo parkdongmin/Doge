@@ -19,6 +19,7 @@ import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.Planet
 import com.doge.simulator.domain.model.PlanetMetaDataTable
 import com.doge.simulator.domain.model.PlanetType
+import com.doge.simulator.domain.model.RarityTier
 import com.doge.simulator.domain.repository.ExpeditionRepository
 import com.doge.simulator.domain.repository.UserRepository
 import com.doge.simulator.domain.usecase.BuyPlanetUseCase
@@ -204,20 +205,32 @@ class ExploreViewModel @Inject constructor(
             }.getOrNull()
         }
 
+        val discoveredPlanet = planet?.first
         _uiState.update { it.copy(
             completionResult = ExpeditionCompletionResult(
                 expeditionId = expedition.id,
                 success = expedition.status == ExpeditionStatus.COMPLETED,
                 resources = resources,
                 coinsEarned = expedition.coinsEarned,
-                discoveredPlanet = planet?.first,
+                discoveredPlanet = discoveredPlanet,
                 canBuyPlanet = planet?.second ?: false,
                 isDuplicateVariant = isDuplicateVariant,
                 isCurrentlyOwned = isCurrentlyOwned,
                 isSlotFull = isSlotFull,
                 slotFullCoins = slotFullCoins
-            )
+            ),
+            discoveryRevealed = discoveredPlanet == null
         )}
+
+        // 발견한 행성이 있으면 희귀도에 비례한 대기 후 리빌 — 희귀할수록 "기대감"을 더 오래 끈다
+        if (discoveredPlanet != null) {
+            val rarity = PlanetMetaDataTable.data[discoveredPlanet.type]?.rarity
+            kotlinx.coroutines.delay(DISCOVERY_REVEAL_DELAY_MS[rarity] ?: DISCOVERY_REVEAL_DELAY_DEFAULT_MS)
+            // 그 사이 사용자가 이미 결과를 닫았다면(같은 expeditionId가 아니면) 덮어쓰지 않는다
+            if (_uiState.value.completionResult?.expeditionId == expedition.id) {
+                _uiState.update { it.copy(discoveryRevealed = true) }
+            }
+        }
     }
 
     private fun parseResourcesResult(raw: String?): Map<com.doge.simulator.domain.model.ResourceType, Long> {
@@ -317,7 +330,7 @@ class ExploreViewModel @Inject constructor(
             val bought = buyPlanetUseCase(planet)
             if (bought) {
                 val expeditionId = _uiState.value.completionResult?.expeditionId
-                _uiState.update { it.copy(completionResult = null, isSwapPickerOpen = false, isResolvingDiscovery = false) }
+                _uiState.update { it.copy(completionResult = null, discoveryRevealed = true, isSwapPickerOpen = false, isResolvingDiscovery = false) }
                 expeditionId?.let { expeditionRepository.markResultHandled(it) }
             } else {
                 _uiState.update { it.copy(isResolvingDiscovery = false) }
@@ -331,7 +344,7 @@ class ExploreViewModel @Inject constructor(
 
     private fun dismissResultInternal() {
         val expeditionId = _uiState.value.completionResult?.expeditionId
-        _uiState.update { it.copy(completionResult = null, isSwapPickerOpen = false) }
+        _uiState.update { it.copy(completionResult = null, discoveryRevealed = true, isSwapPickerOpen = false) }
         if (expeditionId != null) {
             viewModelScope.launch { expeditionRepository.markResultHandled(expeditionId) }
         }
@@ -350,7 +363,7 @@ class ExploreViewModel @Inject constructor(
         viewModelScope.launch {
             userRepository.recordVariantDiscovery(planet.variantId)
             userRepository.addCoins(result.slotFullCoins)
-            _uiState.update { it.copy(completionResult = null, isSwapPickerOpen = false, isResolvingDiscovery = false) }
+            _uiState.update { it.copy(completionResult = null, discoveryRevealed = true, isSwapPickerOpen = false, isResolvingDiscovery = false) }
             expeditionRepository.markResultHandled(result.expeditionId)
         }
     }
@@ -379,5 +392,17 @@ class ExploreViewModel @Inject constructor(
             val owned = getOwnedPlanetsUseCase().first().firstOrNull { it.id == planetId } ?: return@launch
             sellPlanetUseCase(owned)
         }
+    }
+
+    companion object {
+        // 발견한 행성의 희귀도가 높을수록 리빌까지 더 오래 끌어 기대감을 키운다
+        private val DISCOVERY_REVEAL_DELAY_MS = mapOf(
+            RarityTier.COMMON to 400L,
+            RarityTier.UNCOMMON to 600L,
+            RarityTier.RARE to 900L,
+            RarityTier.EPIC to 1300L,
+            RarityTier.LEGENDARY to 1800L
+        )
+        private const val DISCOVERY_REVEAL_DELAY_DEFAULT_MS = 600L
     }
 }

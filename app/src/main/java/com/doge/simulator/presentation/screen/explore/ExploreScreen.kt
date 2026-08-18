@@ -6,6 +6,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -20,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -37,9 +39,14 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.doge.simulator.R
 import com.doge.simulator.domain.model.*
+import com.doge.simulator.presentation.component.rarityColor
+import com.doge.simulator.presentation.component.rarityLabel
 import com.doge.simulator.presentation.viewmodel.ExploreViewModel
 import com.doge.simulator.ui.theme.*
+import com.doge.simulator.util.UpgradeHaptic
 import com.doge.simulator.util.findActivity
+import com.doge.simulator.util.vibrateDiscoveryReveal
+import com.doge.simulator.util.vibrateUpgradeResult
 import java.util.concurrent.TimeUnit
 import kotlin.math.sin
 import kotlin.random.Random
@@ -162,6 +169,7 @@ fun ExploreScreen(
         ExpeditionResultDialog(
             result = result,
             coins = coins,
+            discoveryRevealed = uiState.discoveryRevealed,
             onBuyPlanet = { result.discoveredPlanet?.let { viewModel.buyDiscoveredPlanet(it, activity) } },
             onDismiss = { if (result.isSlotFull) viewModel.convertSlotFullToCoin(activity) else viewModel.dismissResult(activity) },
             onOpenSwapPicker = { viewModel.openSwapPicker() }
@@ -939,12 +947,20 @@ private fun TeamBuilderContent(
 private fun ExpeditionResultDialog(
     result: ExpeditionCompletionResult,
     coins: Long,
+    discoveryRevealed: Boolean,
     onBuyPlanet: () -> Unit,
     onDismiss: () -> Unit,
     onOpenSwapPicker: () -> Unit
 ) {
+    val context = LocalContext.current
     val planet = result.discoveredPlanet
     val meta = planet?.let { PlanetMetaDataTable.data[it.type] }
+
+    // 다이얼로그가 뜨는 순간(스캔 중이든 아니든) 성공/실패는 이미 확정된 정보이니 바로 알려준다.
+    // 행성 발견의 희귀도 진동은 리빌되는 순간 별도로 재생한다
+    LaunchedEffect(result.expeditionId) {
+        context.vibrateUpgradeResult(if (result.success) UpgradeHaptic.SUCCESS else UpgradeHaptic.FAIL)
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -1053,6 +1069,8 @@ private fun ExpeditionResultDialog(
                     Spacer(modifier = Modifier.height(Spacing.md))
                     HorizontalDivider(color = SpaceMid)
                     Spacer(modifier = Modifier.height(Spacing.md))
+                    val rarity = meta.rarity
+                    val accentColor = rarityColor[rarity] ?: SpaceAccent
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                         Image(
                             painter = painterResource(R.drawable.ic_ui_planet),
@@ -1065,66 +1083,19 @@ private fun ExpeditionResultDialog(
                         )
                     }
                     Spacer(modifier = Modifier.height(Spacing.sm))
-                    val imageUrl = meta.variants.firstOrNull { it.variantId == planet.variantId }?.imageUrl
-                    if (imageUrl != null) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current).data(imageUrl).memoryCacheKey(imageUrl).build(),
-                            contentDescription = meta.displayName,
-                            modifier = Modifier.size(120.dp).clip(RoundedCornerShape(8.dp)).background(SpaceMid),
-                            contentScale = ContentScale.Fit,
-                            filterQuality = FilterQuality.None
-                        )
-                        Spacer(modifier = Modifier.height(Spacing.sm))
-                    }
-                    Text(
-                        "${meta.displayName} #${planet.variantId.substringAfterLast("-")}",
-                        color = GoldAccent, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold
-                    )
-                    Text(meta.description, color = TextSecondary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = Spacing.xs))
-                    Spacer(modifier = Modifier.height(Spacing.sm))
-                    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                        StatChipMini("${planet.production}/분", StatusGreen, iconRes = R.drawable.ic_ui_energy)
-                        StatChipMini("%,d".format(planet.buyPrice), GoldAccent, iconRes = R.drawable.ic_ui_coin)
-                        if (result.isDuplicateVariant) {
-                            StatChipMini("도감 등록됨", TextSecondary, iconRes = R.drawable.ic_ui_logbook)
-                        } else {
-                            StatChipMini("도감 미등록", SpaceAccent, iconRes = R.drawable.ic_ui_new)
-                        }
-                    }
 
-                    if (result.isCurrentlyOwned) {
-                        Text(
-                            "이미 보유 중인 행성이에요. 능력치가 다를 수 있으니 비교해보고 구매하세요",
-                            color = TextSecondary,
-                            style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.padding(top = Spacing.sm)
+                    if (!discoveryRevealed) {
+                        // 발견 즉시 보여주지 않고, 희귀도에 비례한 시간만큼 "분석 중"으로 끌어 기대감을 만든다
+                        DiscoveryScanIndicator(color = accentColor)
+                    } else {
+                        DiscoveryRevealContent(
+                            planet = planet,
+                            meta = meta,
+                            rarity = rarity,
+                            accentColor = accentColor,
+                            result = result,
+                            onOpenSwapPicker = onOpenSwapPicker
                         )
-                    }
-
-                    if (result.isSlotFull) {
-                        Spacer(modifier = Modifier.height(Spacing.md))
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp),
-                            color = SpaceBlue.copy(alpha = 0.25f)
-                        ) {
-                            Text(
-                                "행성 슬롯이 가득 찼어요. 그냥 닫으면 " +
-                                    (if (result.isDuplicateVariant) "도감엔 이미 있으니 " else "도감 등록 + ") +
-                                    "${"%,d".format(result.slotFullCoins)}코인, 아니면 보유 행성을 팔고 대신 가질 수 있어요",
-                                color = TextSecondary,
-                                style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(Spacing.sm))
-                        OutlinedButton(
-                            onClick = onOpenSwapPicker,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp),
-                            border = BorderStroke(1.dp, SpaceAccent),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = SpaceAccent)
-                        ) { Text("보유 행성 팔고 구매하기", fontWeight = FontWeight.Bold) }
                     }
                 }
 
@@ -1137,7 +1108,7 @@ private fun ExpeditionResultDialog(
                         border = BorderStroke(1.dp, SpaceMid),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary)
                     ) { Text(if (result.isSlotFull) "코인으로 받기" else "닫기") }
-                    if (planet != null && result.canBuyPlanet) {
+                    if (planet != null && result.canBuyPlanet && discoveryRevealed) {
                         Button(
                             onClick = { onBuyPlanet(); onDismiss() },
                             enabled = coins >= planet.buyPrice,
@@ -1155,6 +1126,154 @@ private fun ExpeditionResultDialog(
                     }
                 }
             }
+        }
+    }
+}
+
+// 발견 직후 결과를 바로 안 보여주고 잠깐 "분석 중"으로 끄는 스캔 연출 — 실제 시간은 짧지만
+// 결과가 이미 나온 상태에서 일부러 공개를 늦춰 기대감을 준다 (PlanetDetailScreen의 ChargingIndicator와 동일 패턴)
+@Composable
+private fun DiscoveryScanIndicator(color: Color) {
+    val transition = rememberInfiniteTransition(label = "discovery_scan")
+    val pulse by transition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 450, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "scanPulse"
+    )
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = color.copy(alpha = 0.08f + 0.10f * pulse),
+        border = BorderStroke(1.5.dp, color.copy(alpha = pulse)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.lg),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Image(
+                painter = painterResource(R.drawable.ic_ui_no_signal),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(20.dp)
+                    .graphicsLayer { scaleX = pulse; scaleY = pulse; alpha = pulse }
+            )
+            Spacer(modifier = Modifier.width(Spacing.sm))
+            Text(
+                text = "미확인 신호 분석 중…",
+                color = color,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+// 스캔이 끝난 뒤 실제로 발견한 행성을 공개 — 희귀도 색 테두리/배지와 스프링 확대,
+// 공개 순간 희귀도에 비례한 진동으로 "귀한 걸 뽑았다"는 느낌을 강조한다
+@Composable
+private fun DiscoveryRevealContent(
+    planet: Planet,
+    meta: PlanetMetaData,
+    rarity: RarityTier,
+    accentColor: Color,
+    result: ExpeditionCompletionResult,
+    onOpenSwapPicker: () -> Unit
+) {
+    val context = LocalContext.current
+    val scale = remember { Animatable(0.6f) }
+    LaunchedEffect(Unit) {
+        context.vibrateDiscoveryReveal(rarity)
+        scale.animateTo(
+            1f,
+            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow)
+        )
+    }
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer { scaleX = scale.value; scaleY = scale.value }
+    ) {
+        val imageUrl = meta.variants.firstOrNull { it.variantId == planet.variantId }?.imageUrl
+        if (imageUrl != null) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current).data(imageUrl).memoryCacheKey(imageUrl).build(),
+                contentDescription = meta.displayName,
+                modifier = Modifier
+                    .size(120.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(SpaceMid)
+                    .border(2.dp, accentColor.copy(alpha = 0.8f), RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Fit,
+                filterQuality = FilterQuality.None
+            )
+            Spacer(modifier = Modifier.height(Spacing.sm))
+        }
+        Surface(shape = RoundedCornerShape(4.dp), color = accentColor.copy(alpha = 0.15f)) {
+            Text(
+                text = rarityLabel[rarity] ?: rarity.name,
+                color = accentColor,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.xxs)
+            )
+        }
+        Spacer(modifier = Modifier.height(Spacing.xs))
+        Text(
+            "${meta.displayName} #${planet.variantId.substringAfterLast("-")}",
+            color = GoldAccent, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold
+        )
+        Text(meta.description, color = TextSecondary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = Spacing.xs))
+        Spacer(modifier = Modifier.height(Spacing.sm))
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            StatChipMini("${planet.production}/분", StatusGreen, iconRes = R.drawable.ic_ui_energy)
+            StatChipMini("%,d".format(planet.buyPrice), GoldAccent, iconRes = R.drawable.ic_ui_coin)
+            if (result.isDuplicateVariant) {
+                StatChipMini("도감 등록됨", TextSecondary, iconRes = R.drawable.ic_ui_logbook)
+            } else {
+                StatChipMini("도감 미등록", SpaceAccent, iconRes = R.drawable.ic_ui_new)
+            }
+        }
+
+        if (result.isCurrentlyOwned) {
+            Text(
+                "이미 보유 중인 행성이에요. 능력치가 다를 수 있으니 비교해보고 구매하세요",
+                color = TextSecondary,
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.padding(top = Spacing.sm)
+            )
+        }
+
+        if (result.isSlotFull) {
+            Spacer(modifier = Modifier.height(Spacing.md))
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp),
+                color = SpaceBlue.copy(alpha = 0.25f)
+            ) {
+                Text(
+                    "행성 슬롯이 가득 찼어요. 그냥 닫으면 " +
+                        (if (result.isDuplicateVariant) "도감엔 이미 있으니 " else "도감 등록 + ") +
+                        "${"%,d".format(result.slotFullCoins)}코인, 아니면 보유 행성을 팔고 대신 가질 수 있어요",
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm)
+                )
+            }
+            Spacer(modifier = Modifier.height(Spacing.sm))
+            OutlinedButton(
+                onClick = onOpenSwapPicker,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp),
+                border = BorderStroke(1.dp, SpaceAccent),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = SpaceAccent)
+            ) { Text("보유 행성 팔고 구매하기", fontWeight = FontWeight.Bold) }
         }
     }
 }

@@ -35,7 +35,6 @@ fun ResearchLabScreen(
     val researchLab by viewModel.researchLab.collectAsState()
     val resources by viewModel.resources.collectAsState()
     val coins by viewModel.coins.collectAsState()
-    val message by viewModel.message.collectAsState()
 
     Scaffold(
         topBar = {
@@ -55,16 +54,7 @@ fun ResearchLabScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
         ) {
-            message?.let {
-                Surface(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.xs),
-                    shape = RoundedCornerShape(8.dp), color = SpaceBlue.copy(0.3f)) {
-                    Text(it, color = SpaceAccent, style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(Spacing.md))
-                }
-            }
-
             // 보유 코인
             Row(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.md),
                 horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -76,19 +66,25 @@ fun ResearchLabScreen(
             HorizontalDivider(color = SpaceMid, modifier = Modifier.padding(horizontal = Spacing.lg))
             Spacer(modifier = Modifier.height(Spacing.sm))
 
-            ResearchField.entries.forEach { field ->
-                ResearchFieldCard(
-                    field = field,
-                    currentLevel = researchLab.getLevel(field),
-                    researchLab = researchLab,
-                    coins = coins,
-                    resources = resources,
-                    onUpgrade = { viewModel.upgrade(field) }
-                )
-                Spacer(modifier = Modifier.height(Spacing.md))
-            }
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                ResearchField.entries.forEach { field ->
+                    ResearchFieldCard(
+                        field = field,
+                        currentLevel = researchLab.getLevel(field),
+                        researchLab = researchLab,
+                        coins = coins,
+                        resources = resources,
+                        onUpgrade = { viewModel.upgrade(field) }
+                    )
+                    Spacer(modifier = Modifier.height(Spacing.md))
+                }
 
-            Spacer(modifier = Modifier.height(Spacing.lg))
+                Spacer(modifier = Modifier.height(Spacing.lg))
+            }
         }
     }
 }

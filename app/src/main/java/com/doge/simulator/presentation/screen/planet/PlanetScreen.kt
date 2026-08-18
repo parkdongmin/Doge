@@ -42,6 +42,9 @@ import com.doge.simulator.domain.model.PlanetType
 import com.doge.simulator.domain.model.RarityTier
 import com.doge.simulator.domain.model.effectiveProduction
 import com.doge.simulator.presentation.component.PlanetLevelBadge
+import com.doge.simulator.presentation.component.rarityColor
+import com.doge.simulator.presentation.component.rarityLabel
+import com.doge.simulator.presentation.component.rarityOrder
 import com.doge.simulator.presentation.viewmodel.PlanetViewModel
 import com.doge.simulator.ui.theme.*
 import kotlinx.coroutines.delay
@@ -364,30 +367,6 @@ private fun DialogRow(label: String, value: String, valueColor: Color) {
 
 // ── 행성 도감 ──────────────────────────────────────────────────────────
 
-private val rarityGroups = listOf(
-    RarityTier.COMMON,
-    RarityTier.UNCOMMON,
-    RarityTier.RARE,
-    RarityTier.EPIC,
-    RarityTier.LEGENDARY
-)
-
-private val rarityColor = mapOf(
-    RarityTier.COMMON    to Color(0xFF9EA3A8),
-    RarityTier.UNCOMMON  to Color(0xFF5DBF7A),
-    RarityTier.RARE      to Color(0xFF5B9CF6),
-    RarityTier.EPIC      to Color(0xFFB07FE0),
-    RarityTier.LEGENDARY to Color(0xFFE8A84C)
-)
-
-private val rarityLabel = mapOf(
-    RarityTier.COMMON    to "COMMON",
-    RarityTier.UNCOMMON  to "UNCOMMON",
-    RarityTier.RARE      to "RARE",
-    RarityTier.EPIC      to "EPIC",
-    RarityTier.LEGENDARY to "LEGENDARY"
-)
-
 // variantId → (PlanetType, PlanetMetaData) 역방향 맵 (앱 생명주기 동안 고정)
 private val variantLookup: Map<String, Pair<PlanetType, PlanetMetaData>> by lazy {
     PlanetMetaDataTable.data.flatMap { (type, meta) ->
@@ -422,7 +401,7 @@ private fun PlanetCatalogContent(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = Spacing.lg, vertical = Spacing.md)
     ) {
-        rarityGroups.forEach { rarity ->
+        rarityOrder.forEach { rarity ->
             val color = rarityColor[rarity] ?: TextSecondary
             val total = totalByRarity[rarity] ?: 0
             val discoveredInRarity = discoveredByRarity[rarity] ?: emptyList()
