@@ -10,6 +10,7 @@ import com.doge.simulator.data.local.dao.ExpeditionReportDao
 import com.doge.simulator.data.local.dao.PlanetDao
 import com.doge.simulator.data.local.dao.PlanetEventLogDao
 import com.doge.simulator.data.local.dao.RecruitmentDao
+import com.doge.simulator.data.local.dao.SnapshotDao
 import com.doge.simulator.data.local.dao.ResearchLabDao
 import com.doge.simulator.data.local.dao.ResourceDao
 import com.doge.simulator.data.local.dao.SpaceshipDao
@@ -45,7 +46,7 @@ import com.doge.simulator.data.local.entity.UserEntity
         RecruitmentMetaEntity::class,
         PlanetEventLogEntity::class,
     ],
-    version = 17,
+    version = PlanetDatabase.VERSION,
     exportSchema = false
 )
 abstract class PlanetDatabase : RoomDatabase() {
@@ -60,8 +61,11 @@ abstract class PlanetDatabase : RoomDatabase() {
     abstract fun expeditionReportDao(): ExpeditionReportDao
     abstract fun recruitmentDao(): RecruitmentDao
     abstract fun planetEventLogDao(): PlanetEventLogDao
+    abstract fun snapshotDao(): SnapshotDao
 
     companion object {
+        const val VERSION = 17
+
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL(

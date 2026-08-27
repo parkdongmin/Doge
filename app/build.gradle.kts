@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.google.services)
 }
 
@@ -122,6 +123,10 @@ dependencies {
 
     // ViewModel Compose
     implementation(libs.lifecycle.viewmodel.compose)
+    implementation(libs.lifecycle.process)
+
+    // Kotlinx Serialization (cloud-save snapshot)
+    implementation(libs.kotlinx.serialization.json)
 
     // Navigation
     implementation(libs.androidx.navigation)

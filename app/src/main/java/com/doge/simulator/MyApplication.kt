@@ -5,6 +5,9 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
 import androidx.hilt.work.HiltWorkerFactory
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.work.Configuration
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
@@ -14,6 +17,7 @@ import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.decode.GifDecoder
 import coil.decode.ImageDecoderDecoder
+import com.doge.simulator.data.repository.CloudSaveManager
 import com.doge.simulator.data.worker.PlanetEventWorker
 import com.doge.simulator.data.worker.PlanetMaintenanceWorker
 import com.doge.simulator.domain.usecase.SyncLeaderboardUseCase
@@ -34,6 +38,9 @@ class MyApplication : Application(), Configuration.Provider, ImageLoaderFactory 
 
     @Inject
     lateinit var syncLeaderboardUseCase: SyncLeaderboardUseCase
+
+    @Inject
+    lateinit var cloudSaveManager: CloudSaveManager
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -59,8 +66,19 @@ class MyApplication : Application(), Configuration.Provider, ImageLoaderFactory 
         Coil.setImageLoader(newImageLoader())
         setupNotificationChannels()
         startLeaderboardSync()
+        registerCloudSaveSync()
         schedulePlanetMaintenanceWorker()
         schedulePlanetEventWorker()
+    }
+
+    // 앱이 백그라운드로 갈 때(ON_STOP) 로컬 게임 상태를 클라우드로 백업.
+    // "저장할 만한 순간"에만 push → 분당 write 없음 → 서버비 최소.
+    private fun registerCloudSaveSync() {
+        ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
+            override fun onStop(owner: LifecycleOwner) {
+                appScope.launch { runCatching { cloudSaveManager.push() } }
+            }
+        })
     }
 
     private fun setupNotificationChannels() {
@@ -110,6 +128,8 @@ class MyApplication : Application(), Configuration.Provider, ImageLoaderFactory 
             while (true) {
                 delay(30 * 60 * 1000L)
                 runCatching { syncLeaderboardUseCase() }
+                // 크래시로 ON_STOP push를 놓쳤을 때를 대비한 주기 백업
+                runCatching { cloudSaveManager.push() }
             }
         }
     }

@@ -55,6 +55,7 @@ object DatabaseModule {
     @Provides fun provideExpeditionReportDao(db: PlanetDatabase): ExpeditionReportDao = db.expeditionReportDao()
     @Provides fun provideRecruitmentDao(db: PlanetDatabase): RecruitmentDao = db.recruitmentDao()
     @Provides fun providePlanetEventLogDao(db: PlanetDatabase): PlanetEventLogDao = db.planetEventLogDao()
+    @Provides fun provideSnapshotDao(db: PlanetDatabase): SnapshotDao = db.snapshotDao()
 
     // ── Repositories ──────────────────────────────────────────────────
     @Provides @Singleton

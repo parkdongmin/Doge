@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.doge.simulator.presentation.viewmodel.AuthViewModel
+import com.doge.simulator.presentation.viewmodel.BootstrapViewModel
 import com.doge.simulator.ui.theme.GoldAccent
 import com.doge.simulator.ui.theme.SpaceAccent
 import com.doge.simulator.ui.theme.SpaceDark
@@ -38,9 +39,11 @@ import kotlinx.coroutines.delay
 fun SplashScreen(
     onNavigateToMain: () -> Unit,
     onNavigateToLogin: () -> Unit,
-    authViewModel: AuthViewModel = hiltViewModel()
+    authViewModel: AuthViewModel = hiltViewModel(),
+    bootstrapViewModel: BootstrapViewModel = hiltViewModel()
 ) {
     val authState by authViewModel.state.collectAsState()
+    val bootstrapPhase by bootstrapViewModel.phase.collectAsState()
 
     LaunchedEffect(Unit) {
         delay(1500)
@@ -49,10 +52,15 @@ fun SplashScreen(
 
     LaunchedEffect(authState) {
         when (authState) {
-            is AuthViewModel.AuthState.Authenticated -> onNavigateToMain()
+            // 로그인 확인됨 → 클라우드 세이브 복원 후 진입 (아래 bootstrapPhase 관찰에서 내비게이션)
+            is AuthViewModel.AuthState.Authenticated -> bootstrapViewModel.restoreOnce()
             is AuthViewModel.AuthState.Unauthenticated -> onNavigateToLogin()
             else -> Unit
         }
+    }
+
+    LaunchedEffect(bootstrapPhase) {
+        if (bootstrapPhase == BootstrapViewModel.Phase.DONE) onNavigateToMain()
     }
 
     Box(
@@ -78,6 +86,14 @@ fun SplashScreen(
             )
             Spacer(modifier = Modifier.height(48.dp))
             PixelLoadingDots()
+            if (bootstrapPhase == BootstrapViewModel.Phase.RESTORING) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "동기화 중...",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = TextSecondary
+                )
+            }
         }
 
         Box(

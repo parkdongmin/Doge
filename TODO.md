@@ -19,6 +19,24 @@
 
 아직 설계/착수 전 — 다음 세션에 위 행성 시세/이벤트 시스템 커밋까지 마무리한 뒤 이어서 진행.
 
+## 클라우드 세이브 (Firestore) — Phase 1~3 구현 완료 + push/복원 검증됨
+
+2026-08-27. 설계·단계는 `~/.claude/plans/tidy-whistling-pond.md` 참고.
+게임 상태 전체(Room 12개 테이블, `planet_event_log` 제외)를 `GameSnapshot`으로 직렬화해
+`saves/{uid}` Firestore 문서 1개에 JSON으로 백업. push 트리거 = 앱 백그라운드(ON_STOP) +
+30분 주기 루프. 스플래시에서 1회 pull+복원. 충돌 = 조용한 LWW(`rev` 비교).
+
+**검증됨:** 홈버튼 → `saves/{uid}` 문서 생성 확인, 앱 삭제→재설치→로그인 복원 확인.
+남은 수동 테스트: 비행기모드 진입, 다기기 LWW, 리더보드 회귀.
+
+**적용된 Firestore 규칙 (콘솔):** `match /saves/{userId} { allow read, write: if
+request.auth != null && request.auth.uid == userId; }` — catch-all의 `allow read: if
+request.auth != null` 때문에 다른 로그인 유저가 남의 세이브를 읽을 수는 있음(Phase 4에서 조임).
+
+**Phase 4 (나중):** 충돌 다이얼로그(dirty 추적), HQ에 수동 백업/복원 버튼, 로그아웃 시 push,
+행동별 디바운스 push, `firestore.rules` 레포 편입, 스냅샷 스키마 마이그레이션.
+Room 버전이 바뀌면(현재 17) 기존 클라우드 세이브는 `SKIPPED_VERSION`으로 복원 안 됨 — 주의.
+
 ## 행성 시세/이벤트 시스템 (1차 구현 완료, 2026-08-27 커밋됨)
 
 **지금 상태**: 테스트 오버라이드 전부 원래 값으로 되돌리고 커밋함 (클라우드 세이브 작업이

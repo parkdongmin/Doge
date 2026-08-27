@@ -77,8 +77,10 @@ class MainActivity : ComponentActivity() {
                     }
                     composable(NavRoutes.Login.route) {
                         LoginScreen(
+                            // 로그인 성공 후 Splash를 다시 거쳐 클라우드 세이브 복원을 태운다
+                            // (새 기기 = 새 설치 + 로그인 시나리오가 이 경로).
                             onLoginSuccess = {
-                                navController.navigate(NavRoutes.Main.route) {
+                                navController.navigate(NavRoutes.Splash.route) {
                                     popUpTo(NavRoutes.Login.route) { inclusive = true }
                                 }
                             }
