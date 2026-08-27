@@ -20,6 +20,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
+import com.doge.simulator.presentation.component.OfflineLossDialog
 import com.doge.simulator.presentation.component.OfflineProfitDialog
 import com.doge.simulator.presentation.navigation.BottomNavItem
 import com.doge.simulator.presentation.navigation.NavRoutes
@@ -181,13 +182,20 @@ fun MainScreen(deepLinkFlow: StateFlow<String?>) {
         }
     }
 
-    // ── 오프라인 수익 확인 다이얼로그 (탭과 무관하게 최상단에 노출) ──
+    // ── 오프라인 수익/손실 확인 다이얼로그 (탭과 무관하게 최상단에 노출) ──
     pendingOfflineProfit?.let { pending ->
-        OfflineProfitDialog(
-            coins = pending.coins,
-            onClaimWithAd = { appSessionViewModel.claimWithAd(activity) },
-            onClaimFree = { appSessionViewModel.claimFree() }
-        )
+        if (pending.coins >= 0) {
+            OfflineProfitDialog(
+                coins = pending.coins,
+                onClaimWithAd = { appSessionViewModel.claimWithAd(activity) },
+                onClaimFree = { appSessionViewModel.claimFree() }
+            )
+        } else {
+            OfflineLossDialog(
+                coins = -pending.coins,
+                onAcknowledge = { appSessionViewModel.claimFree() }
+            )
+        }
     }
 }
 

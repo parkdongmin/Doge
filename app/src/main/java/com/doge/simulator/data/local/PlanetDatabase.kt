@@ -8,6 +8,7 @@ import com.doge.simulator.data.local.dao.AstronautDao
 import com.doge.simulator.data.local.dao.ExpeditionDao
 import com.doge.simulator.data.local.dao.ExpeditionReportDao
 import com.doge.simulator.data.local.dao.PlanetDao
+import com.doge.simulator.data.local.dao.PlanetEventLogDao
 import com.doge.simulator.data.local.dao.RecruitmentDao
 import com.doge.simulator.data.local.dao.ResearchLabDao
 import com.doge.simulator.data.local.dao.ResourceDao
@@ -18,6 +19,7 @@ import com.doge.simulator.data.local.entity.AstronautEntity
 import com.doge.simulator.data.local.entity.ExpeditionEntity
 import com.doge.simulator.data.local.entity.ExpeditionReportEntity
 import com.doge.simulator.data.local.entity.PlanetEntity
+import com.doge.simulator.data.local.entity.PlanetEventLogEntity
 import com.doge.simulator.data.local.entity.RecruitmentCandidateEntity
 import com.doge.simulator.data.local.entity.RecruitmentMetaEntity
 import com.doge.simulator.data.local.entity.ResearchLabEntity
@@ -41,8 +43,9 @@ import com.doge.simulator.data.local.entity.UserEntity
         StoryEventEntity::class,
         RecruitmentCandidateEntity::class,
         RecruitmentMetaEntity::class,
+        PlanetEventLogEntity::class,
     ],
-    version = 14,
+    version = 17,
     exportSchema = false
 )
 abstract class PlanetDatabase : RoomDatabase() {
@@ -56,6 +59,7 @@ abstract class PlanetDatabase : RoomDatabase() {
     abstract fun storyProgressDao(): StoryProgressDao
     abstract fun expeditionReportDao(): ExpeditionReportDao
     abstract fun recruitmentDao(): RecruitmentDao
+    abstract fun planetEventLogDao(): PlanetEventLogDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -347,6 +351,58 @@ abstract class PlanetDatabase : RoomDatabase() {
             override fun migrate(database: SupportSQLiteDatabase) {
                 // event_log_table 제거 (아무 화면에서도 읽지 않는 로그 전용 테이블이었음)
                 database.execSQL("DROP TABLE IF EXISTS `event_log_table`")
+            }
+        }
+
+        val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // 행성 시세/이벤트 시스템: 생산 배율·시세 보정·마지막 이벤트 시각 추가
+                database.execSQL("ALTER TABLE planet_table ADD COLUMN productionMultiplier REAL NOT NULL DEFAULT 1.0")
+                database.execSQL("ALTER TABLE planet_table ADD COLUMN marketAdjustment INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE planet_table ADD COLUMN lastEventTime INTEGER NOT NULL DEFAULT 0")
+                // 기존 행성은 마지막 이벤트 시각을 획득 시점으로 초기화(새로 산 것처럼 처음부터 간격 계산 시작)
+                database.execSQL("UPDATE planet_table SET lastEventTime = acquireTime")
+            }
+        }
+
+        val MIGRATION_15_16 = object : Migration(15, 16) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // "소식" 탭 — 행성 시세/생산 이벤트 발생 기록
+                database.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `planet_event_log_table` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `planetId` TEXT NOT NULL,
+                        `planetDisplayName` TEXT NOT NULL,
+                        `planetVariantCode` TEXT NOT NULL,
+                        `isPositive` INTEGER NOT NULL,
+                        `flavorText` TEXT NOT NULL,
+                        `productionChangePercent` INTEGER NOT NULL,
+                        `marketDelta` INTEGER NOT NULL,
+                        `occurredAt` INTEGER NOT NULL
+                    )"""
+                )
+            }
+        }
+
+        val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // 생산 배율이 덮어쓰기 대신 누적되도록 바뀌면서, 소식 로그의 "생산 변동"도
+                // 퍼센트(productionChangePercent) 대신 시간당 코인(productionDeltaPerHour)으로
+                // 표현이 바뀜. 24시간짜리 휘발성 로그라 데이터 보존 없이 새로 만듦
+                database.execSQL("DROP TABLE IF EXISTS `planet_event_log_table`")
+                database.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `planet_event_log_table` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `planetId` TEXT NOT NULL,
+                        `planetDisplayName` TEXT NOT NULL,
+                        `planetVariantCode` TEXT NOT NULL,
+                        `isPositive` INTEGER NOT NULL,
+                        `flavorText` TEXT NOT NULL,
+                        `productionDeltaPerHour` INTEGER NOT NULL,
+                        `marketDelta` INTEGER NOT NULL,
+                        `occurredAt` INTEGER NOT NULL
+                    )"""
+                )
             }
         }
     }

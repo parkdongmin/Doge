@@ -31,4 +31,8 @@ class PlanetRepositoryImpl(
     override suspend fun upgradePlanet(planetId: String, level: Int, upgradeInvestment: Long) {
         dao.upgradePlanet(planetId, level, upgradeInvestment)
     }
+
+    override suspend fun updatePlanetEvent(planetId: String, productionMultiplier: Double, marketAdjustment: Long, lastEventTime: Long) {
+        dao.updatePlanetEvent(planetId, productionMultiplier, marketAdjustment, lastEventTime)
+    }
 }

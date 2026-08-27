@@ -74,6 +74,17 @@ val LabelTiny = TextStyle(
     letterSpacing = 0.5.sp
 )
 
+// ─── 문장 단위로 읽는 설명문용 (Pretendard, 가독성 우선) ──────────
+/** 도움말/설명 팝업처럼 여러 줄 문장을 읽어야 하는 곳 — 라벨용 굵은 픽셀 폰트는
+ *  짧은 단어엔 괜찮지만 문장에는 안 어울리고 가독성도 떨어져 별도로 분리 */
+val BodyReading = TextStyle(
+    fontFamily = PretendardFamily,
+    fontWeight = FontWeight.Normal,
+    fontSize = 13.sp,
+    lineHeight = 19.sp,
+    letterSpacing = 0.sp
+)
+
 // ─── 아이콘 크기 (Image 아이콘 dp 변환 + 일부 글리프 Text용) ──────────
 /**
  * 커스텀 이미지 아이콘의 크기(.value.dp로 변환해 사용)와,

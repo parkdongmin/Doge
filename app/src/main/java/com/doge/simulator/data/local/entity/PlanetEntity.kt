@@ -18,5 +18,8 @@ data class PlanetEntity(
     val totalProfit: Long,
     val variantId: String = "",
     val upgradeInvestment: Long = 0L,
-    val lastProfitTime: Long
+    val lastProfitTime: Long,
+    val productionMultiplier: Double = 1.0,
+    val marketAdjustment: Long = 0L,
+    val lastEventTime: Long = System.currentTimeMillis()
 )

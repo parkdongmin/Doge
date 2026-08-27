@@ -14,6 +14,7 @@ import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.decode.GifDecoder
 import coil.decode.ImageDecoderDecoder
+import com.doge.simulator.data.worker.PlanetEventWorker
 import com.doge.simulator.data.worker.PlanetMaintenanceWorker
 import com.doge.simulator.domain.usecase.SyncLeaderboardUseCase
 import dagger.hilt.android.HiltAndroidApp
@@ -59,6 +60,7 @@ class MyApplication : Application(), Configuration.Provider, ImageLoaderFactory 
         setupNotificationChannels()
         startLeaderboardSync()
         schedulePlanetMaintenanceWorker()
+        schedulePlanetEventWorker()
     }
 
     private fun setupNotificationChannels() {
@@ -74,6 +76,9 @@ class MyApplication : Application(), Configuration.Provider, ImageLoaderFactory 
                     },
                     NotificationChannel(PlanetMaintenanceWorker.CHANNEL_ID, "행성 수익 알림", NotificationManager.IMPORTANCE_DEFAULT).apply {
                         description = "행성 오프라인 수익 한도 임박 알림"
+                    },
+                    NotificationChannel(PlanetEventWorker.CHANNEL_ID, "행성 시황 속보", NotificationManager.IMPORTANCE_HIGH).apply {
+                        description = "보유 행성에 큰 폭의 생산·시세 변동이 발생했을 때 알림"
                     }
                 )
             )
@@ -85,6 +90,16 @@ class MyApplication : Application(), Configuration.Provider, ImageLoaderFactory 
             .build()
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             PlanetMaintenanceWorker.WORK_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            request
+        )
+    }
+
+    private fun schedulePlanetEventWorker() {
+        val request = PeriodicWorkRequestBuilder<PlanetEventWorker>(1, TimeUnit.HOURS)
+            .build()
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            PlanetEventWorker.WORK_NAME,
             ExistingPeriodicWorkPolicy.KEEP,
             request
         )

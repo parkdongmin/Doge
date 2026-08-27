@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.doge.simulator.domain.model.Resource
 import com.doge.simulator.domain.model.ResourceType
 import com.doge.simulator.domain.model.effectiveProduction
+import com.doge.simulator.domain.model.marketValue
 import com.doge.simulator.domain.repository.UserRepository
 import com.doge.simulator.domain.usecase.GetOwnedPlanetsUseCase
 import com.doge.simulator.domain.usecase.GetResourcesUseCase
@@ -45,7 +46,7 @@ class AssetViewModel @Inject constructor(
         AssetUiState(
             coins = coins,
             planetCount = planets.size,
-            totalMarketValue = planets.sumOf { it.buyPrice + it.upgradeInvestment },
+            totalMarketValue = planets.sumOf { it.marketValue },
             totalProfit = planets.sumOf { it.totalProfit },
             netProductionPerMin = planets.sumOf { it.effectiveProduction },
             resources = resources.filter { it.amount > 0 }

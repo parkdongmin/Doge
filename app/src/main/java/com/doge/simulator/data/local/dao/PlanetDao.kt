@@ -22,4 +22,13 @@ interface PlanetDao {
 
     @Query("UPDATE planet_table SET level = :level, upgradeInvestment = :upgradeInvestment WHERE id = :planetId")
     suspend fun upgradePlanet(planetId: String, level: Int, upgradeInvestment: Long)
+
+    @Query("""UPDATE planet_table SET productionMultiplier = :productionMultiplier,
+              marketAdjustment = :marketAdjustment, lastEventTime = :lastEventTime WHERE id = :planetId""")
+    suspend fun updatePlanetEvent(
+        planetId: String,
+        productionMultiplier: Double,
+        marketAdjustment: Long,
+        lastEventTime: Long
+    )
 }

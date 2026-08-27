@@ -11,6 +11,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,6 +44,8 @@ import com.doge.simulator.domain.model.PlanetMetaDataTable
 import com.doge.simulator.domain.model.PlanetType
 import com.doge.simulator.domain.model.RarityTier
 import com.doge.simulator.domain.model.effectiveProduction
+import com.doge.simulator.domain.model.marketValue
+import com.doge.simulator.domain.model.PlanetEventLog
 import com.doge.simulator.presentation.component.PlanetLevelBadge
 import com.doge.simulator.presentation.component.rarityColor
 import com.doge.simulator.presentation.component.rarityLabel
@@ -56,9 +61,10 @@ fun PlanetScreen(
 ) {
     val planets by viewModel.planets.collectAsState()
     val discoveredVariantIds by viewModel.discoveredVariantIds.collectAsState()
+    val recentEventLogs by viewModel.recentEventLogs.collectAsState()
     var sellTarget by remember { mutableStateOf<Planet?>(null) }
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("보유 행성", "도감")
+    val tabs = listOf("보유 행성", "도감", "소식")
 
     Column(
         modifier = Modifier
@@ -80,7 +86,7 @@ fun PlanetScreen(
             )
             Spacer(modifier = Modifier.height(Spacing.xs))
             Text(
-                text = "보유 행성을 강화하거나 도감을 통해 목표를 확인하세요",
+                text = "보유 행성을 강화하고, 도감과 소식으로 현황을 확인하세요",
                 color = TextSecondary,
                 style = MaterialTheme.typography.bodySmall
             )
@@ -154,6 +160,10 @@ fun PlanetScreen(
             1 -> PlanetCatalogContent(
                 discoveredVariantIds = discoveredVariantIds,
                 ownedPlanets = planets,
+                modifier = Modifier.fillMaxSize()
+            )
+            2 -> PlanetEventLogContent(
+                logs = recentEventLogs,
                 modifier = Modifier.fillMaxSize()
             )
         }
@@ -246,6 +256,15 @@ private fun PlanetListCard(
                         style = MaterialTheme.typography.labelSmall
                     )
                     PlanetLevelBadge(level = planet.level)
+                    if (planet.productionMultiplier != 1.0) {
+                        val eventDotColor = if (planet.productionMultiplier > 1.0) StatusGreen else StatusRed
+                        Box(
+                            modifier = Modifier
+                                .size(7.dp)
+                                .clip(CircleShape)
+                                .background(eventDotColor)
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.height(Spacing.xs))
                 Text(
@@ -305,7 +324,7 @@ fun SellConfirmDialog(
     onDismiss: () -> Unit
 ) {
     val meta = PlanetMetaDataTable.data[planet.type]
-    val baseValue = planet.buyPrice + planet.upgradeInvestment
+    val baseValue = planet.marketValue
     val fee = (baseValue * GameConstants.SELL_FEE_RATE).toLong()
     val netProceeds = baseValue - fee
 
@@ -325,8 +344,15 @@ fun SellConfirmDialog(
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(modifier = Modifier.height(Spacing.lg))
-                DialogRow("매입가", "%,d 코인".format(planet.buyPrice), TextPrimary)
-                DialogRow("강화 투자액", "+%,d 코인".format(planet.upgradeInvestment), SpaceAccent)
+                DialogRow("행성 가치", "%,d 코인".format(planet.buyPrice + planet.upgradeInvestment), TextPrimary)
+                if (planet.marketAdjustment != 0L) {
+                    val sign = if (planet.marketAdjustment > 0L) "+" else ""
+                    DialogRow(
+                        "시세 변동",
+                        "$sign${"%,d".format(planet.marketAdjustment)} 코인",
+                        if (planet.marketAdjustment > 0L) StatusGreen else StatusRed
+                    )
+                }
                 DialogRow("수수료 (5%)", "-%,d 코인".format(fee), StatusRed)
                 HorizontalDivider(color = SpaceMid, modifier = Modifier.padding(vertical = Spacing.sm))
                 Row(
@@ -366,6 +392,11 @@ private fun DialogRow(label: String, value: String, valueColor: Color) {
 }
 
 // ── 행성 도감 ──────────────────────────────────────────────────────────
+
+// 도감 카드 고정 크기 — 2줄 가로 스크롤 그리드에 쓰임(변형(variant)이 최대 40개인 타입도
+// 있어서, 세로로 계속 늘어나는 그리드 대신 이 크기로 줄·화면 높이를 고정)
+private val CatalogCardWidth = 116.dp
+private val CatalogCardHeight = 190.dp
 
 // variantId → (PlanetType, PlanetMetaData) 역방향 맵 (앱 생명주기 동안 고정)
 private val variantLookup: Map<String, Pair<PlanetType, PlanetMetaData>> by lazy {
@@ -462,6 +493,9 @@ private fun PlanetCatalogContent(
             }
 
             // ── 발견 카드 그리드 ───────────────────────────────────
+            // 세로 2줄 고정 + 가로 스크롤 — variant가 많은 타입(최대 40개)까지 발견하면
+            // 세로로 쭉 내려가는 그리드는 도감 화면 자체가 끝없이 길어짐. 2줄 높이로 고정하고
+            // 나머지는 옆으로 넘겨보게 해서 화면 길이가 발견 개수와 무관하게 일정하게 유지됨
             if (discoveredInRarity.isEmpty()) {
                 Text(
                     text = "아직 발견한 행성이 없습니다",
@@ -470,25 +504,29 @@ private fun PlanetCatalogContent(
                     modifier = Modifier.padding(bottom = Spacing.md)
                 )
             } else {
-                discoveredInRarity.chunked(2).forEach { rowItems ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.sm),
-                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
-                    ) {
-                        rowItems.forEach { (variantId, _, meta) ->
-                            val variantImageUrl = meta.variants
-                                .firstOrNull { it.variantId == variantId }?.imageUrl
-                            val isOwned = variantId in ownedVariantIds
-                            CatalogPlanetCard(
-                                variantId = variantId,
-                                imageUrl = variantImageUrl,
-                                meta = meta,
-                                isOwned = isOwned,
-                                rarityColor = color,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                        if (rowItems.size == 1) Spacer(modifier = Modifier.weight(1f))
+                LazyHorizontalGrid(
+                    rows = GridCells.Fixed(2),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(CatalogCardHeight * 2 + Spacing.sm)
+                        .padding(bottom = Spacing.sm),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+                ) {
+                    items(discoveredInRarity, key = { it.first }) { (variantId, _, meta) ->
+                        val variantImageUrl = meta.variants
+                            .firstOrNull { it.variantId == variantId }?.imageUrl
+                        val isOwned = variantId in ownedVariantIds
+                        CatalogPlanetCard(
+                            variantId = variantId,
+                            imageUrl = variantImageUrl,
+                            meta = meta,
+                            isOwned = isOwned,
+                            rarityColor = color,
+                            modifier = Modifier
+                                .width(CatalogCardWidth)
+                                .height(CatalogCardHeight)
+                        )
                     }
                 }
             }
@@ -518,9 +556,9 @@ private fun CatalogPlanetCard(
         border = BorderStroke(1.dp, rarityColor.copy(alpha = 0.4f))
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(Spacing.md),
+            modifier = Modifier.fillMaxSize().padding(Spacing.md),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm, Alignment.CenterVertically)
         ) {
             Box(
                 modifier = Modifier
@@ -574,5 +612,112 @@ private fun CatalogPlanetCard(
                 )
             }
         }
+    }
+}
+
+// ── 행성 소식(이벤트 로그) ───────────────────────────────────────────────
+
+@Composable
+private fun PlanetEventLogContent(
+    logs: List<PlanetEventLog>,
+    modifier: Modifier = Modifier
+) {
+    if (logs.isEmpty()) {
+        Box(modifier = modifier, contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Image(
+                    painter = painterResource(R.drawable.ic_ui_stat_market),
+                    contentDescription = null,
+                    modifier = Modifier.size(IconGlyphSize.xlarge.value.dp)
+                )
+                Spacer(modifier = Modifier.height(Spacing.md))
+                Text(
+                    text = "최근 24시간 동안 발생한 소식이 없습니다",
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+        return
+    }
+
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+    ) {
+        items(logs, key = { it.id }) { log ->
+            PlanetEventLogRow(log)
+        }
+    }
+}
+
+@Composable
+private fun PlanetEventLogRow(log: PlanetEventLog) {
+    val accentColor = if (log.isPositive) StatusGreen else StatusRed
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = SpaceMid.copy(alpha = 0.3f),
+        border = BorderStroke(1.dp, SpaceMid)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(Spacing.md),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Image(
+                painter = painterResource(if (log.isPositive) R.drawable.ic_ui_success else R.drawable.ic_ui_danger),
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(Spacing.sm))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = log.flavorText,
+                    color = TextPrimary,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(Spacing.xxs))
+                Text(
+                    text = "${log.planetDisplayName} #${log.planetVariantCode}",
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+            Spacer(modifier = Modifier.width(Spacing.sm))
+            Column(horizontalAlignment = Alignment.End) {
+                val productionSign = if (log.productionDeltaPerHour > 0) "+" else ""
+                Text(
+                    text = "생산 $productionSign${"%,d".format(log.productionDeltaPerHour)}/시",
+                    color = accentColor,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                val marketSign = if (log.marketDelta > 0) "+" else ""
+                Text(
+                    text = "시세 $marketSign${"%,d".format(log.marketDelta)}",
+                    color = accentColor,
+                    style = LabelTiny
+                )
+                Spacer(modifier = Modifier.height(Spacing.xxs))
+                Text(
+                    text = formatEventLogRelativeTime(log.occurredAt),
+                    color = TextSecondary,
+                    style = LabelTiny
+                )
+            }
+        }
+    }
+}
+
+private fun formatEventLogRelativeTime(occurredAt: Long): String {
+    val diffMinutes = (System.currentTimeMillis() - occurredAt) / 60_000L
+    return when {
+        diffMinutes < 1L -> "방금 전"
+        diffMinutes < 60L -> "${diffMinutes}분 전"
+        diffMinutes < 1440L -> "${diffMinutes / 60}시간 전"
+        else -> "${diffMinutes / 1440}일 전"
     }
 }

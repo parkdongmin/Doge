@@ -2,6 +2,7 @@ package com.doge.simulator.domain.usecase
 
 import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.Planet
+import com.doge.simulator.domain.model.marketValue
 import com.doge.simulator.domain.repository.PlanetRepository
 import com.doge.simulator.domain.repository.UserRepository
 import javax.inject.Inject
@@ -15,7 +16,7 @@ class SellPlanetUseCase @Inject constructor(
         // 시도해도 두 번째 호출은 삭제할 행 자체가 없어 코인이 중복 지급되지 않는다
         if (!planetRepository.sellPlanet(planet.id)) return
 
-        val baseValue = planet.buyPrice + planet.upgradeInvestment
+        val baseValue = planet.marketValue
         val fee = (baseValue * GameConstants.SELL_FEE_RATE).toLong()
         val proceeds = baseValue - fee
 

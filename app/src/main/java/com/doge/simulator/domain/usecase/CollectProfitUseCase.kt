@@ -25,7 +25,8 @@ import kotlin.random.Random
 class CollectProfitUseCase @Inject constructor(
     private val planetRepository: PlanetRepository,
     private val userRepository: UserRepository,
-    private val resourceRepository: ResourceRepository
+    private val resourceRepository: ResourceRepository,
+    private val rollPlanetEventUseCase: RollPlanetEventUseCase
 ) {
     private val mutex = Mutex()
 
@@ -59,9 +60,17 @@ class CollectProfitUseCase @Inject constructor(
                 val amount = rollResourceAmount(elapsedMinutes, baseDropChance, rarityMultiplier, levelMultiplier)
                 if (amount > 0L) resourceRepository.add(type, amount)
             }
+
+            rollPlanetEventUseCase(planet, now)
         }
 
-        if (totalEarned > 0) userRepository.addCoins((totalEarned * multiplier).toLong())
+        // 마이너스 순수익(다수 행성이 "생산 중단" 상태)도 실제 잔액에 반영돼야 방치 손해가 의미
+        // 있음 — 광고 배율은 이득에만 적용되므로(호출부에서 손해엔 항상 1.0), 손해는 별도 분기로
+        // 바닥 클램프 차감(음수 잔액 방지)
+        when {
+            totalEarned > 0 -> userRepository.addCoins((totalEarned * multiplier).toLong())
+            totalEarned < 0 -> userRepository.deductCoinsClamped(-totalEarned)
+        }
     }
 
     // 분당 dropChance(%) × 등급 배율 × 강화 레벨 배율을 경과 시간에 대한 기댓값으로 환산하여 정수 개수를 산출

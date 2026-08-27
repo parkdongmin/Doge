@@ -43,10 +43,14 @@ class AppSessionViewModel @Inject constructor(
             val planets = getOwnedPlanetsUseCase().first()
             if (planets.isEmpty()) return@launch
             val pending = peekPendingProfitUseCase(planets)
-            if (pending.coins > 0 && pending.maxElapsedMinutes >= GameConstants.OFFLINE_PROFIT_DIALOG_THRESHOLD_MINUTES) {
-                _pendingOfflineProfit.value = pending
-            } else if (pending.coins > 0) {
-                collectProfitUseCase(planets)
+            val longElapsed = pending.maxElapsedMinutes >= GameConstants.OFFLINE_PROFIT_DIALOG_THRESHOLD_MINUTES
+            when {
+                // 이득이 오래 쌓였으면 "2배 보기" 팝업, 짧으면 조용히 자동 수집
+                pending.coins > 0 && longElapsed -> _pendingOfflineProfit.value = pending
+                pending.coins > 0 -> collectProfitUseCase(planets)
+                // 손해도 오래 쌓였으면 알려주고 확인시키되(광고 배율 옵션 없음), 짧으면 조용히 반영
+                pending.coins < 0 && longElapsed -> _pendingOfflineProfit.value = pending
+                pending.coins < 0 -> collectProfitUseCase(planets)
             }
         }
     }

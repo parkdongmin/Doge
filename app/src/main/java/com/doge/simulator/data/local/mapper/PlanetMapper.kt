@@ -19,7 +19,10 @@ fun PlanetEntity.toDomain(): Planet {
         level = level,
         totalProfit = totalProfit,
         upgradeInvestment = upgradeInvestment,
-        lastProfitTime = lastProfitTime
+        lastProfitTime = lastProfitTime,
+        productionMultiplier = productionMultiplier,
+        marketAdjustment = marketAdjustment,
+        lastEventTime = lastEventTime
     )
 }
 
@@ -38,6 +41,9 @@ fun Planet.toEntity(): PlanetEntity {
         level = level,
         totalProfit = totalProfit,
         upgradeInvestment = upgradeInvestment,
-        lastProfitTime = lastProfitTime
+        lastProfitTime = lastProfitTime,
+        productionMultiplier = productionMultiplier,
+        marketAdjustment = marketAdjustment,
+        lastEventTime = lastEventTime
     )
 }

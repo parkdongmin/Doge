@@ -1,5 +1,6 @@
 package com.doge.simulator.domain.usecase
 
+import com.doge.simulator.domain.model.marketValue
 import com.doge.simulator.domain.repository.AuthRepository
 import com.doge.simulator.domain.repository.LeaderboardRepository
 import com.doge.simulator.domain.repository.PlanetRepository
@@ -22,9 +23,9 @@ class SyncLeaderboardUseCase @Inject constructor(
         val coins = userRepository.getCoins().first()
         val planets = planetRepository.getOwnedPlanets().first()
         // 행성 가치는 매도가(SellPlanetUseCase)·자산 화면(AssetViewModel)과 동일하게
-        // buyPrice + upgradeInvestment로 계산한다. currentValue는 구매 시점 가격에서
-        // 갱신되지 않는 죽은 필드라 강화 투자액이 리더보드에서 누락되는 문제가 있었다
-        val totalAsset = coins + planets.sumOf { it.buyPrice + it.upgradeInvestment }
+        // marketValue(buyPrice + upgradeInvestment + marketAdjustment)로 계산한다.
+        // currentValue는 구매 시점 가격에서 갱신되지 않는 죽은 필드라 쓰지 않는다
+        val totalAsset = coins + planets.sumOf { it.marketValue }
         val displayName = user.displayName
             ?.takeIf { it.isNotBlank() }
             ?: "플레이어#${user.uid.take(6)}"

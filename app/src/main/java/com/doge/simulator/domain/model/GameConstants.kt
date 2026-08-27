@@ -50,6 +50,50 @@ object GameConstants {
     // 조기에 무의미해짐) — 커먼 행성 페이백을 ~3시간대로 늦춰 액티브 탐사 비중을 끌어올림 (타입별 상대 밸런스는 유지)
     const val PLANET_PRODUCTION_SCALE = 0.15
 
+    // ── 행성 시세/생산 이벤트 ─────────────────────────────────────────
+    // 이벤트 평균 발생 간격(시간). risk(2~100)가 높을수록 짧아짐 — risk=2 → 6h, risk=100 → 3h.
+    // 원래 10~42h(하루 1~2회 수준)로 뜸하게 잡았었는데, "너무 잦으면 스팸 같다"는 그 판단이
+    // 알림이 존재한다는 전제였음을 깨달음 — 지금 이벤트는 알림이 아예 없고(포그라운드 정산
+    // 시점에만 조용히 롤됨) "소식" 탭에 들어가야만 보이므로 14h~3h로 1차 단축했었다가, 그마저도
+    // 실기기로 체감해보니 안전한 타입은 여전히 뜸하게 느껴져 최고점만 한 번 더 낮춤(최저점
+    // 3h는 유지) — 최종 확정값
+    fun planetEventIntervalHours(risk: Int): Double = 6.0 - (risk - 2) * 0.0306
+
+    // 좋음/나쁨 판정 확률(나쁠 확률, %). risk(변동성·빈도)와 분리된 축으로, 희귀도가 높을수록
+    // 유리해지되 최상위 등급도 완전 무결점은 아니도록 천장을 둠(LEGENDARY도 최소 25%는 나쁠 수 있음).
+    // PlanetMetaDataTable의 eventRateMin/Max에 그대로 반영됨(타입이 아니라 희귀도 기준)
+    val PLANET_EVENT_BAD_CHANCE_RANGE: Map<RarityTier, IntRange> = mapOf(
+        RarityTier.COMMON to 45..55,
+        RarityTier.UNCOMMON to 40..48,
+        RarityTier.RARE to 35..42,
+        RarityTier.EPIC to 30..37,
+        RarityTier.LEGENDARY to 25..32
+    )
+
+    // 이벤트 1회당 생산 배율 등락폭(3~30%p)도 매번 랜덤 — 같은 "나쁜 이벤트"라도 매번
+    // 크기가 달라야 도박성이 생김. 나쁜 이벤트는 -값, 좋은 이벤트는 +값으로 아래 누적치에 더해짐
+    const val PLANET_EVENT_DELTA_MIN = 0.03
+    const val PLANET_EVENT_DELTA_MAX = 0.30
+
+    // 백그라운드 워커(PlanetEventWorker)가 "큰 폭" 이벤트로 판단해 알림을 보내는 등락폭 기준.
+    // 주식 앱의 급등락 알림처럼 매번 알리면 스팸이 되므로, 전체 델타 범위(3~30%p)의 상위 구간만
+    // 알림 대상으로 삼음 — 균등분포 기준 이벤트 중 약 18.5%만 이 기준을 넘음
+    const val PLANET_EVENT_NOTIFY_DELTA_THRESHOLD = 0.25
+    // 알림 파이프라인만 확인할 땐 잠깐 0.05로 낮추면 이벤트가 뜰 때마다 무조건 알림이 온다
+
+    // 생산 배율은 매 이벤트마다 덮어쓰지 않고 누적(+=)된다 — 나쁜 이벤트가 연달아 겹치면
+    // 정말로 생산이 0 밑으로(마이너스, 즉 실제 손해) 내려갈 수 있음. 다만 완전히 무한정
+    // 나빠지거나(회복 불가능해 보임) 좋아지지(비현실적) 않도록 바닥·천장을 둠 — 바닥까지
+    // 가려면 최악의 델타로만 4~5연속 불운해야 해서 "가끔 진짜 사고"라는 느낌은 유지됨
+    const val PLANET_EVENT_MULTIPLIER_FLOOR = -0.30
+    const val PLANET_EVENT_MULTIPLIER_CEILING = 3.0
+
+    // 시세 변동폭 = (생산 배율 누적치 − 1.0) × buyPrice + (생산 배율 누적치 − 1.0) × upgradeInvestment × 이 비율.
+    // 강화투자액이 클수록 상대적 타격이 작아지지만 이 비율만큼은 항상 남아 완전 무위험이 안 됨.
+    // 매 이벤트마다 시세를 따로 누적하지 않고 항상 이 공식으로 "현재 생산 배율 기준"을 다시
+    // 계산 — 생산 배율과 시세가 서로 다른 값으로 어긋날 일이 없음
+    const val PLANET_EVENT_MARKET_UPGRADE_INVESTMENT_RATIO = 0.25
+
     // ── 우주인 ────────────────────────────────────────────────────────
     const val ASTRONAUT_BASE_HIRE_COST = 500L
     // 같은 등급 안에서 숙련도 롤이 최고치일 때 기본가 대비 추가로 붙는 비율

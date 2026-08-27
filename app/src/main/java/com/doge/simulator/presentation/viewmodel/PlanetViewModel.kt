@@ -11,6 +11,7 @@ import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.Planet
 import com.doge.simulator.domain.repository.UserRepository
 import com.doge.simulator.domain.usecase.GetOwnedPlanetsUseCase
+import com.doge.simulator.domain.usecase.GetPlanetEventLogsUseCase
 import com.doge.simulator.domain.usecase.GetResourcesUseCase
 import com.doge.simulator.domain.usecase.SellPlanetUseCase
 import com.doge.simulator.domain.usecase.UndoPlanetUpgradeUseCase
@@ -43,6 +44,7 @@ sealed class UpgradePhase {
 @HiltViewModel
 class PlanetViewModel @Inject constructor(
     getOwnedPlanetsUseCase: GetOwnedPlanetsUseCase,
+    getPlanetEventLogsUseCase: GetPlanetEventLogsUseCase,
     private val sellPlanetUseCase: SellPlanetUseCase,
     private val upgradePlanetUseCase: UpgradePlanetUseCase,
     private val undoPlanetUpgradeUseCase: UndoPlanetUpgradeUseCase,
@@ -60,6 +62,9 @@ class PlanetViewModel @Inject constructor(
 
     val discoveredVariantIds = userRepository.getDiscoveredVariantIds()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    val recentEventLogs = getPlanetEventLogsUseCase()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val coins: StateFlow<Long> = userRepository.getCoins()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)

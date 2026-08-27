@@ -11,12 +11,14 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -41,6 +43,7 @@ import com.doge.simulator.domain.model.PlanetMetaDataTable
 import com.doge.simulator.domain.model.Resource
 import com.doge.simulator.domain.model.ResourceType
 import com.doge.simulator.domain.model.effectiveProduction
+import com.doge.simulator.domain.model.marketValue
 import com.doge.simulator.presentation.component.PlanetLevelBadge
 import com.doge.simulator.presentation.component.rememberLiveCoinDisplay
 import com.doge.simulator.presentation.viewmodel.PlanetViewModel
@@ -69,6 +72,7 @@ fun PlanetDetailScreen(
     val activity = LocalContext.current.findActivity()
     var showSellDialog by remember { mutableStateOf(false) }
     var showUpgradeSheet by remember { mutableStateOf(false) }
+    var showStatsInfo by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -109,7 +113,7 @@ fun PlanetDetailScreen(
         }
 
         val meta = PlanetMetaDataTable.data[planet.type]
-        val baseValue = planet.buyPrice + planet.upgradeInvestment
+        val baseValue = planet.marketValue
         val profitRate = ((baseValue - planet.buyPrice).toFloat() / planet.buyPrice * 100).toInt()
         val coins by viewModel.coins.collectAsState()
 
@@ -181,12 +185,46 @@ fun PlanetDetailScreen(
                     .textured(shape = RoundedCornerShape(6.dp), baseColor = SpaceNavy)
             ) {
                 Column(modifier = Modifier.padding(Spacing.lg)) {
-                    Text("스탯", color = TextSecondary, style = MaterialTheme.typography.labelMedium)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("스탯", color = TextSecondary, style = MaterialTheme.typography.labelMedium)
+                        Icon(
+                            imageVector = Icons.Outlined.Info,
+                            contentDescription = "스탯 설명 보기",
+                            tint = TextSecondary,
+                            modifier = Modifier
+                                .size(16.dp)
+                                .clickable { showStatsInfo = true }
+                        )
+                    }
                     Spacer(modifier = Modifier.height(Spacing.md))
-                    DetailRow("생산량", "${planet.effectiveProduction}/분", StatusGreen)
-                    DetailRow("시간 수익", "+${"%,d".format(planet.effectiveProduction * 60L)} 코인/시", GoldAccent)
-                    DetailRow("위험도", "${planet.risk}", StatusYellow)
-                    DetailRow("이벤트율", "${planet.eventRate}%", SpaceAccent)
+                    val hourlyEarnings = planet.effectiveProduction * 60L
+                    DetailRow(
+                        "생산량",
+                        "${planet.effectiveProduction}/분",
+                        if (planet.effectiveProduction >= 0) StatusGreen else StatusRed
+                    )
+                    DetailRow(
+                        label = if (hourlyEarnings >= 0) "생산 진행" else "생산 중단",
+                        value = "${if (hourlyEarnings >= 0) "+" else ""}${"%,d".format(hourlyEarnings)} 코인/시",
+                        color = if (hourlyEarnings >= 0) GoldAccent else StatusRed
+                    )
+                    if (planet.marketAdjustment != 0L) {
+                        val marketColor = if (planet.marketAdjustment > 0L) StatusGreen else StatusRed
+                        val sign = if (planet.marketAdjustment > 0L) "+" else ""
+                        DetailRow("시세 변동", "$sign${"%,d".format(planet.marketAdjustment)} 코인", marketColor)
+                    }
+                    val eventIntervalHours = GameConstants.planetEventIntervalHours(planet.risk)
+                    val intervalText = if (eventIntervalHours < 1.0) {
+                        "약 ${(eventIntervalHours * 60).toInt()}분마다"
+                    } else {
+                        "약 ${eventIntervalHours.toInt()}시간마다"
+                    }
+                    DetailRow("이벤트 간격", intervalText, StatusYellow)
+                    DetailRow("악재 확률", "${planet.eventRate}%", SpaceAccent)
                     DetailRow("희귀도", meta?.rarity?.name ?: "", GoldAccent)
                 }
             }
@@ -249,8 +287,7 @@ fun PlanetDetailScreen(
                 Column(modifier = Modifier.padding(Spacing.lg)) {
                     Text("투자 현황", color = TextSecondary, style = MaterialTheme.typography.labelMedium)
                     Spacer(modifier = Modifier.height(Spacing.md))
-                    DetailRow("매입가", "%,d 코인".format(planet.buyPrice), TextPrimary)
-                    DetailRow("강화 투자액", "+%,d 코인".format(planet.upgradeInvestment), SpaceAccent)
+                    DetailRow("행성 가치", "%,d 코인".format(planet.marketValue), TextPrimary)
                     DetailRow("매도 예상가", "%,d 코인".format((baseValue * (1f - GameConstants.SELL_FEE_RATE)).toLong()), GoldAccent)
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xs),
@@ -370,6 +407,10 @@ fun PlanetDetailScreen(
                     showUpgradeSheet = false
                 }
             )
+        }
+
+        if (showStatsInfo) {
+            StatsInfoDialog(onDismiss = { showStatsInfo = false })
         }
     }
 }
@@ -589,6 +630,49 @@ private fun PlanetUpgradeDialog(
             }
         }
     }
+}
+
+// "스탯" 카드의 ⓘ 아이콘으로 여는 용어 설명 팝업. 위험도/이벤트율 같은 원래 숫자만으로는
+// 처음 보는 플레이어가 뜻을 알 수 없어서, 화면엔 사람이 읽을 수 있는 값(간격 시간/확률)으로
+// 보여주고 각 항목이 정확히 뭘 뜻하는지는 여기서 한 번에 설명한다
+@Composable
+private fun StatsInfoDialog(onDismiss: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = SpaceNavy,
+            border = androidx.compose.foundation.BorderStroke(1.dp, SpaceBlue),
+            modifier = Modifier.textured(shape = RoundedCornerShape(16.dp), baseColor = SpaceNavy)
+        ) {
+            Column(modifier = Modifier.padding(Spacing.xl)) {
+                Text("스탯 설명", color = GoldAccent, style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.height(Spacing.md))
+
+                StatsInfoEntry("생산량", "이 행성이 분당 실제로 만들어내는 코인. 레벨과 아래 이벤트 효과가 모두 반영된 값")
+                StatsInfoEntry("생산 진행 / 생산 중단", "생산량을 시간당으로 환산한 값. 이벤트가 누적돼 마이너스가 되면 \"생산 중단\"으로 바뀌며 오히려 손해가 발생")
+                StatsInfoEntry("시세 변동", "이벤트로 누적된 매도가 변동분. 행성을 팔 때 이 값만큼 가격에 더해지거나 빠짐")
+                StatsInfoEntry("이벤트 간격", "이 행성에 이벤트가 평균적으로 얼마나 자주 발생하는지. 위험한 타입일수록 간격이 짧음(더 자주 발생)")
+                StatsInfoEntry("악재 확률", "이벤트가 발생했을 때 나쁜 쪽으로 나올 확률. 희귀도가 높은 행성일수록 이 확률이 낮음(더 유리)", isLast = true)
+
+                Spacer(modifier = Modifier.height(Spacing.lg))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) {
+                        Text("확인", color = GoldAccent, style = MaterialTheme.typography.labelMedium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatsInfoEntry(term: String, description: String, isLast: Boolean = false) {
+    Column {
+        Text(term, color = TextPrimary, style = MaterialTheme.typography.bodyMedium)
+        Spacer(modifier = Modifier.height(Spacing.xxs))
+        Text(description, color = TextSecondary, style = BodyReading)
+    }
+    if (!isLast) Spacer(modifier = Modifier.height(Spacing.md))
 }
 
 // 강화 굴림이 진행되는 동안(결과가 이미 나왔더라도 화면엔 아직 안 보여주는 구간) 긴장감을

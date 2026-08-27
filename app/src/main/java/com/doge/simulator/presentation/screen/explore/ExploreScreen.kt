@@ -1292,7 +1292,7 @@ private fun SwapPickerDialog(
     onDismiss: () -> Unit
 ) {
     val sorted = remember(ownedPlanets) {
-        ownedPlanets.sortedBy { it.buyPrice + it.upgradeInvestment }
+        ownedPlanets.sortedBy { it.marketValue }
     }
     val discoveredName = "${discoveredPlanetMeta?.displayName ?: discoveredPlanet.type.name} #${discoveredPlanet.variantId.substringAfterLast("-")}"
     val canBuyNow = hasFreeSlot && coins >= discoveredPlanet.buyPrice
@@ -1331,7 +1331,7 @@ private fun SwapPickerDialog(
                     }
                     sorted.forEach { owned ->
                         val meta = PlanetMetaDataTable.data[owned.type]
-                        val sellPrice = ((owned.buyPrice + owned.upgradeInvestment) * (1 - GameConstants.SELL_FEE_RATE)).toLong()
+                        val sellPrice = (owned.marketValue * (1 - GameConstants.SELL_FEE_RATE)).toLong()
                         Surface(
                             shape = RoundedCornerShape(10.dp),
                             color = SpaceMid.copy(alpha = 0.3f),
@@ -1410,7 +1410,7 @@ private fun SwapPickerDialog(
 
     pendingSell?.let { target ->
         val meta = PlanetMetaDataTable.data[target.type]
-        val sellPrice = ((target.buyPrice + target.upgradeInvestment) * (1 - GameConstants.SELL_FEE_RATE)).toLong()
+        val sellPrice = (target.marketValue * (1 - GameConstants.SELL_FEE_RATE)).toLong()
         AlertDialog(
             onDismissRequest = { pendingSell = null },
             title = { Text("정말 파시겠어요?") },

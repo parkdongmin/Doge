@@ -15,4 +15,6 @@ interface PlanetRepository {
     suspend fun updatePlanetProfit(planetId: String, totalProfit: Long, lastProfitTime: Long)
 
     suspend fun upgradePlanet(planetId: String, level: Int, upgradeInvestment: Long)
+
+    suspend fun updatePlanetEvent(planetId: String, productionMultiplier: Double, marketAdjustment: Long, lastEventTime: Long)
 }

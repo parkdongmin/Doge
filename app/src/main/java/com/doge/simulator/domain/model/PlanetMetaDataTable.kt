@@ -13,7 +13,7 @@ object PlanetMetaDataTable {
             productionMin = 80, productionMax = 140,
             riskMin = 5, riskMax = 15,
             investmentMin = 900, investmentMax = 1200,
-            eventRateMin = 10, eventRateMax = 20,
+            eventRateMin = 45, eventRateMax = 55, // 희귀도 기준(COMMON) — GameConstants.PLANET_EVENT_BAD_CHANCE_RANGE
             baseMaintenanceCostMin = 5, baseMaintenanceCostMax = 10,
             rarity = RarityTier.COMMON,
             basePrice = 1000,
@@ -33,7 +33,7 @@ object PlanetMetaDataTable {
             productionMin = 60, productionMax = 120,
             riskMin = 15, riskMax = 30,
             investmentMin = 1100, investmentMax = 1500,
-            eventRateMin = 10, eventRateMax = 25,
+            eventRateMin = 45, eventRateMax = 55, // 희귀도 기준(COMMON)
             baseMaintenanceCostMin = 5, baseMaintenanceCostMax = 12,
             rarity = RarityTier.COMMON,
             basePrice = 1000,
@@ -52,7 +52,7 @@ object PlanetMetaDataTable {
             productionMin = 70, productionMax = 130,
             riskMin = 10, riskMax = 20,
             investmentMin = 1500, investmentMax = 2000,
-            eventRateMin = 5, eventRateMax = 15,
+            eventRateMin = 45, eventRateMax = 55, // 희귀도 기준(COMMON)
             baseMaintenanceCostMin = 6, baseMaintenanceCostMax = 11,
             rarity = RarityTier.COMMON,
             basePrice = 1000,
@@ -72,7 +72,7 @@ object PlanetMetaDataTable {
             productionMin = 40, productionMax = 80,
             riskMin = 2, riskMax = 10,
             investmentMin = 400, investmentMax = 700,
-            eventRateMin = 3, eventRateMax = 10,
+            eventRateMin = 45, eventRateMax = 55, // 희귀도 기준(COMMON)
             baseMaintenanceCostMin = 3, baseMaintenanceCostMax = 8,
             rarity = RarityTier.COMMON,
             basePrice = 1000,
@@ -92,7 +92,7 @@ object PlanetMetaDataTable {
             productionMin = 150, productionMax = 250,
             riskMin = 20, riskMax = 40,
             investmentMin = 2500, investmentMax = 3500,
-            eventRateMin = 15, eventRateMax = 25,
+            eventRateMin = 40, eventRateMax = 48, // 희귀도 기준(UNCOMMON)
             baseMaintenanceCostMin = 15, baseMaintenanceCostMax = 25,
             rarity = RarityTier.UNCOMMON,
             basePrice = 4000,
@@ -111,7 +111,7 @@ object PlanetMetaDataTable {
             productionMin = 90, productionMax = 160,
             riskMin = 10, riskMax = 20,
             investmentMin = 3000, investmentMax = 3800,
-            eventRateMin = 5, eventRateMax = 10,
+            eventRateMin = 40, eventRateMax = 48, // 희귀도 기준(UNCOMMON)
             baseMaintenanceCostMin = 12, baseMaintenanceCostMax = 20,
             rarity = RarityTier.UNCOMMON,
             basePrice = 4000,
@@ -131,7 +131,7 @@ object PlanetMetaDataTable {
             productionMin = 70, productionMax = 110,
             riskMin = 15, riskMax = 25,
             investmentMin = 1600, investmentMax = 2200,
-            eventRateMin = 8, eventRateMax = 15,
+            eventRateMin = 40, eventRateMax = 48, // 희귀도 기준(UNCOMMON)
             baseMaintenanceCostMin = 14, baseMaintenanceCostMax = 22,
             rarity = RarityTier.UNCOMMON,
             basePrice = 4000,
@@ -150,7 +150,7 @@ object PlanetMetaDataTable {
             productionMin = 180, productionMax = 300,
             riskMin = 40, riskMax = 60,
             investmentMin = 2000, investmentMax = 3000,
-            eventRateMin = 20, eventRateMax = 35,
+            eventRateMin = 40, eventRateMax = 48, // 희귀도 기준(UNCOMMON)
             baseMaintenanceCostMin = 20, baseMaintenanceCostMax = 35,
             rarity = RarityTier.UNCOMMON,
             basePrice = 4000,
@@ -169,7 +169,7 @@ object PlanetMetaDataTable {
             productionMin = 30, productionMax = 60,
             riskMin = 2, riskMax = 10,
             investmentMin = 200, investmentMax = 400,
-            eventRateMin = 3, eventRateMax = 10,
+            eventRateMin = 40, eventRateMax = 48, // 희귀도 기준(UNCOMMON)
             baseMaintenanceCostMin = 2, baseMaintenanceCostMax = 6,
             rarity = RarityTier.UNCOMMON,
             basePrice = 4000,
@@ -188,7 +188,7 @@ object PlanetMetaDataTable {
             productionMin = 300, productionMax = 600,
             riskMin = 80, riskMax = 100,
             investmentMin = 4000, investmentMax = 6000,
-            eventRateMin = 30, eventRateMax = 50,
+            eventRateMin = 35, eventRateMax = 42, // 희귀도 기준(RARE)
             baseMaintenanceCostMin = 40, baseMaintenanceCostMax = 70,
             rarity = RarityTier.RARE,
             basePrice = 50000,
@@ -208,7 +208,7 @@ object PlanetMetaDataTable {
             productionMin = 200, productionMax = 300,
             riskMin = 5, riskMax = 15,
             investmentMin = 8000, investmentMax = 12000,
-            eventRateMin = 2, eventRateMax = 10,
+            eventRateMin = 30, eventRateMax = 37, // 희귀도 기준(EPIC)
             baseMaintenanceCostMin = 20, baseMaintenanceCostMax = 40,
             rarity = RarityTier.EPIC,
             basePrice = 50000,
@@ -228,7 +228,7 @@ object PlanetMetaDataTable {
             productionMin = 250, productionMax = 350,
             riskMin = 8, riskMax = 20,
             investmentMin = 7000, investmentMax = 10000,
-            eventRateMin = 5, eventRateMax = 12,
+            eventRateMin = 25, eventRateMax = 32, // 희귀도 기준(LEGENDARY)
             baseMaintenanceCostMin = 25, baseMaintenanceCostMax = 50,
             rarity = RarityTier.LEGENDARY,
             basePrice = 200000,
