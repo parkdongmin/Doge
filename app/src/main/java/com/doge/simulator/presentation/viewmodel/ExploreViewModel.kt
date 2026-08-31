@@ -125,7 +125,7 @@ class ExploreViewModel @Inject constructor(
             // 튜토리얼 대상으로 표시한다. 클라우드 복원 유저는 initialize()가 false → 스킵.
             if (userRepository.initialize()) {
                 seedStarterAssetsUseCase()
-                tutorialPrefs.startedFresh = true
+                tutorialPrefs.markStartedFresh()
             }
         }
         interstitialAdManager.preload()

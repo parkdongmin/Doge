@@ -31,6 +31,14 @@ sealed interface TutorialStep {
     companion object { const val PART1_PAGES = 2 }
 }
 
+private data class TutorialFlags(
+    val startedFresh: Boolean,
+    val part1Done: Boolean,
+    val part2Done: Boolean,
+    val hqIntroDone: Boolean,
+    val upgradeIntroDone: Boolean,
+)
+
 @HiltViewModel
 class TutorialViewModel @Inject constructor(
     getActiveExpeditionsUseCase: GetActiveExpeditionsUseCase,
@@ -38,42 +46,44 @@ class TutorialViewModel @Inject constructor(
     private val prefs: TutorialPrefs
 ) : ViewModel() {
 
-    // prefs가 반응형이 아니라, dismiss 시 이 값을 올려 step 흐름을 다시 계산시킨다.
-    private val revision = MutableStateFlow(0)
     private val part1Page = MutableStateFlow(0)
 
     // MainScreen이 현재 라우트를 밀어넣는다 — 화면별 맥락형 버블 판정에 필요.
     private val currentRoute = MutableStateFlow<String?>(null)
     fun onRouteChanged(route: String?) { currentRoute.value = route }
 
+    private val flags = combine(
+        prefs.startedFresh, prefs.part1Done, prefs.part2Done, prefs.hqIntroDone, prefs.upgradeIntroDone
+    ) { fresh, p1, p2, hq, up -> TutorialFlags(fresh, p1, p2, hq, up) }
+
     val step: StateFlow<TutorialStep> = combine(
+        flags,
         getActiveExpeditionsUseCase(),
         getOwnedPlanetsUseCase(),
         currentRoute,
-        part1Page,
-        revision
-    ) { expeditions, planets, route, page, _ ->
+        part1Page
+    ) { f, expeditions, planets, route, page ->
         when {
             // startedFresh = 이 기기에서 완전 신규로 시작(스타터 자산 지급받음).
             // 클라우드 복원 기존 유저는 이 값이 false라 튜토리얼 전체가 안 뜬다.
-            !prefs.startedFresh -> TutorialStep.None
+            !f.startedFresh -> TutorialStep.None
 
             // Part 1: 아직 안 봤고, 아직 탐사를 한 번도 안 보낸 상태 · 탐사 탭에서.
-            !prefs.part1Done && expeditions.isEmpty() && route == NavRoutes.Explore.route ->
+            !f.part1Done && expeditions.isEmpty() && route == NavRoutes.Explore.route ->
                 TutorialStep.Part1(page.coerceIn(0, TutorialStep.PART1_PAGES - 1))
 
             // Part 1을 끝내기 전엔 나머지 안내를 얹지 않는다.
-            !prefs.part1Done -> TutorialStep.None
+            !f.part1Done -> TutorialStep.None
 
             // Part 2: 행성 탭에서. 스타터 행성 덕에 Part 1 직후 바로 뜬다.
-            !prefs.part2Done && planets.isNotEmpty() && route == NavRoutes.Planet.route ->
+            !f.part2Done && planets.isNotEmpty() && route == NavRoutes.Planet.route ->
                 TutorialStep.Part2
 
             // 맥락형 원샷 — 해당 화면 첫 방문.
-            !prefs.hqIntroDone && route == NavRoutes.HQ.route ->
+            !f.hqIntroDone && route == NavRoutes.HQ.route ->
                 TutorialStep.HqIntro
 
-            !prefs.upgradeIntroDone && route == NavRoutes.PlanetDetail.route ->
+            !f.upgradeIntroDone && route == NavRoutes.PlanetDetail.route ->
                 TutorialStep.UpgradeIntro
 
             else -> TutorialStep.None
@@ -87,12 +97,11 @@ class TutorialViewModel @Inject constructor(
 
     fun dismiss(step: TutorialStep) {
         when (step) {
-            is TutorialStep.Part1 -> prefs.part1Done = true
-            TutorialStep.Part2 -> prefs.part2Done = true
-            TutorialStep.HqIntro -> prefs.hqIntroDone = true
-            TutorialStep.UpgradeIntro -> prefs.upgradeIntroDone = true
+            is TutorialStep.Part1 -> prefs.markPart1Done()
+            TutorialStep.Part2 -> prefs.markPart2Done()
+            TutorialStep.HqIntro -> prefs.markHqIntroDone()
+            TutorialStep.UpgradeIntro -> prefs.markUpgradeIntroDone()
             TutorialStep.None -> Unit
         }
-        revision.value++
     }
 }
