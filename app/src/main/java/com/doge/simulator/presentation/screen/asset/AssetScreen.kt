@@ -9,6 +9,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,10 +25,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.draw.clip
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.doge.simulator.R
 import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.Resource
+import com.doge.simulator.presentation.component.InfoDialog
+import com.doge.simulator.presentation.component.InfoEntry
 import com.doge.simulator.presentation.component.rememberLiveCoinDisplay
 import com.doge.simulator.presentation.viewmodel.AssetViewModel
 import com.doge.simulator.ui.theme.*
@@ -40,6 +47,7 @@ fun AssetScreen(
     val message by viewModel.message.collectAsState()
     val resources = state.resources
     var sellDialogResource by remember { mutableStateOf<Resource?>(null) }
+    var showAssetInfo by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -185,7 +193,18 @@ fun AssetScreen(
         Spacer(modifier = Modifier.height(Spacing.xl))
 
         // ── 보유 자산 섹션 ─────────────────────────────────────────────
-        SectionHeader(title = "보유 자산")
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            SectionHeader(title = "보유 자산")
+            Icon(
+                imageVector = Icons.Outlined.Info,
+                contentDescription = "자산 항목 설명",
+                tint = TextSecondary,
+                modifier = Modifier
+                    .size(18.dp)
+                    .clip(CircleShape)
+                    .clickable { showAssetInfo = true }
+            )
+        }
         Spacer(modifier = Modifier.height(Spacing.md))
 
         Card(
@@ -209,14 +228,14 @@ fun AssetScreen(
                 ResourceRow(
                     iconRes = R.drawable.ic_ui_usdt,
                     name = "USDT",
-                    amount = "%,.2f".format(state.totalMarketValue.toDouble() / 1000.0),
+                    amount = "%,.2f".format(state.totalMarketValue.toDouble()),
                     changePercent = null,
                     changePositive = true
                 )
                 HorizontalDivider(color = SpaceMid.copy(alpha = 0.5f), modifier = Modifier.padding(horizontal = Spacing.lg))
                 ResourceRow(
                     iconRes = R.drawable.ic_ui_nft_asset,
-                    name = "NFT 자산",
+                    name = "행성 NFT",
                     amount = "${state.planetCount}",
                     changePercent = null,
                     changePositive = true,
@@ -228,18 +247,12 @@ fun AssetScreen(
 
         Spacer(modifier = Modifier.height(Spacing.lg))
 
-        // ── 요약 스탯 ──────────────────────────────────────────────────
+        // ── 요약 스탯 (생산 관련 파생 스탯 — 보유 자산 카드와 중복 없이) ─────
+        val netPerMin = state.netProductionPerMin
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
-            SummaryCard(
-                modifier = Modifier.weight(1f),
-                iconRes = R.drawable.ic_ui_stat_market,
-                label = "행성 시세 합계",
-                value = "%,d".format(state.totalMarketValue),
-                unit = "코인"
-            )
             SummaryCard(
                 modifier = Modifier.weight(1f),
                 iconRes = R.drawable.ic_ui_stat_profit,
@@ -248,40 +261,18 @@ fun AssetScreen(
                 unit = "코인",
                 valueColor = StatusGreen
             )
-        }
-
-        if (state.netProductionPerMin > 0L) {
-            Spacer(modifier = Modifier.height(Spacing.md))
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
-                color = StatusGreen.copy(alpha = 0.08f),
-                border = BorderStroke(1.dp, StatusGreen.copy(alpha = 0.2f))
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
-                ) {
-                    Image(
-                        painter = painterResource(R.drawable.ic_ui_energy),
-                        contentDescription = null,
-                        modifier = Modifier.size(IconGlyphSize.small.value.dp)
-                    )
-                    Text(
-                        text = "분당 순생산",
-                        color = TextSecondary,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    Text(
-                        text = "+%,d / 분".format(state.netProductionPerMin),
-                        color = StatusGreen,
-                        style = NumericSmall,
-                        fontWeight = FontWeight.Bold
-                    )
+            SummaryCard(
+                modifier = Modifier.weight(1f),
+                iconRes = R.drawable.ic_ui_energy,
+                label = "분당 순생산",
+                value = (if (netPerMin > 0L) "+" else "") + "%,d".format(netPerMin),
+                unit = "코인 / 분",
+                valueColor = when {
+                    netPerMin > 0L -> StatusGreen
+                    netPerMin < 0L -> StatusRed
+                    else -> TextPrimary
                 }
-            }
+            )
         }
 
         Spacer(modifier = Modifier.height(Spacing.lg))
@@ -313,6 +304,28 @@ fun AssetScreen(
             },
             onDismiss = { sellDialogResource = null }
         )
+    }
+
+    if (showAssetInfo) {
+        InfoDialog(title = "자산 항목 안내", onDismiss = { showAssetInfo = false }) {
+            InfoEntry(
+                "DGT",
+                "게임의 기본 화폐(코인)예요. 행성 방치 수익과 탐사 보상으로 늘어나고, 강화·구매·고용에 쓰여요."
+            )
+            InfoEntry(
+                "USDT",
+                "보유한 행성 전체의 현재 매도 가치를 환산한 값이에요. 행성을 팔면 그만큼 DGT로 바뀝니다."
+            )
+            InfoEntry(
+                "행성 NFT",
+                "지금 보유 중인 행성의 개수예요."
+            )
+            Text(
+                "맨 위 '총 자산(DGT)'은 DGT와 행성 시세 합계를 더한 값이고, 랭킹도 이 총 자산 기준입니다.",
+                color = TextSecondary,
+                style = BodyReading
+            )
+        }
     }
 }
 

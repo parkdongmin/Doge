@@ -10,6 +10,7 @@ import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.doge.simulator.ads.AdFrequencyGate
 import com.doge.simulator.ads.InterstitialAdManager
+import com.doge.simulator.data.local.TutorialPrefs
 import com.doge.simulator.data.worker.ExplorationCompleteWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.doge.simulator.domain.model.Expedition
@@ -32,6 +33,7 @@ import com.doge.simulator.domain.usecase.GetExpeditionReportsUseCase
 import com.doge.simulator.domain.usecase.GetOwnedPlanetsUseCase
 import com.doge.simulator.domain.usecase.GetResearchLabUseCase
 import com.doge.simulator.domain.usecase.GetSpaceshipsUseCase
+import com.doge.simulator.domain.usecase.SeedStarterAssetsUseCase
 import com.doge.simulator.domain.usecase.SellPlanetUseCase
 import com.doge.simulator.domain.usecase.StartExpeditionUseCase
 import com.doge.simulator.domain.repository.ResourceRepository
@@ -61,6 +63,8 @@ class ExploreViewModel @Inject constructor(
     private val generatePlanetsUseCase: GeneratePlanetsUseCase,
     private val buyPlanetUseCase: BuyPlanetUseCase,
     private val sellPlanetUseCase: SellPlanetUseCase,
+    private val seedStarterAssetsUseCase: SeedStarterAssetsUseCase,
+    private val tutorialPrefs: TutorialPrefs,
     private val getOwnedPlanetsUseCase: GetOwnedPlanetsUseCase,
     private val collectProfitUseCase: CollectProfitUseCase,
     private val userRepository: UserRepository,
@@ -117,7 +121,12 @@ class ExploreViewModel @Inject constructor(
         // 앱 복귀 시점의 최초 수집(오프라인 수익 2배 다이얼로그 포함)은 AppSessionViewModel이 전담하므로
         // 여기서 즉시 1회 수집하지 않는다 — 안 그러면 같은 경과시간이 중복 적립될 수 있다
         viewModelScope.launch {
-            userRepository.initialize()
+            // 신규 게임이면 정찰선 1 + 인턴 대원 1 + 스타터 행성 1을 무상 지급하고
+            // 튜토리얼 대상으로 표시한다. 클라우드 복원 유저는 initialize()가 false → 스킵.
+            if (userRepository.initialize()) {
+                seedStarterAssetsUseCase()
+                tutorialPrefs.startedFresh = true
+            }
         }
         interstitialAdManager.preload()
         // 60초마다 수익 누적

@@ -10,6 +10,27 @@ class GeneratePlanetsUseCase @Inject constructor() {
 
     suspend operator fun invoke(): Planet = generateRandomPlanet()
 
+    // 신규 게임 스타터 행성 — 가장 소박한 COMMON(무대기 행성)을 최저 스탯으로 결정론적 생성.
+    // 방치수익을 첫 진입부터 체감시키기 위한 "무료 첫 생산기".
+    fun starterPlanet(): Planet {
+        val type = PlanetType.NO_ATMOSPHERE
+        val meta = PlanetMetaDataTable.data.getValue(type)
+        val production = meta.productionMin
+        val risk = meta.riskMin
+        val eventRate = (meta.eventRateMin + meta.eventRateMax) / 2
+        val buyPrice = meta.basePrice + (production * 20) + (risk * 10)
+        return Planet(
+            type = type,
+            production = production,
+            risk = risk,
+            investment = meta.investmentMin,
+            eventRate = eventRate,
+            variantId = meta.variants.first().variantId,
+            buyPrice = buyPrice,
+            currentValue = buyPrice
+        )
+    }
+
     private fun generateRandomPlanet(): Planet {
         val type = getType()
         val meta = PlanetMetaDataTable.data[type]!!

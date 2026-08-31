@@ -42,24 +42,78 @@
 
 ---
 
-## 다음에 할 일: 튜토리얼 + 설명 부족 보완 (아직 시작 전, 위 행성 시세/이벤트 시스템 마무리 후)
+## 다음에 할 일: 튜토리얼 + 설명 부족 보완
 
-2026-08-24, 위 행성 시세/이벤트 시스템 작업 중 나온 다음 우선순위. 게임 자체에 설명이 너무
-없다는 문제를 두 갈래로 나눠서 접근하기로 함:
+2026-08-24, 행성 시세/이벤트 시스템 작업 중 나온 다음 우선순위. 게임 자체에 설명이 너무
+없다는 문제를 두 갈래로 나눠서 접근:
 
-1. **첫 진입 튜토리얼 — 별도 튜토리얼 화면이 아니라 NPC가 말 거는 형식**
-   게임을 처음 시작했을 때, 전용 튜토리얼 화면/오버레이를 새로 만드는 대신 **NPC가 대화를
-   거는 느낌**으로 핵심 플레이 루프(탐사→발견→방치수익→강화→매도 정도)와 "이 게임에서
-   중요한 게 뭔지, 뭘 어떻게 해야 하는지"를 설명. 기존 스토리 이벤트(`StoryEvent`) 선택지
-   UI를 재사용할 수 있을지, 아니면 별도의 가벼운 대화 UI가 필요할지는 미정 — 다음 세션에
-   화면 구조부터 정할 것
-2. **게임 곳곳의 설명 부족 보완 — UI를 해치지 않는 선에서 조금씩**
-   각종 확률·수치·방법(예: 위험도/이벤트율, 강화 성공률, 자원 드롭률 등)에 대한 설명이 곳곳에
-   부족함. 전용 도움말 화면을 크게 만들기보다는, [[feedback_animation_scope_discipline]]과
-   비슷한 결로 "화면마다 필요한 만큼만" 작은 단위로(예: PlanetDetailScreen에 이미 넣은 ⓘ
-   설명 팝업 패턴 참고) 조금씩 채워나가는 방향. 어느 화면부터 손댈지 우선순위는 아직 안 정함
+### 갈래 1 — 첫 진입 튜토리얼 (2026-08-31 1차 구현 완료, 실기기 테스트 전)
 
-아직 설계/착수 전 — 다음 세션에 위 행성 시세/이벤트 시스템 커밋까지 마무리한 뒤 이어서 진행.
+**전달 방식: 대화 오버레이 + 타깃 하이라이트.** 별도 튜토리얼 화면 안 만듦.
+화면 하단에 NPC(관제탑 AI) 대사 버블(네임플레이트 + 텍스트 + CTA), 필요한 순간에만
+실제 버튼/영역을 스포트라이트(전체화면 스크림 + 4밴드 컷아웃)로 밝힘.
+
+- **NPC = 관제탑 AI.** 이름 없는 시스템 음성 톤. 기존 외계 문명 스토리(`StoryContent`)와
+  서사 안 겹침. 초상 에셋 없음 — GoldAccent 네임플레이트만.
+- **`StoryEvent` UI 재사용 안 함** — `expeditionId` 필수 + 선택지가 `(ResourceType, 수량)`
+  보상 쌍 고정이라 자유 텍스트 대사에 안 맞음. 가벼운 대화 오버레이를 새로 만듦.
+- **스코프 = 최소 (탐사 1회 파견 + 방치수익 이해까지).** 강화·매도는 맥락형 원샷 버블로 분리.
+- **스타터 자산 지급:** 신규 플레이어는 코인 10,000만 있고 우주선·우주인·행성 0.
+  `SeedStarterAssetsUseCase`가 신규 게임 첫 진입 시 **정찰선 MK-1 1대 + 인턴 대원
+  ("박 탐석", MINERAL, 숙련도 20) 1명 + 스타터 행성 1개**(무대기 행성,
+  `GeneratePlanetsUseCase.starterPlanet()` — 최저 스탯 결정론)를 무상 지급.
+  - 스타터 행성을 넣은 이유: Part 2(방치수익 = 핵심 훅)가 "행성 획득"에 걸려 있는데
+    실제 발견 확률이 18%라, 신규 유저가 탐사를 5~10번 돌릴 때까지 방치수익을 한 번도
+    못 보고 이탈할 위험 → 아이들 게임의 "첫 생산기 무료" 패턴. Part 2가 Part 1 직후 바로 뜸.
+  - `UserRepository.initialize()`가 `Boolean`(신규 여부) 반환하도록 바꾸고
+    `ExploreViewModel.init`에서 true일 때만 시드 + `TutorialPrefs.startedFresh = true`.
+- **게이팅:** 모든 단계에 `startedFresh`(이 기기에서 완전 신규 시작) 선행 조건 →
+  클라우드 복원 기존 유저는 튜토리얼 자체가 안 뜸.
+  - Part 1: `startedFresh && !part1Done && 진행중 탐사 0` · 탐사 탭에서만
+  - Part 2: `startedFresh && part1Done && !part2Done && 보유행성 ≥ 1` · 행성 탭에서만
+  - 맥락형 원샷: `startedFresh && part1Done && !xIntroDone` · 해당 라우트 첫 방문
+- **저장:** `TutorialPrefs`(SharedPreferences) — `startedFresh`/`part1Done`/`part2Done`/
+  `hqIntroDone`/`upgradeIntroDone`. 기기 로컬, 클라우드 세이브에 안 실림.
+
+**구현 조각 (2026-08-31, `compileDebugKotlin` 통과, 실기기 테스트 전):**
+- [x] `SeedStarterAssetsUseCase` (정찰선+대원+행성), `UserRepository.initialize(): Boolean`
+- [x] `TutorialPrefs.kt`
+- [x] `presentation/tutorial/TutorialTarget.kt` — `TutorialTargetRegistry`
+      (`mutableStateMapOf<TutorialTarget, Rect>`), `LocalTutorialTargets` CompositionLocal,
+      `Modifier.tutorialTarget()` = `onGloballyPositioned { boundsInWindow() }`
+- [x] `TutorialViewModel.kt` — 진행중 탐사·보유 행성·라우트·prefs를 `combine`해
+      `TutorialStep`(None/Part1(page)/Part2/HqIntro/UpgradeIntro) 계산. `onRouteChanged`
+- [x] `TutorialOverlay.kt` — 스크림 + 4밴드 컷아웃(BlendMode 없이) + GoldAccent 강조
+      테두리 + 관제탑 대사 버블. 아무 곳이나 탭 = 진행. 타깃이 화면 아래쪽이면 버블 위로 앵커
+- [x] Part 1 (intro → `EXPLORE_FIRST_CATEGORY` 하이라이트), Part 2 (방치수익)
+- [x] 맥락형 원샷 버블 2개 — 정거장(`hq`) 첫 방문 / 행성 상세(`planet_detail/{planetId}`)
+      첫 진입. Hq: "대원·우주선·연구". Upgrade: "강화로 생산량↑, Lv.11+ 위험, 매도로 정리"
+- [ ] **실기기 테스트**: ①신규 설치 → Part 1·하이라이트 rect ②Part 1 후 행성 탭 → Part 2
+      ③정거장/행성 상세 첫 진입 → 원샷 버블 ④스타터 정찰선/대원/행성 실제로 보이는지
+      ⑤클라우드 복원 유저는 전부 안 뜨는지 ⑥`StartExpeditionUseCase` 15초 TEST 오버라이드
+      — 테스트 후 되돌릴 것 (주석에 원래 코드) ⑦ⓘ 모달들 내용·레이아웃
+- [ ] (선택) 팀 빌더 바텀시트 안에 인라인 힌트 — 바텀시트는 별도 윈도우라 스포트라이트 불가
+
+### 갈래 2 — 게임 곳곳 설명 부족 보완 (화면마다 조금씩)
+
+`PlanetDetailScreen`의 `StatsInfoDialog`(ⓘ → 용어 설명 팝업) 패턴을 다른 화면에 복제.
+공용 껍데기 `presentation/component/InfoDialog.kt` (`InfoDialog`/`InfoEntry`, 폭은
+`fillMaxWidth(0.88f)` — 폴더블 대응, 설명문은 `BodyReading`/Pretendard).
+
+- [x] **탐사 정보 ⓘ** (`ExpeditionInfoDialog`, ExploreScreen "탐험 종류 선택" 옆) —
+      카테고리별 드랍 자원 + 해금 레벨 + "행성은 어느 탐사에서든 발견(행성 탐사 +5%p)"
+      + 자원 용도. 신규 유저가 광물 탐사만 반복하는 문제 대응
+- [x] **우주선·우주인 효과 ⓘ — 3곳** — 팀 빌더(`TeamInfoDialog`) / 격납고 앱바
+      (`ShipInfoContent`) / 우주인 센터 앱바 (`CrewInfoContent(showGrades=true)` — 전문분야·
+      숙련도·인원 효과 + 인턴~레전드 등급표). 값 출처: `CompleteExpeditionUseCase` /
+      `StartExpeditionUseCase` / `AstronautGrade`
+- [x] **자산 탭 "보유 자산" ⓘ** — DGT/USDT/행성 NFT 정의 + 총 자산(DGT) + 랭킹 기준
+- [x] 자산 탭 정리: USDT 스케일을 총 자산과 일치(`/1000` 제거), 요약 스탯에서 중복된
+      "행성 시세 합계" → "분당 순생산"으로 교체, "NFT 자산" → "행성 NFT"
+- [x] 설명문 폰트를 픽셀(`bodySmall`) → `BodyReading`(Pretendard)로 — 새 ⓘ 모달·튜토리얼
+      버블. 짧은 항목명·제목·버튼은 픽셀 유지. `Type.kt`가 이미 분리해둔 스타일
+- [x] UI 문구 "본부" → "정거장" 통일 (`StoryContent`의 "본부에 보고"는 서사상 다른 뜻이라 유지)
+- [ ] 나머지 화면 ⓘ (연구소 분야별 효과, 강화 성공률 표, 자원별 용도 등) — 우선순위 미정
 
 ## 클라우드 세이브 (Firestore) — Phase 1~3 구현 완료 + push/복원 검증됨
 

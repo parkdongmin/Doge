@@ -25,10 +25,12 @@ class UserRepositoryImpl(
                 ?: emptySet()
         }
 
-    override suspend fun initialize() {
+    override suspend fun initialize(): Boolean {
         if (dao.getUserOnce() == null) {
             dao.upsertUser(UserEntity(coins = INITIAL_COINS))
+            return true
         }
+        return false
     }
 
     override suspend fun addCoins(amount: Long) {

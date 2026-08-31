@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,6 +29,8 @@ import com.doge.simulator.domain.model.AstronautStatus
 import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.RecruitmentCandidate
 import com.doge.simulator.domain.model.RecruitmentPool
+import com.doge.simulator.presentation.component.CrewInfoContent
+import com.doge.simulator.presentation.component.InfoDialog
 import com.doge.simulator.presentation.viewmodel.AstronautViewModel
 import com.doge.simulator.ui.theme.*
 import com.doge.simulator.util.findActivity
@@ -53,6 +56,7 @@ fun AstronautScreen(
     val coins by viewModel.coins.collectAsState()
     val message by viewModel.message.collectAsState()
     val activity = LocalContext.current.findActivity()
+    var showInfo by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -63,11 +67,21 @@ fun AstronautScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로", tint = TextPrimary)
                     }
                 },
+                actions = {
+                    IconButton(onClick = { showInfo = true }) {
+                        Icon(Icons.Outlined.Info, "우주인 안내", tint = TextSecondary)
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = SpaceNavy)
             )
         },
         containerColor = SpaceDark
     ) { padding ->
+        if (showInfo) {
+            InfoDialog(title = "우주인 안내", onDismiss = { showInfo = false }) {
+                CrewInfoContent(showGrades = true)
+            }
+        }
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             // 상태 메시지
             message?.let {

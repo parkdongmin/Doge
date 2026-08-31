@@ -34,6 +34,11 @@ import com.doge.simulator.presentation.screen.hq.ResearchLabScreen
 import com.doge.simulator.presentation.screen.planet.PlanetDetailScreen
 import com.doge.simulator.presentation.screen.planet.PlanetScreen
 import com.doge.simulator.presentation.screen.rank.RankScreen
+import com.doge.simulator.presentation.tutorial.LocalTutorialTargets
+import com.doge.simulator.presentation.tutorial.TutorialOverlay
+import com.doge.simulator.presentation.tutorial.TutorialStep
+import com.doge.simulator.presentation.tutorial.TutorialTargetRegistry
+import com.doge.simulator.presentation.tutorial.TutorialViewModel
 import com.doge.simulator.presentation.viewmodel.AppSessionViewModel
 import com.doge.simulator.ui.theme.*
 import com.doge.simulator.util.findActivity
@@ -48,6 +53,11 @@ fun MainScreen(deepLinkFlow: StateFlow<String?>) {
 
     val appSessionViewModel: AppSessionViewModel = hiltViewModel()
     val pendingOfflineProfit by appSessionViewModel.pendingOfflineProfit.collectAsState()
+
+    val tutorialViewModel: TutorialViewModel = hiltViewModel()
+    val tutorialStep by tutorialViewModel.step.collectAsState()
+    val tutorialTargets = remember { TutorialTargetRegistry() }
+    LaunchedEffect(currentRoute) { tutorialViewModel.onRouteChanged(currentRoute) }
     val activity = LocalContext.current.findActivity()
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -98,6 +108,7 @@ fun MainScreen(deepLinkFlow: StateFlow<String?>) {
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
+      CompositionLocalProvider(LocalTutorialTargets provides tutorialTargets) {
         // 기본 배경색
         Box(modifier = Modifier.matchParentSize().background(SpaceDark))
 
@@ -138,7 +149,7 @@ fun MainScreen(deepLinkFlow: StateFlow<String?>) {
                     )
                 }
 
-                // ── 본부 서브 화면 ─────────────────────────────────────
+                // ── 정거장 서브 화면 ───────────────────────────────────
                 composable(NavRoutes.Astronaut.route) {
                     AstronautScreen(onBack = { navController.popBackStack() })
                 }
@@ -180,6 +191,19 @@ fun MainScreen(deepLinkFlow: StateFlow<String?>) {
                     .onSizeChanged { navBarHeightPx = it.height }
             )
         }
+
+        // ── 튜토리얼 오버레이 ─────────────────────────────────────────
+        // 화면별 표시 조건은 TutorialViewModel이 라우트를 받아 판정한다.
+        // 오프라인 수익/손실 다이얼로그가 떠 있으면 양보.
+        if (pendingOfflineProfit == null && tutorialStep !is TutorialStep.None) {
+            TutorialOverlay(
+                step = tutorialStep,
+                targets = tutorialTargets,
+                onAdvancePart1 = { tutorialViewModel.advancePart1() },
+                onDismiss = { tutorialViewModel.dismiss(it) },
+            )
+        }
+      }
     }
 
     // ── 오프라인 수익/손실 확인 다이얼로그 (탭과 무관하게 최상단에 노출) ──

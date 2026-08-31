@@ -12,6 +12,7 @@ import androidx.compose.ui.res.painterResource
 import com.doge.simulator.R
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,6 +25,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.Resource
 import com.doge.simulator.domain.model.Spaceship
+import com.doge.simulator.presentation.component.InfoDialog
+import com.doge.simulator.presentation.component.ShipInfoContent
 import com.doge.simulator.presentation.viewmodel.SpaceshipViewModel
 import com.doge.simulator.ui.theme.*
 
@@ -38,6 +41,7 @@ fun HangarScreen(
     val resources by viewModel.resources.collectAsState()
     val coins by viewModel.coins.collectAsState()
     val message by viewModel.message.collectAsState()
+    var showInfo by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -48,11 +52,19 @@ fun HangarScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로", tint = TextPrimary)
                     }
                 },
+                actions = {
+                    IconButton(onClick = { showInfo = true }) {
+                        Icon(Icons.Outlined.Info, "우주선 스탯 설명", tint = TextSecondary)
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = SpaceNavy)
             )
         },
         containerColor = SpaceDark
     ) { padding ->
+        if (showInfo) {
+            InfoDialog(title = "우주선 스탯", onDismiss = { showInfo = false }) { ShipInfoContent() }
+        }
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             message?.let {
                 Surface(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.xs),

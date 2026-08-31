@@ -15,6 +15,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,8 +41,14 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.doge.simulator.R
 import com.doge.simulator.domain.model.*
+import com.doge.simulator.presentation.component.CrewInfoContent
+import com.doge.simulator.presentation.component.InfoDialog
+import com.doge.simulator.presentation.component.ShipInfoContent
 import com.doge.simulator.presentation.component.rarityColor
 import com.doge.simulator.presentation.component.rarityLabel
+import com.doge.simulator.presentation.tutorial.LocalTutorialTargets
+import com.doge.simulator.presentation.tutorial.TutorialTarget
+import com.doge.simulator.presentation.tutorial.tutorialTarget
 import com.doge.simulator.presentation.viewmodel.ExploreViewModel
 import com.doge.simulator.ui.theme.*
 import com.doge.simulator.util.UpgradeHaptic
@@ -69,6 +77,7 @@ fun ExploreScreen(
     val unreadCount by viewModel.unreadReportCount.collectAsState()
     val latestReport by viewModel.latestReport.collectAsState()
     val activity = LocalContext.current.findActivity()
+    var showExpeditionInfo by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -117,13 +126,27 @@ fun ExploreScreen(
         }
 
         // ── 탐사 카테고리 카드 4개 ────────────────────────────────────
-        Text(
-            "탐험 종류 선택",
-            color = Color.White,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(start = Spacing.lg, bottom = Spacing.xs)
-        )
+        Row(
+            modifier = Modifier.padding(start = Spacing.lg, end = Spacing.lg, bottom = Spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
+        ) {
+            Text(
+                "탐험 종류 선택",
+                color = Color.White,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+            Icon(
+                imageVector = Icons.Outlined.Info,
+                contentDescription = "탐사 정보",
+                tint = TextSecondary,
+                modifier = Modifier
+                    .size(18.dp)
+                    .clip(CircleShape)
+                    .clickable { showExpeditionInfo = true }
+            )
+        }
         CategoryGrid(
             researchLab = researchLab,
             activeCountByCategory = activeExpeditions.groupingBy { it.category }.eachCount(),
@@ -188,6 +211,81 @@ fun ExploreScreen(
                 onDismiss = { viewModel.closeSwapPicker() }
             )
         }
+    }
+
+    if (showExpeditionInfo) {
+        ExpeditionInfoDialog(onDismiss = { showExpeditionInfo = false })
+    }
+}
+
+// ── 탐사 정보 팝업 ("탐험 종류 선택" 옆 ⓘ) ──────────────────────────
+// 신규 플레이어가 "어떤 탐사에서 뭐가 나오는지", "행성은 어디서 발견되는지"를 몰라
+// 첫 카테고리(광물)만 반복하게 되는 문제를 풀기 위한 온디맨드 안내
+@Composable
+private fun ExpeditionInfoDialog(onDismiss: () -> Unit) {
+    InfoDialog(title = "탐사 안내", onDismiss = onDismiss) {
+        Text(
+            "행성은 어느 탐사에서든 성공하면 일정 확률로 발견됩니다. '행성 탐사'에서 확률이 조금 더 높아요. " +
+                "탐사 종류마다 나오는 자원이 다르니, 필요한 재료에 맞춰 골라 보내세요.",
+            color = TextSecondary,
+            style = BodyReading
+        )
+        Spacer(modifier = Modifier.height(Spacing.lg))
+
+        ExpeditionCategory.entries.forEach { category ->
+            val unlockLevel = category.researchLevelRequired
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                Text(
+                    category.displayName,
+                    color = TextPrimary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                if (unlockLevel > 0) {
+                    Text(
+                        "(연구소 '탐사 기술' Lv.$unlockLevel 필요)",
+                        color = TextDisabled,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(Spacing.sm))
+            ResourceType.entries.filter { it.category == category }.forEach { res ->
+                Row(
+                    modifier = Modifier.padding(bottom = Spacing.xs),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
+                ) {
+                    Image(
+                        painter = painterResource(res.iconRes),
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(res.displayName, color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+                }
+            }
+            Spacer(modifier = Modifier.height(Spacing.md))
+        }
+
+        HorizontalDivider(color = SpaceMid)
+        Spacer(modifier = Modifier.height(Spacing.md))
+        Text(
+            "모은 자원은 행성·우주선 강화와 연구소 업그레이드 재료로 쓰이고, 남으면 '자산' 탭에서 코인으로 팔 수 있어요.",
+            color = TextSecondary,
+            style = BodyReading
+        )
+    }
+}
+
+// ── 팀 편성 효과 설명 팝업 (팀 빌더 "탐사 파견 설정" 옆 ⓘ) ──────────────
+// 우주선 스탯·우주인 전문분야·탑승 인원이 각각 뭘 바꾸는지 팀 빌더 화면 어디에도
+// 설명이 없어, 플레이어가 아무나 태우고 보내게 되는 문제 대응
+@Composable
+private fun TeamInfoDialog(onDismiss: () -> Unit) {
+    InfoDialog(title = "우주선 · 우주인 효과", onDismiss = onDismiss) {
+        ShipInfoContent()
+        Spacer(modifier = Modifier.height(Spacing.md))
+        CrewInfoContent(showGrades = false)
     }
 }
 
@@ -395,6 +493,7 @@ private fun CategoryGrid(
     onSelectCategory: (ExpeditionCategory) -> Unit
 ) {
     val unlockedCategories = researchLab.unlockedCategories().toSet()
+    val tutorialTargets = LocalTutorialTargets.current
 
     Row(
         modifier = Modifier
@@ -403,12 +502,18 @@ private fun CategoryGrid(
             .height(IntrinsicSize.Max),
         horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
-        ExpeditionCategory.entries.forEach { category ->
+        ExpeditionCategory.entries.forEachIndexed { index, category ->
             CategoryCard(
                 category = category,
                 isUnlocked = category in unlockedCategories,
                 activeCount = activeCountByCategory[category] ?: 0,
-                modifier = Modifier.weight(1f).fillMaxHeight(),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .let {
+                        if (index == 0) it.tutorialTarget(tutorialTargets, TutorialTarget.EXPLORE_FIRST_CATEGORY)
+                        else it
+                    },
                 onClick = { onSelectCategory(category) }
             )
         }
@@ -581,10 +686,23 @@ private fun TeamBuilderContent(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = Spacing.xl, vertical = Spacing.sm)
     ) {
-        Text(
-            "탐사 파견 설정", color = GoldAccent,
-            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold
-        )
+        var showTeamInfo by remember { mutableStateOf(false) }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            Text(
+                "탐사 파견 설정", color = GoldAccent,
+                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold
+            )
+            Icon(
+                imageVector = Icons.Outlined.Info,
+                contentDescription = "우주선·우주인 효과 설명",
+                tint = TextSecondary,
+                modifier = Modifier
+                    .size(18.dp)
+                    .clip(CircleShape)
+                    .clickable { showTeamInfo = true }
+            )
+        }
+        if (showTeamInfo) TeamInfoDialog(onDismiss = { showTeamInfo = false })
         Spacer(modifier = Modifier.height(Spacing.md))
 
         // ── 다음 해제 목표 배너 ────────────────────────────────────────
@@ -779,7 +897,7 @@ private fun TeamBuilderContent(
         Spacer(modifier = Modifier.height(Spacing.sm))
         if (spaceships.isEmpty()) {
             Text(
-                "보유한 우주선이 없습니다. 본부 > 격납고에서 구매하세요.",
+                "보유한 우주선이 없습니다. 정거장 > 격납고에서 구매하세요.",
                 color = StatusRed, style = MaterialTheme.typography.bodySmall
             )
         } else {
@@ -854,7 +972,7 @@ private fun TeamBuilderContent(
         Spacer(modifier = Modifier.height(Spacing.sm))
         if (idleAstronauts.isEmpty()) {
             Text(
-                "대기 중인 우주인이 없습니다. 본부 > 우주인 센터에서 고용하세요.",
+                "대기 중인 우주인이 없습니다. 정거장 > 우주인 센터에서 고용하세요.",
                 color = StatusRed, style = MaterialTheme.typography.bodySmall
             )
         } else {
