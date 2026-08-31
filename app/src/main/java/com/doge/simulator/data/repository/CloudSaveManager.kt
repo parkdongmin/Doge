@@ -1,15 +1,15 @@
 package com.doge.simulator.data.repository
 
 import com.doge.simulator.data.local.CloudSyncPrefs
-import com.doge.simulator.data.local.snapshot.GameSnapshot
 import com.doge.simulator.data.local.snapshot.LocalSnapshotDataSource
+import com.doge.simulator.data.local.snapshot.SnapshotLoad
+import com.doge.simulator.data.local.snapshot.loadSnapshot
 import com.doge.simulator.data.local.snapshot.snapshotJson
 import com.doge.simulator.domain.model.CloudSave
 import com.doge.simulator.domain.repository.AuthRepository
 import com.doge.simulator.domain.repository.CloudSaveRepository
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -18,7 +18,7 @@ enum class CloudRestoreResult {
     IMPORTED,          // 클라우드가 더 최신 → 로컬에 덮어씀
     LOCAL_KEPT,        // 로컬이 최신 이상 → 클라우드로 밀어올림
     NO_CLOUD,          // 클라우드에 세이브 없음 → 로컬을 첫 세이브로 push
-    SKIPPED_VERSION,   // roomDbVersion 불일치 → 아무것도 안 함(로컬 유지)
+    SKIPPED_VERSION,   // 스키마가 이 앱보다 미래거나 마이그레이션 불가 → 아무것도 안 함(로컬 유지)
     FAILED             // 네트워크/파싱 실패 → 로컬 유지, 다음 기회에 재시도
 }
 
@@ -44,14 +44,13 @@ class CloudSaveManager @Inject constructor(
                 pushLocked()
                 return@withLock CloudRestoreResult.NO_CLOUD
             }
-        if (cloud.roomDbVersion != snapshotSource.roomDbVersion) {
-            return@withLock CloudRestoreResult.SKIPPED_VERSION
-        }
         if (cloud.rev > syncPrefs.lastAppliedRev) {
-            val snapshot = runCatching { snapshotJson.decodeFromString<GameSnapshot>(cloud.payloadJson) }
-                .getOrElse { return@withLock CloudRestoreResult.FAILED }
-            if (snapshot.roomDbVersion != snapshotSource.roomDbVersion) {
-                return@withLock CloudRestoreResult.SKIPPED_VERSION
+            // 스키마 버전이 달라도 마이그레이션으로 맞출 수 있으면 맞춘다.
+            // (roomDbVersion은 더 이상 게이트가 아님 — 참고용으로만 저장됨)
+            val snapshot = when (val load = loadSnapshot(cloud.payloadJson)) {
+                SnapshotLoad.Corrupt -> return@withLock CloudRestoreResult.FAILED
+                SnapshotLoad.Incompatible -> return@withLock CloudRestoreResult.SKIPPED_VERSION
+                is SnapshotLoad.Loaded -> load.snapshot
             }
             snapshotSource.import(snapshot)
             syncPrefs.lastAppliedRev = cloud.rev

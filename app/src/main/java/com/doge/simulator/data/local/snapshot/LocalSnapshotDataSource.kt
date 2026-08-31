@@ -15,9 +15,6 @@ class LocalSnapshotDataSource @Inject constructor(
     private val dao: SnapshotDao
 ) {
 
-    // 현재 앱이 기대하는 Room 스키마 버전. 클라우드 세이브의 roomDbVersion과 다르면 적용 불가.
-    val roomDbVersion: Int get() = PlanetDatabase.VERSION
-
     suspend fun export(): GameSnapshot = withContext(Dispatchers.IO) {
         val expeditions = dao.recentExpeditions(GameSnapshot.HISTORY_CAP)
         val reports = dao.recentReports(GameSnapshot.HISTORY_CAP)
@@ -42,7 +39,7 @@ class LocalSnapshotDataSource @Inject constructor(
     // 주의: clearAllTables()로 planet_event_log_table 포함 전 테이블을 비운 뒤 스냅샷을 다시 채운다.
     // clear는 트랜잭션 밖에서 호출해야 하므로 clear + insert 전체가 원자적이지는 않다 — import 도중
     // 프로세스가 죽으면 빈 DB가 남고, 다음 진입 시 UserRepository.initialize() 등이 신규 게임으로
-    // 재시드한다(드묾, 스플래시 타임에만 발생). roomDbVersion 불일치는 호출부에서 먼저 걸러야 한다.
+    // 재시드한다(드묾, 스플래시 타임에만 발생). 스키마 호환성은 loadSnapshot()이 먼저 걸러야 한다.
     suspend fun import(snapshot: GameSnapshot) = withContext(Dispatchers.IO) {
         db.clearAllTables()
         db.withTransaction {

@@ -30,7 +30,7 @@ class AuthViewModel @Inject constructor(
         val user = authRepository.getCurrentUser()
         if (user != null) {
             _state.value = AuthState.Authenticated(user)
-            // 자동 로그인: fcmToken·lastLoginAt을 백그라운드에서 조용히 갱신
+            // 자동 로그인: lastLoginAt을 백그라운드에서 조용히 갱신
             viewModelScope.launch {
                 runCatching { authRepository.refreshSession() }
             }

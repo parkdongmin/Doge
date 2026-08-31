@@ -18,9 +18,10 @@ import kotlinx.serialization.Serializable
 // planet_event_log_table(24h 휘발성 뉴스 피드)은 의도적으로 제외.
 @Serializable
 data class GameSnapshot(
-    // 이 스냅샷 포맷 자체의 버전 (필드 구조가 바뀌면 올림)
+    // 이 스냅샷 포맷의 버전. GameSnapshot이 참조하는 엔티티의 모양을 바꾸면 올린다.
+    // 복원 시 이 값 기준으로 SnapshotMigrations를 태워 현재 버전 모양으로 맞춘다.
     val snapshotSchemaVersion: Int = SCHEMA_VERSION,
-    // 스냅샷을 찍을 때의 Room DB 버전. import 시 현재 앱의 Room 버전과 다르면 적용하지 않는다.
+    // 스냅샷을 찍을 때의 Room DB 버전. 더 이상 복원 게이트가 아니고 참고·디버깅용.
     val roomDbVersion: Int,
 
     val user: UserEntity? = null,
@@ -41,6 +42,8 @@ data class GameSnapshot(
     val storyEvents: List<StoryEventEntity> = emptyList(),
 ) {
     companion object {
+        // 엔티티 모양을 바꿀 때마다 +1. 이름변경/타입변경/구조변경이면 SnapshotMigrations에 step도 등록.
+        // (단순 필드 추가/삭제는 step 불필요 — ignoreUnknownKeys + 기본값이 처리)
         const val SCHEMA_VERSION = 1
         const val HISTORY_CAP = 200
     }

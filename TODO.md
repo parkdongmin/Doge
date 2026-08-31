@@ -17,15 +17,30 @@
 - [ ] 로그아웃 시 push 후 세션 정리 (`AuthViewModel.signOut()`이 로컬 데이터도 안 지우는
       죽은 코드 — 로그아웃 UI 추가할 때 같이 처리)
 - [ ] 행동별(구매/매도/강화/파견) 디바운스 push
-- [~] `firestore.rules` 레포 편입 + `firebase.json`에 firestore 블록, catch-all read 조여
-      세이브를 본인만 읽도록 (2026-08-31 코드 완료 — 레포 루트에 `firestore.rules`/
-      `firestore.indexes.json` 추가, `firebase.json`에 firestore 블록 추가.
-      **아직 배포 안 됨** — 로컬에 firebase CLI가 없어서 `firebase deploy --only firestore:rules`를
-      유저가 직접 실행하거나 콘솔에서 규칙 붙여넣어야 반영됨.
-      남은 이슈: `users` 문서에 email·fcmToken이 섞여 있어 리더보드 read 허용 때문에
-      로그인 유저끼리 이메일이 보임 → 공개 필드를 별도 컬렉션으로 분리하는 건 후속 과제)
-- [ ] 스냅샷 스키마 마이그레이션 — Room 버전이 17에서 바뀌면 기존 클라우드 세이브가
-      `SKIPPED_VERSION`으로 복원 안 됨
+- [x] `firestore.rules` 레포 편입 + `firebase.json` firestore 블록 (2026-08-31, 커밋
+      `8340c8d`, 콘솔 배포 완료). saves 본인 전용, catch-all `if false`.
+- [x] `users` 문서에서 안 쓰는 필드 제거 (2026-08-31) — `email`·`photoUrl`·`fcmToken`
+      삭제. email은 리더보드 read 허용 때문에 로그인 유저끼리 읽혀 프라이버시 문제였고,
+      셋 다 Firebase Auth/전송 시점 조회로 대체 가능해 저장 불필요.
+      `refreshSession()`은 `lastLoginAt`만 씀. `FirebaseMessaging` Hilt provider도 제거
+      (`NotificationFirestoreService`는 `getInstance()` 직접 사용).
+      → 이제 users 문서엔 리더보드 통계 + displayName + createdAt/lastLoginAt(민원대응용)만
+      남아 별도 컬렉션 분리 불필요.
+- [x] **스냅샷 스키마 마이그레이션** (2026-08-31) — 정확히-일치 `roomDbVersion` 게이트를
+      제거하고 스키마 버전 기반 마이그레이션으로 교체:
+      - `GameSnapshot.SCHEMA_VERSION`(현재 1) 기준. `SnapshotMigrations.steps` = 버전별
+        `(JsonObject)->JsonObject` 변환. **필드 추가/삭제는 step 불필요**
+        (`ignoreUnknownKeys` + 기본값), 이름변경·타입변경·구조변경만 등록
+      - `SnapshotLoader.loadSnapshot()` — 파싱 → 마이그레이션 → 역직렬화. 반환:
+        `Loaded` / `Corrupt`(재시도 대상=FAILED) / `Incompatible`(미래 버전·경로 없음=SKIPPED_VERSION)
+      - `CloudSaveManager.restore()`가 이걸 사용. `roomDbVersion`은 참고·디버깅용으로만 저장
+      - 유닛 테스트 `SnapshotLoaderTest` 6개 (구버전/미래버전/깨진 payload 등) 통과
+      - **이제 Room 스키마를 자유롭게 바꿀 수 있음** — 죽은 컬럼 `Planet.currentValue`
+        (buyPrice 복사본, 아무도 안 읽음) 제거는 다음에: Room 마이그레이션 추가 +
+        `SCHEMA_VERSION`만 올리면 됨(step 불필요, `ignoreUnknownKeys`가 처리)
+- [ ] 동시 다기기 플레이 = LWW라 한 세션이 통째로 날아감(코인 복사 어뷰징은 불가, 오히려
+      보수적). 근본 해결은 서버 권위 구조라 과함 → 스플래시 동기화 화면에 작은 안내 문구
+      ("여러 기기에서 하면 마지막에 저장한 기기 기준으로 동기화") 한 줄만 추가하기로 함
 
 ### 다음 큰 작업
 - [ ] 튜토리얼(NPC 대화형) + 게임 곳곳 설명 부족 보완 — 아래 상세 섹션
@@ -125,17 +140,13 @@
 **검증됨:** 홈버튼 → `saves/{uid}` 문서 생성 확인, 앱 삭제→재설치→로그인 복원 확인.
 남은 수동 테스트: 비행기모드 진입, 다기기 LWW, 리더보드 회귀.
 
-**적용된 Firestore 규칙 (콘솔):** `match /saves/{userId} { allow read, write: if
-request.auth != null && request.auth.uid == userId; }` — catch-all의 `allow read: if
-request.auth != null` 때문에 다른 로그인 유저가 남의 세이브를 읽을 수는 있음(Phase 4에서 조임).
+**Firestore 규칙 (2026-08-31 레포 편입 `8340c8d` + 콘솔 배포 완료):** saves는 본인만
+read+write, users는 read 허용(리더보드)·write 본인만, notifications/pending은 create만,
+나머지 catch-all은 `if false`로 완전 차단. `users` 문서에서 `email`·`photoUrl`·`fcmToken`
+제거 → 리더보드 read 허용 때문에 다른 유저에게 읽혀도 무방한 데이터만 남음(별도 컬렉션 분리 불필요).
 
-**2026-08-31 업데이트:** 레포에 `firestore.rules` 편입 완료 — saves는 본인만, users는
-read 허용(리더보드)·write 본인만, notifications/pending은 create만, 나머지 catch-all은
-`if false`로 완전 차단. `firebase.json`에 firestore 블록, `firestore.indexes.json`(빈 인덱스)
-추가. **배포 필요**: `firebase deploy --only firestore:rules` (또는 콘솔에 붙여넣기).
-
-**Phase 4 (나중):** 충돌 다이얼로그(dirty 추적), HQ에 수동 백업/복원 버튼, 로그아웃 시 push,
-행동별 디바운스 push, `firestore.rules` 레포 편입, 스냅샷 스키마 마이그레이션.
+**Phase 4 (나중):** 충돌 다이얼로그(dirty 추적), 정거장에 수동 백업/복원 버튼, 로그아웃 시 push,
+행동별 디바운스 push, 스냅샷 스키마 마이그레이션.
 Room 버전이 바뀌면(현재 17) 기존 클라우드 세이브는 `SKIPPED_VERSION`으로 복원 안 됨 — 주의.
 
 ## 행성 시세/이벤트 시스템 (1차 구현 완료, 2026-08-27 커밋됨)
