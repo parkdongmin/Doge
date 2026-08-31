@@ -1,5 +1,6 @@
 package com.doge.simulator.ui.theme
 
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
 // 우주 배경 계열 (#24448F 기준, 더 어두운 방향)
@@ -9,6 +10,14 @@ val SpaceMid = Color(0xFF162B5B)
 val SpaceBlue = Color(0xFF24448F)
 val SpaceAccent = Color(0xFF3A6FD8)
 val SpaceLight = Color(0xFF5B8FFF)
+
+// 스플래시·로그인 배경 그라데이션 — 대부분 어둡게 두고 하단 1/3에서만 우주 블루가 올라옴.
+// (인게임 화면들은 거의 검정이라, 브랜드 화면 두 개만 이걸로 살짝 띄운다)
+val BrandBackgroundGradient: Brush = Brush.verticalGradient(
+    0f to Color(0xFF0A1225),
+    0.62f to Color(0xFF0A1225),
+    1f to Color(0xFF24448F)
+)
 
 // 강조 색상
 val GoldAccent = Color(0xFFFEDC56)

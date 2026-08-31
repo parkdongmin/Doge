@@ -27,11 +27,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
@@ -40,10 +41,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.doge.simulator.BuildConfig
 import com.doge.simulator.R
 import com.doge.simulator.presentation.viewmodel.AuthViewModel
+import com.doge.simulator.ui.theme.BrandBackgroundGradient
 import com.doge.simulator.ui.theme.GoldAccent
 import com.doge.simulator.ui.theme.SpaceAccent
 import com.doge.simulator.ui.theme.SpaceBlue
-import com.doge.simulator.ui.theme.SpaceDark
 import com.doge.simulator.ui.theme.SpaceNavy
 import com.doge.simulator.ui.theme.StatusRed
 import com.doge.simulator.ui.theme.TextPrimary
@@ -72,21 +73,35 @@ fun LoginScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(SpaceDark)
+            .background(BrandBackgroundGradient)
     ) {
+        // 하단 행성 일러스트 — 스플래시와 동일 위치·크기라 전환이 이어짐
+        Image(
+            painter = painterResource(R.drawable.splash_planet),
+            contentDescription = null,
+            contentScale = ContentScale.FillWidth,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+        )
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Spacer(modifier = Modifier.weight(0.5f))
+
             Text(
-                text = "DOGE",
-                style = MaterialTheme.typography.displayLarge,
+                text = "Doge",
+                style = MaterialTheme.typography.displayLarge.copy(
+                    fontSize = 46.sp,
+                    lineHeight = 54.sp
+                ),
                 color = GoldAccent
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = "PLANET SIMULATOR",
                 style = MaterialTheme.typography.labelMedium,
@@ -102,7 +117,7 @@ fun LoginScreen(
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(64.dp))
+            Spacer(modifier = Modifier.height(48.dp))
 
             when (state) {
                 is AuthViewModel.AuthState.Loading -> {
@@ -131,6 +146,8 @@ fun LoginScreen(
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.weight(0.68f))
         }
     }
 }
