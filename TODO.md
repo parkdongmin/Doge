@@ -17,8 +17,13 @@
 - [ ] 로그아웃 시 push 후 세션 정리 (`AuthViewModel.signOut()`이 로컬 데이터도 안 지우는
       죽은 코드 — 로그아웃 UI 추가할 때 같이 처리)
 - [ ] 행동별(구매/매도/강화/파견) 디바운스 push
-- [ ] `firestore.rules` 레포 편입 + `firebase.json`에 firestore 블록, catch-all read 조여
-      세이브를 본인만 읽도록 (지금은 로그인한 아무나 남의 세이브 읽힘)
+- [~] `firestore.rules` 레포 편입 + `firebase.json`에 firestore 블록, catch-all read 조여
+      세이브를 본인만 읽도록 (2026-08-31 코드 완료 — 레포 루트에 `firestore.rules`/
+      `firestore.indexes.json` 추가, `firebase.json`에 firestore 블록 추가.
+      **아직 배포 안 됨** — 로컬에 firebase CLI가 없어서 `firebase deploy --only firestore:rules`를
+      유저가 직접 실행하거나 콘솔에서 규칙 붙여넣어야 반영됨.
+      남은 이슈: `users` 문서에 email·fcmToken이 섞여 있어 리더보드 read 허용 때문에
+      로그인 유저끼리 이메일이 보임 → 공개 필드를 별도 컬렉션으로 분리하는 건 후속 과제)
 - [ ] 스냅샷 스키마 마이그레이션 — Room 버전이 17에서 바뀌면 기존 클라우드 세이브가
       `SKIPPED_VERSION`으로 복원 안 됨
 
@@ -69,6 +74,11 @@
 **적용된 Firestore 규칙 (콘솔):** `match /saves/{userId} { allow read, write: if
 request.auth != null && request.auth.uid == userId; }` — catch-all의 `allow read: if
 request.auth != null` 때문에 다른 로그인 유저가 남의 세이브를 읽을 수는 있음(Phase 4에서 조임).
+
+**2026-08-31 업데이트:** 레포에 `firestore.rules` 편입 완료 — saves는 본인만, users는
+read 허용(리더보드)·write 본인만, notifications/pending은 create만, 나머지 catch-all은
+`if false`로 완전 차단. `firebase.json`에 firestore 블록, `firestore.indexes.json`(빈 인덱스)
+추가. **배포 필요**: `firebase deploy --only firestore:rules` (또는 콘솔에 붙여넣기).
 
 **Phase 4 (나중):** 충돌 다이얼로그(dirty 추적), HQ에 수동 백업/복원 버튼, 로그아웃 시 push,
 행동별 디바운스 push, `firestore.rules` 레포 편입, 스냅샷 스키마 마이그레이션.

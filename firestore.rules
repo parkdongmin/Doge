@@ -1,0 +1,48 @@
+rules_version = '2';
+
+// Doge 행성 방치 시뮬레이터 — Firestore 보안 규칙
+//
+// 클라이언트가 직접 건드리는 컬렉션은 아래 3개뿐이다.
+//   saves/{uid}                         — 클라우드 세이브 (GameSnapshot JSON 1문서)
+//   users/{uid}                         — 인증 프로필 + 리더보드 통계 + FCM 토큰
+//   notifications/{token}/pending/{id}  — FCM 발송 큐 (읽기/삭제는 Cloud Functions Admin 전용)
+//
+// 그 외 경로는 전부 차단한다. Cloud Functions는 Admin SDK로 규칙을 우회하므로
+// 여기서 서버 접근을 따로 열어줄 필요는 없다.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── 클라우드 세이브 ────────────────────────────────
+    // 본인 문서만 읽고 쓴다. (이전엔 catch-all read 때문에 로그인한
+    // 아무나 남의 세이브를 읽을 수 있었음 — 그 구멍을 막는 게 이 파일의 목적)
+    match /saves/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ── 유저 프로필 + 리더보드 ─────────────────────────
+    // 리더보드가 users 컬렉션을 totalAsset 정렬로 상위 50명 조회하므로
+    // 로그인 유저에게 read는 열어야 한다. write는 본인 문서만.
+    // (주의: 이 문서에 email·fcmToken이 같이 들어있어 로그인 유저끼리는
+    //  서로의 이메일이 보인다. 완전히 막으려면 리더보드 공개 필드를 별도
+    //  컬렉션으로 분리해야 함 — TODO.md Phase 4 참고)
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ── FCM 발송 큐 ───────────────────────────────────
+    // 클라이언트는 pending 문서 생성만 가능. 문서 경로가 uid가 아니라
+    // FCM 토큰이라 소유자로 좁힐 수 없어 "로그인 상태"까지만 검사한다.
+    // 읽기/수정/삭제는 Cloud Functions(Admin)만 — 규칙에서 명시적으로 닫음.
+    match /notifications/{token}/pending/{docId} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if false;
+    }
+
+    // ── 그 외 전부 차단 ───────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
