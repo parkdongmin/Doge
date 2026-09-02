@@ -30,12 +30,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.doge.simulator.R
 import com.doge.simulator.presentation.viewmodel.AuthViewModel
 import com.doge.simulator.presentation.viewmodel.BootstrapViewModel
+import com.doge.simulator.ui.theme.BodyReading
 import com.doge.simulator.ui.theme.BrandBackgroundGradient
 import com.doge.simulator.ui.theme.GoldAccent
 import com.doge.simulator.ui.theme.SpaceAccent
@@ -121,6 +123,14 @@ private fun SplashContent(isSyncing: Boolean) {
                     text = "동기화 중...",
                     style = MaterialTheme.typography.labelMedium,
                     color = TextSecondary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "여러 기기에서 플레이한 경우 마지막으로\n저장한 기기의 기록으로 맞춰집니다",
+                    style = BodyReading,
+                    color = TextSecondary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 40.dp)
                 )
             }
 

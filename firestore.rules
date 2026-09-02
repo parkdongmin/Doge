@@ -4,7 +4,7 @@ rules_version = '2';
 //
 // 클라이언트가 직접 건드리는 컬렉션은 아래 3개뿐이다.
 //   saves/{uid}                         — 클라우드 세이브 (GameSnapshot JSON 1문서)
-//   users/{uid}                         — 인증 프로필 + 리더보드 통계 + FCM 토큰
+//   users/{uid}                         — 인증 프로필 + 리더보드 통계 (FCM 토큰은 저장 안 함)
 //   notifications/{token}/pending/{id}  — FCM 발송 큐 (읽기/삭제는 Cloud Functions Admin 전용)
 //
 // 그 외 경로는 전부 차단한다. Cloud Functions는 Admin SDK로 규칙을 우회하므로

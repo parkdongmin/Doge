@@ -41,6 +41,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.doge.simulator.BuildConfig
 import com.doge.simulator.R
 import com.doge.simulator.presentation.viewmodel.AuthViewModel
+import com.doge.simulator.ui.theme.BodyReading
 import com.doge.simulator.ui.theme.BrandBackgroundGradient
 import com.doge.simulator.ui.theme.GoldAccent
 import com.doge.simulator.ui.theme.SpaceAccent
@@ -146,6 +147,15 @@ fun LoginScreen(
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Text(
+                text = "여러 기기에서 플레이하면 마지막으로 저장한\n기기의 기록으로 동기화됩니다",
+                style = BodyReading,
+                color = TextSecondary,
+                textAlign = TextAlign.Center
+            )
 
             Spacer(modifier = Modifier.weight(0.68f))
         }
