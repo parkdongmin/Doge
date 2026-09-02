@@ -90,9 +90,9 @@ private fun InfoSectionHeader(text: String) {
 fun ColumnScope.ShipInfoContent() {
     InfoSectionHeader("우주선")
     InfoEntry("속도", "높을수록 탐사에 걸리는 시간이 줄어요.")
-    InfoEntry("적재", "높을수록 한 번에 가져오는 자원 양이 늘어요.")
-    InfoEntry("성공률", "탐사 성공 기본 확률. 격납고에서 우주선을 강화하면 올라요.")
-    InfoEntry("탑승 인원", "태울 수 있는 대원 수. 강화로 늘어나고, 많이 태울수록 자원 획득량이 늘어요.")
+    InfoEntry("적재", "높을수록 한 번에 가져오는 자원이 늘어요.")
+    InfoEntry("성공률", "탐사 성공 확률이에요. 격납고에서 강화하면 올라요.")
+    InfoEntry("탑승 인원", "태울 수 있는 대원 수예요. 강화로 늘고, 많이 태울수록 자원을 더 가져와요.")
 }
 
 // 우주인 설명 — 팀 빌더 · 우주인 센터에서 공유. showGrades는 우주인 센터에서만 true.
@@ -101,13 +101,13 @@ fun ColumnScope.CrewInfoContent(showGrades: Boolean) {
     InfoSectionHeader("우주인")
     InfoEntry(
         "전문 분야",
-        "대원마다 광물·행성·유적·외계 중 하나예요. 이번 탐사 종류와 같은 분야의 대원을 태우면 " +
-            "성공률과 자원 획득량이 오릅니다. 숙련도가 높을수록 효과가 커요."
+        "대원마다 광물·행성·유적·외계 중 하나예요. 탐사 종류와 같은 분야의 대원을 태우면 " +
+            "성공률과 자원 획득량이 올라요. 숙련도가 높을수록 효과가 커요."
     )
-    InfoEntry("숙련도", "훈련으로 올릴 수 있어요. 등급마다 올릴 수 있는 상한이 정해져 있습니다.")
+    InfoEntry("숙련도", "훈련으로 올릴 수 있어요. 등급마다 상한이 있어요.")
     InfoEntry(
         "인원 수",
-        "탑승 인원이 많을수록 자원 획득량이 늘어요. 성공률 보너스는 분야가 맞는 대원 중 숙련도가 가장 높은 1명만 반영돼요."
+        "많이 태울수록 자원을 더 가져와요. 성공률 보너스는 분야가 맞는 대원 중 숙련도가 가장 높은 1명만 적용돼요."
     )
 
     if (showGrades) {
@@ -120,7 +120,7 @@ fun ColumnScope.CrewInfoContent(showGrades: Boolean) {
             )
         }
         Text(
-            "등급이 높을수록 모집 센터에 드물게 나오고 고용 비용도 비싸지만, 시작 숙련도와 상한이 높아요.",
+            "등급이 높을수록 모집 센터에 드물게 나오고 고용 비용도 비싸요. 대신 시작 숙련도와 상한이 높아요.",
             color = TextSecondary,
             style = BodyReading
         )

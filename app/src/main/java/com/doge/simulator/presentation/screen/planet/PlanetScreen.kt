@@ -324,9 +324,13 @@ fun SellConfirmDialog(
     onDismiss: () -> Unit
 ) {
     val meta = PlanetMetaDataTable.data[planet.type]
-    val baseValue = planet.marketValue
+    val investedAmount = planet.buyPrice + planet.upgradeInvestment
+    val baseValue = planet.marketValue // 0 이상 (악재가 겹쳐도 시세는 0에서 바닥)
     val fee = (baseValue * GameConstants.SELL_FEE_RATE).toLong()
     val netProceeds = baseValue - fee
+    // 표시용 시세 변동 — 매입가+강화액을 다 깎는 "전액 손실"(-100%)까지만
+    val displayAdjustment = planet.marketAdjustment.coerceAtLeast(-investedAmount)
+    val adjustmentPct = if (investedAmount > 0L) (displayAdjustment * 100 / investedAmount).toInt() else 0 // 대략치
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -344,16 +348,19 @@ fun SellConfirmDialog(
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(modifier = Modifier.height(Spacing.lg))
-                DialogRow("행성 가치", "%,d 코인".format(planet.buyPrice + planet.upgradeInvestment), TextPrimary)
-                if (planet.marketAdjustment != 0L) {
-                    val sign = if (planet.marketAdjustment > 0L) "+" else ""
+                DialogRow("투자액", "%,d 코인".format(investedAmount), TextPrimary)
+                if (displayAdjustment != 0L) {
+                    val sign = if (displayAdjustment > 0L) "+" else ""
+                    val pctSign = if (adjustmentPct > 0) "+" else ""
                     DialogRow(
                         "시세 변동",
-                        "$sign${"%,d".format(planet.marketAdjustment)} 코인",
-                        if (planet.marketAdjustment > 0L) StatusGreen else StatusRed
+                        "$sign${"%,d".format(displayAdjustment)} 코인 (${pctSign}$adjustmentPct%)",
+                        if (displayAdjustment > 0L) StatusGreen else StatusRed
                     )
                 }
-                DialogRow("수수료 (5%)", "-%,d 코인".format(fee), StatusRed)
+                if (fee > 0L) {
+                    DialogRow("수수료 (5%)", "-%,d 코인".format(fee), StatusRed)
+                }
                 HorizontalDivider(color = SpaceMid, modifier = Modifier.padding(vertical = Spacing.sm))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -361,7 +368,11 @@ fun SellConfirmDialog(
                     verticalAlignment = Alignment.Bottom
                 ) {
                     Text(text = "실수령액", color = TextPrimary, style = MaterialTheme.typography.bodyMedium)
-                    Text(text = "%,d 코인".format(netProceeds), color = GoldAccent, style = NumericMedium)
+                    Text(
+                        text = "%,d 코인".format(netProceeds),
+                        color = GoldAccent,
+                        style = NumericMedium
+                    )
                 }
             }
         },

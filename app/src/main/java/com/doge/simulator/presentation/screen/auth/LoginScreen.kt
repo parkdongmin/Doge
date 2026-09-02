@@ -151,7 +151,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(20.dp))
 
             Text(
-                text = "여러 기기에서 플레이하면 마지막으로 저장한\n기기의 기록으로 동기화됩니다",
+                text = "여러 기기에서 플레이하면 마지막으로 저장한\n기기의 기록으로 맞춰집니다.",
                 style = BodyReading,
                 color = TextSecondary,
                 textAlign = TextAlign.Center

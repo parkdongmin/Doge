@@ -225,8 +225,8 @@ fun ExploreScreen(
 private fun ExpeditionInfoDialog(onDismiss: () -> Unit) {
     InfoDialog(title = "탐사 안내", onDismiss = onDismiss) {
         Text(
-            "행성은 어느 탐사에서든 성공하면 일정 확률로 발견됩니다. '행성 탐사'에서 확률이 조금 더 높아요. " +
-                "탐사 종류마다 나오는 자원이 다르니, 필요한 재료에 맞춰 골라 보내세요.",
+            "행성은 어느 탐사에서든 성공하면 일정 확률로 발견돼요. '행성 탐사'에서 확률이 조금 더 높아요. " +
+                "탐사마다 나오는 자원이 다르니 필요한 재료에 맞춰 골라 보내세요.",
             color = TextSecondary,
             style = BodyReading
         )
@@ -1449,7 +1449,8 @@ private fun SwapPickerDialog(
                     }
                     sorted.forEach { owned ->
                         val meta = PlanetMetaDataTable.data[owned.type]
-                        val sellPrice = (owned.marketValue * (1 - GameConstants.SELL_FEE_RATE)).toLong()
+                        val sellPrice = owned.marketValue -
+                            (owned.marketValue * GameConstants.SELL_FEE_RATE).toLong()
                         Surface(
                             shape = RoundedCornerShape(10.dp),
                             color = SpaceMid.copy(alpha = 0.3f),
@@ -1528,7 +1529,8 @@ private fun SwapPickerDialog(
 
     pendingSell?.let { target ->
         val meta = PlanetMetaDataTable.data[target.type]
-        val sellPrice = (target.marketValue * (1 - GameConstants.SELL_FEE_RATE)).toLong()
+        val sellPrice = target.marketValue -
+            (target.marketValue * GameConstants.SELL_FEE_RATE).toLong()
         AlertDialog(
             onDismissRequest = { pendingSell = null },
             title = { Text("정말 파시겠어요?") },

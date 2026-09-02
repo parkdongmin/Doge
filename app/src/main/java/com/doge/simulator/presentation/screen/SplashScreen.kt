@@ -126,7 +126,7 @@ private fun SplashContent(isSyncing: Boolean) {
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "여러 기기에서 플레이한 경우 마지막으로\n저장한 기기의 기록으로 맞춰집니다",
+                    text = "여러 기기에서 플레이한 경우 마지막으로\n저장한 기기의 기록으로 맞춰집니다.",
                     style = BodyReading,
                     color = TextSecondary,
                     textAlign = TextAlign.Center,

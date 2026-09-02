@@ -16,6 +16,7 @@ class SellPlanetUseCase @Inject constructor(
         // 시도해도 두 번째 호출은 삭제할 행 자체가 없어 코인이 중복 지급되지 않는다
         if (!planetRepository.sellPlanet(planet.id)) return
 
+        // marketValue는 0 이상(악재가 겹쳐도 시세는 0에서 바닥). 수수료 5% 떼고 지급 — 항상 0 이상
         val baseValue = planet.marketValue
         val fee = (baseValue * GameConstants.SELL_FEE_RATE).toLong()
         val proceeds = baseValue - fee

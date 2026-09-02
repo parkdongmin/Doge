@@ -494,6 +494,29 @@ read+write, users는 read 허용(리더보드)·write 본인만, notifications/p
       - `GameConstants.PLANET_EVENT_NOTIFY_DELTA_THRESHOLD` → `0.25`
       - `RollPlanetEventUseCase`의 `isBad` → `Random.nextInt(100) < planet.eventRate`
 
+### 매도가가 마이너스로 가던 버그 + 매도 다이얼로그·강화 안내 정리 (2026-09-03)
+
+폭락 행성 매도 시 수수료가 `--46 코인`처럼 이중부호로 뜨던 걸 추적하다, `marketValue`
+(= 매입가+강화액+시세변동)가 시세 폭락 시 **음수까지 가서 매도 시 코인을 오히려 뺏기던**
+버그를 발견. 유저와 논의해 최종안 = **"악재로 생산량·시세 둘 다 내려가되(커플링 유지),
+매도가는 0에서 바닥"** (주식처럼 산 값보다 싸게 팔 순 있어도 파는데 돈을 내진 않음).
+
+- `RollPlanetEventUseCase`: `marketAdjustment`를 `-(매입가+강화액)`에서 clamp → `marketValue`
+  가 절대 음수 안 됨. 소식 로그의 `eventMarketDelta`도 클램프 후 실제 변화분으로
+- `Planet.marketValue`: 방어적으로 `.coerceAtLeast(0L)` (예전 테스트 데이터 대비)
+- `SellPlanetUseCase`: 원래 로직 그대로 (proceeds ≥ 0 보장됨)
+- 매도 다이얼로그: `행성 가치` → `투자액`(매입가+강화액), `시세 변동`에 `(±N%)` 병기
+  (% = 투자액 대비, 정수 대략치), 수수료 0이면 줄 숨김
+- `PlanetDetailScreen` 투자 현황 카드: `행성 가치`/`매도 예상가`(5% 차이라 중복) →
+  `투자액` / `현재 매도가`(투자액 대비 초록·빨강). 죽은 `profitRate` 변수 제거
+- **강화 다이얼로그에 효과 미리보기 추가** — "분당 생산량 N → M" + "레벨이 오르면 생산량·
+  드롭량이 늘고 강화 코인은 매도가에 더해져요" 한 줄. 저렙에서도 이득이 눈에 보이게
+- 분당 드롭 자원 수치 폰트 `bodySmall`(픽셀) → `NumericSmall`(다른 수치와 통일)
+- **ⓘ 설명문 전체 톤 통일** — 해요체·짧게·군더더기 제거(탐사 안내 톤 기준).
+  `PlanetDetailScreen` StatsInfoDialog / `InfoDialog.kt`(우주선·우주인) / `ExploreScreen`
+  탐사 안내 / `AssetScreen` 자산 항목. 토스트·에러·빈 화면 문구는 상태 메시지라 제외.
+  스플래시·로그인 안내 문구는 유저가 직접 편집
+
 ## 게임 디테일/연출 (1차 마무리, 커밋 대기)
 
 기능 점검은 어느 정도 마무리했다고 보고, 이제부터는 "완성도" 체감을 높이는 연출·디테일

@@ -44,6 +44,9 @@ val Planet.preciseProduction: Double
     get() = production * GameConstants.PLANET_PRODUCTION_SCALE * GameConstants.planetLevelMultiplier(level) * productionMultiplier
 
 // 매도가·랭킹에 쓰이는 행성 시장가치. marketAdjustment(이벤트로 흔들리는 시세)가 반영되므로
-// 항상 이 값을 통해서만 가치를 계산한다 (buyPrice + upgradeInvestment를 직접 더하지 말 것)
+// 항상 이 값을 통해서만 가치를 계산한다 (buyPrice + upgradeInvestment를 직접 더하지 말 것).
+// 악재가 아무리 겹쳐도 시세는 0 밑으로 안 내려간다 — 산 값보다 싸게 팔 순 있어도(손해), 파는데
+// 코인을 더 내는 건 말이 안 됨. RollPlanetEventUseCase가 marketAdjustment를 -(매입가+강화액)에서
+// 이미 막지만, 예전 테스트 데이터 등에 대비해 여기서도 0으로 한 번 더 clamp한다.
 val Planet.marketValue: Long
-    get() = buyPrice + upgradeInvestment + marketAdjustment
+    get() = (buyPrice + upgradeInvestment + marketAdjustment).coerceAtLeast(0L)

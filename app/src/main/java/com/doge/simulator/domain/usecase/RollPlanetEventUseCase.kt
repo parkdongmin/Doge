@@ -37,23 +37,24 @@ class RollPlanetEventUseCase @Inject constructor(
         // 시세는 이번 이벤트만큼 따로 누적하지 않고, 매번 "지금 누적된 생산 배율" 기준으로 다시 계산
         // — 생산 배율과 시세가 서로 다른 값으로 어긋나지 않음
         val deviation = newMultiplier - 1.0
+        // 악재로 시세가 내려가되, 매입가+강화액을 다 깎아 매도가가 마이너스가 되는 건 막는다 —
+        // 산 값보다 싸게 팔 순 있어도(손해), 파는데 코인을 더 내는 건 말이 안 됨
+        val marketFloor = -(planet.buyPrice + planet.upgradeInvestment)
         val newMarketAdjustment = (
             deviation * planet.buyPrice +
                 deviation * planet.upgradeInvestment * GameConstants.PLANET_EVENT_MARKET_UPGRADE_INVESTMENT_RATIO
-            ).toLong()
+            ).toLong().coerceAtLeast(marketFloor)
 
         planetRepository.updatePlanetEvent(planet.id, newMultiplier, newMarketAdjustment, now)
 
-        // 소식 로그에는 "이번 이벤트 하나만으로" 얼마나 변했는지(누적 전 이번 델타 기준)를 남긴다 —
-        // 상세화면의 생산 진행/시세 변동은 누적치를 보여주는 자리라 역할이 다름
+        // 소식 로그에는 "이번 이벤트 하나만으로" 얼마나 변했는지를 남긴다 — 상세화면의 생산 진행/
+        // 시세 변동은 누적치를 보여주는 자리라 역할이 다름. 시세는 바닥에 걸리면 실제 반영폭이
+        // 델타보다 작으므로, 로그에도 클램프 후 실제 변화분을 쓴다
         val meta = PlanetMetaDataTable.data[planet.type]
         val baseHourlyRate = planet.production * GameConstants.PLANET_PRODUCTION_SCALE *
             GameConstants.planetLevelMultiplier(planet.level) * 60.0
         val eventProductionDeltaPerHour = (signedDelta * baseHourlyRate).toLong()
-        val eventMarketDelta = (
-            signedDelta * planet.buyPrice +
-                signedDelta * planet.upgradeInvestment * GameConstants.PLANET_EVENT_MARKET_UPGRADE_INVESTMENT_RATIO
-            ).toLong()
+        val eventMarketDelta = newMarketAdjustment - planet.marketAdjustment
 
         planetEventLogRepository.addLog(
             PlanetEventLog(

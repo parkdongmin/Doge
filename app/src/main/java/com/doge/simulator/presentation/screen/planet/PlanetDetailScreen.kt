@@ -113,8 +113,12 @@ fun PlanetDetailScreen(
         }
 
         val meta = PlanetMetaDataTable.data[planet.type]
-        val baseValue = planet.marketValue
-        val profitRate = ((baseValue - planet.buyPrice).toFloat() / planet.buyPrice * 100).toInt()
+        val investedAmount = planet.buyPrice + planet.upgradeInvestment
+        val baseValue = planet.marketValue // 0 이상 (악재가 겹쳐도 시세는 0에서 바닥)
+        val estimatedProceeds = baseValue - (baseValue * GameConstants.SELL_FEE_RATE).toLong()
+        // 표시용 시세 변동 — 매입가+강화액을 다 깎는 "전액 손실"(-100%)까지만
+        val displayAdjustment = planet.marketAdjustment.coerceAtLeast(-investedAmount)
+        val adjustmentPct = if (investedAmount > 0L) (displayAdjustment * 100 / investedAmount).toInt() else 0 // 대략치
         val coins by viewModel.coins.collectAsState()
 
         val liveProfit = rememberLiveCoinDisplay(
@@ -212,10 +216,15 @@ fun PlanetDetailScreen(
                         value = "${if (hourlyEarnings >= 0) "+" else ""}${"%,d".format(hourlyEarnings)} 코인/시",
                         color = if (hourlyEarnings >= 0) GoldAccent else StatusRed
                     )
-                    if (planet.marketAdjustment != 0L) {
-                        val marketColor = if (planet.marketAdjustment > 0L) StatusGreen else StatusRed
-                        val sign = if (planet.marketAdjustment > 0L) "+" else ""
-                        DetailRow("시세 변동", "$sign${"%,d".format(planet.marketAdjustment)} 코인", marketColor)
+                    if (displayAdjustment != 0L) {
+                        val marketColor = if (displayAdjustment > 0L) StatusGreen else StatusRed
+                        val sign = if (displayAdjustment > 0L) "+" else ""
+                        val pctSign = if (adjustmentPct > 0) "+" else ""
+                        DetailRow(
+                            "시세 변동",
+                            "$sign${"%,d".format(displayAdjustment)} 코인 (${pctSign}$adjustmentPct%)",
+                            marketColor
+                        )
                     }
                     val eventIntervalHours = GameConstants.planetEventIntervalHours(planet.risk)
                     val intervalText = if (eventIntervalHours < 1.0) {
@@ -266,7 +275,7 @@ fun PlanetDetailScreen(
                                 Text(
                                     "%.1f%%/분".format(effectiveChance),
                                     color = SpaceAccent,
-                                    style = MaterialTheme.typography.bodySmall
+                                    style = NumericSmall
                                 )
                             }
                         }
@@ -287,8 +296,16 @@ fun PlanetDetailScreen(
                 Column(modifier = Modifier.padding(Spacing.lg)) {
                     Text("투자 현황", color = TextSecondary, style = MaterialTheme.typography.labelMedium)
                     Spacer(modifier = Modifier.height(Spacing.md))
-                    DetailRow("행성 가치", "%,d 코인".format(planet.marketValue), TextPrimary)
-                    DetailRow("매도 예상가", "%,d 코인".format((baseValue * (1f - GameConstants.SELL_FEE_RATE)).toLong()), GoldAccent)
+                    DetailRow("투자액", "%,d 코인".format(investedAmount), TextPrimary)
+                    DetailRow(
+                        "현재 매도가",
+                        "%,d 코인".format(estimatedProceeds),
+                        when {
+                            planet.marketValue > investedAmount -> StatusGreen
+                            planet.marketValue < investedAmount -> StatusRed
+                            else -> GoldAccent
+                        }
+                    )
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xs),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -526,6 +543,24 @@ private fun PlanetUpgradeDialog(
                         Text(upgradeResourceCost.entries.joinToString(" · ") { "${it.key.displayName}×${it.value}" },
                             color = TextSecondary, style = MaterialTheme.typography.labelSmall)
                     }
+
+                    // ── 강화 성공 시 효과 미리보기 ───────────────────────
+                    Spacer(modifier = Modifier.height(Spacing.md))
+                    val curProd = planet.effectiveProduction
+                    val nextProd = (planet.production * GameConstants.PLANET_PRODUCTION_SCALE *
+                        GameConstants.planetLevelMultiplier(planet.level + 1) *
+                        planet.productionMultiplier).toLong()
+                    DetailRow(
+                        "분당 생산량",
+                        "%,d → %,d 코인".format(curProd, nextProd),
+                        if (nextProd > curProd) StatusGreen else TextSecondary
+                    )
+                    Text(
+                        "레벨이 오르면 생산량과 자원 드롭량이 늘어요. 강화에 쓴 코인은 행성 매도가에 더해져요.",
+                        color = TextSecondary,
+                        style = BodyReading,
+                        modifier = Modifier.padding(top = Spacing.xs)
+                    )
                 }
 
                 // ── 강화 진행 상태(충전 중 / 결과 공개) ───────────────
@@ -648,11 +683,11 @@ private fun StatsInfoDialog(onDismiss: () -> Unit) {
                 Text("스탯 설명", color = GoldAccent, style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(Spacing.md))
 
-                StatsInfoEntry("생산량", "이 행성이 분당 실제로 만들어내는 코인. 레벨과 아래 이벤트 효과가 모두 반영된 값")
-                StatsInfoEntry("생산 진행 / 생산 중단", "생산량을 시간당으로 환산한 값. 이벤트가 누적돼 마이너스가 되면 \"생산 중단\"으로 바뀌며 오히려 손해가 발생")
-                StatsInfoEntry("시세 변동", "이벤트로 누적된 매도가 변동분. 행성을 팔 때 이 값만큼 가격에 더해지거나 빠짐")
-                StatsInfoEntry("이벤트 간격", "이 행성에 이벤트가 평균적으로 얼마나 자주 발생하는지. 위험한 타입일수록 간격이 짧음(더 자주 발생)")
-                StatsInfoEntry("악재 확률", "이벤트가 발생했을 때 나쁜 쪽으로 나올 확률. 희귀도가 높은 행성일수록 이 확률이 낮음(더 유리)", isLast = true)
+                StatsInfoEntry("생산량", "이 행성이 1분에 만드는 코인이에요. 레벨과 이벤트 효과가 반영돼요.")
+                StatsInfoEntry("생산 진행 / 생산 중단", "생산량을 1시간 기준으로 보여줘요. 악재가 쌓여 마이너스가 되면 '생산 중단'으로 바뀌고 그동안 코인이 줄어요.")
+                StatsInfoEntry("시세 변동", "악재·호재로 달라진 매도가예요. 괄호 안 %는 투자액 대비 비율이에요.")
+                StatsInfoEntry("이벤트 간격", "이 행성에 이벤트가 얼마나 자주 오는지예요. 위험한 타입일수록 자주 와요.")
+                StatsInfoEntry("악재 확률", "이벤트가 나쁜 쪽으로 나올 확률이에요. 희귀도가 높을수록 낮아요.", isLast = true)
 
                 Spacer(modifier = Modifier.height(Spacing.lg))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
