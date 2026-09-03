@@ -63,17 +63,21 @@ fun AssetScreen(
         AlertDialog(
             onDismissRequest = { showSignOutConfirm = false },
             title = { Text("로그아웃") },
-            text = { Text("로그아웃할까요? 진행 상황은 클라우드에 저장돼 있어 다시 로그인하면 이어서 할 수 있어요.") },
+            text = { Text("로그아웃하면 로그인 화면으로 돌아가요. 다시 로그인하면 이어서 할 수 있어요.") },
             confirmButton = {
                 TextButton(onClick = {
                     showSignOutConfirm = false
                     isSigningOut = true
                     authViewModel.signOut()
-                }) { Text("로그아웃") }
+                }) { Text("로그아웃", color = GoldAccent, fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
                 TextButton(onClick = { showSignOutConfirm = false }) { Text("취소") }
-            }
+            },
+            containerColor = SpaceNavy,
+            shape = RoundedCornerShape(16.dp),
+            titleContentColor = TextPrimary,
+            textContentColor = TextSecondary
         )
     }
 
