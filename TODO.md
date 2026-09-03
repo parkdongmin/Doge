@@ -62,7 +62,30 @@
 - [ ] Cloud Functions 배포 여부 콘솔 확인
 - [ ] Play 출시 서명(keystore + `signingConfigs`)
 - [ ] release `isMinifyEnabled`(R8) 결정
-- [ ] 사운드 에셋 확보·적용
+- [ ] 효과음(SFX) — 출시 후 폴리시로 내림. 강화/탐사 결과는 진동으로 대체 중
+- [ ] BGM 앰비언트 루프 라이선스 정리 — 지금 트랙은 AI 생성물이라 레포에 안 올림
+      (`res/raw/` 통째로 `.gitignore`). 정식 라이선스(직접 제작/구매/CC0) 확보하면 gitignore에서
+      빼고 커밋. 그때까지는 로컬 빌드에만 BGM 존재
+
+---
+
+## BGM + 설정 다이얼로그 (2026-09-03, 커밋됨 · 실기기 테스트 전)
+
+"효과음은 부담이고 전체 BGM 앰비언트 하나만 있으면 되지 않나"에서 시작. BGM 재생 + 켜고 끄는
+설정 UI가 필요해졌고, 겸사겸사 문의용 UID 복사도 같이 넣기로 함.
+
+- **`SettingsPrefs`** (`data/local`) — `settings_prefs` SharedPreferences, `bgm_enabled`(기본 true)
+  하나. `bgmEnabled: StateFlow<Boolean>`. 기기 로컬, 클라우드 세이브 제외([[TutorialPrefs]]와 동일 성격)
+- **`BgmPlayer`** (`audio/`, `@Singleton`) — 화면이 아니라 `ProcessLifecycleOwner`에 묶임.
+  `enabled && appInForeground && 파일존재`일 때만 재생, 백그라운드 가면 pause(복귀 시 이어서).
+  오디오 포커스 요청/양보(전화·유튜브 시 duck 또는 정지). `MyApplication.onCreate`에서
+  `bgmPlayer.start()` 1회. 음원은 `res/raw/bgm_ambient.mp3`를 **이름으로 조회**
+  (`getIdentifier`) — 파일이 gitignore돼 없어도 컴파일되고 id 0이면 조용히 no-op
+- **`SettingsViewModel`** — `bgmEnabled` 노출 + `setBgmEnabled` + `uid`(= `authRepository.getCurrentUser()?.uid`)
+- **`SettingsDialog`** (`presentation/component`) — 자산 탭 헤더의 **로그아웃 버튼 → "설정" 버튼**으로 교체.
+  다이얼로그 안에: 배경 음악 스위치 / 내 ID(모노스페이스 표시 + 복사 버튼, "복사됨" 1.5초) /
+  로그아웃(→ 기존 확인 다이얼로그 재사용). 톤·폭은 `InfoDialog`와 맞춤
+- `compileDebugKotlin` 통과. **남은 것: 실기기에서 재생/정지/포커스/토글/UID 복사 확인**
 
 ---
 

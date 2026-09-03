@@ -17,6 +17,7 @@ import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.decode.GifDecoder
 import coil.decode.ImageDecoderDecoder
+import com.doge.simulator.audio.BgmPlayer
 import com.doge.simulator.data.repository.CloudSaveManager
 import com.doge.simulator.data.worker.PlanetEventWorker
 import com.doge.simulator.data.worker.PlanetMaintenanceWorker
@@ -41,6 +42,9 @@ class MyApplication : Application(), Configuration.Provider, ImageLoaderFactory 
 
     @Inject
     lateinit var cloudSaveManager: CloudSaveManager
+
+    @Inject
+    lateinit var bgmPlayer: BgmPlayer
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -69,6 +73,7 @@ class MyApplication : Application(), Configuration.Provider, ImageLoaderFactory 
         registerCloudSaveSync()
         schedulePlanetMaintenanceWorker()
         schedulePlanetEventWorker()
+        bgmPlayer.start()
     }
 
     // 앱이 백그라운드로 갈 때(ON_STOP) 로컬 게임 상태를 클라우드로 백업.

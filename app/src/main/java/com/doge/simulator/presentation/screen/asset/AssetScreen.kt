@@ -32,9 +32,11 @@ import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.Resource
 import com.doge.simulator.presentation.component.InfoDialog
 import com.doge.simulator.presentation.component.InfoEntry
+import com.doge.simulator.presentation.component.SettingsDialog
 import com.doge.simulator.presentation.component.rememberLiveCoinDisplay
 import com.doge.simulator.presentation.viewmodel.AssetViewModel
 import com.doge.simulator.presentation.viewmodel.AuthViewModel
+import com.doge.simulator.presentation.viewmodel.SettingsViewModel
 import com.doge.simulator.ui.theme.*
 
 @Composable
@@ -42,7 +44,8 @@ fun AssetScreen(
     onRankClick: () -> Unit = {},
     onSignedOut: () -> Unit = {},
     viewModel: AssetViewModel = hiltViewModel(),
-    authViewModel: AuthViewModel = hiltViewModel()
+    authViewModel: AuthViewModel = hiltViewModel(),
+    settingsViewModel: SettingsViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     val displayCoins = rememberLiveCoinDisplay(baseCoins = state.coins, netPerMin = state.netProductionPerMin)
@@ -53,7 +56,22 @@ fun AssetScreen(
     var showAssetInfo by remember { mutableStateOf(false) }
     var showSignOutConfirm by remember { mutableStateOf(false) }
     var isSigningOut by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
+    val bgmEnabled by settingsViewModel.bgmEnabled.collectAsState()
     val authState by authViewModel.state.collectAsState()
+
+    if (showSettings) {
+        SettingsDialog(
+            uid = settingsViewModel.uid,
+            bgmEnabled = bgmEnabled,
+            onBgmChange = settingsViewModel::setBgmEnabled,
+            onSignOutClick = {
+                showSettings = false
+                showSignOutConfirm = true
+            },
+            onDismiss = { showSettings = false }
+        )
+    }
 
     LaunchedEffect(authState) {
         if (authState is AuthViewModel.AuthState.Unauthenticated) onSignedOut()
@@ -122,13 +140,13 @@ fun AssetScreen(
             }
             OutlinedButton(
                 enabled = !isSigningOut,
-                onClick = { showSignOutConfirm = true },
+                onClick = { showSettings = true },
                 contentPadding = ButtonPadding.listItemAction,
                 shape = RoundedCornerShape(6.dp),
                 border = BorderStroke(1.dp, SpaceMid),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary)
             ) {
-                Text("로그아웃", style = MaterialTheme.typography.labelSmall)
+                Text("설정", style = MaterialTheme.typography.labelSmall)
             }
         }
 

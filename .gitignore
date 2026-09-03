@@ -16,3 +16,6 @@
 .kotlin
 local.properties
 .claude/settings.local.json
+
+# BGM/사운드 에셋 — 라이선스 정리 전까지 레포에 안 올림 (로컬 빌드에만 존재)
+/app/src/main/res/raw/
