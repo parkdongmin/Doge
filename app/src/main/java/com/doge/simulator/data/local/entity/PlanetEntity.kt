@@ -15,7 +15,6 @@ data class PlanetEntity(
     val eventRate: Int,
     val buyPrice: Int,
     val acquireTime: Long,
-    val currentValue: Int,
     val level: Int,
     val totalProfit: Long,
     val variantId: String = "",

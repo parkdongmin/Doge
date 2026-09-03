@@ -57,4 +57,9 @@ class LocalSnapshotDataSource @Inject constructor(
             dao.insertRecruitmentCandidates(snapshot.recruitmentCandidates)
         }
     }
+
+    /** 로그아웃 시 이 기기의 로컬 게임 데이터를 전부 지운다 (다음 로그인 계정과 섞이지 않도록). */
+    suspend fun clearLocal() = withContext(Dispatchers.IO) {
+        db.clearAllTables()
+    }
 }

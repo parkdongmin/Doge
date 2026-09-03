@@ -38,25 +38,26 @@
 - [ ] 튜토리얼 갈래 2 나머지 ⓘ — `InfoDialog`가 각 화면 ⓘ로 이미 커버하므로 중복.
       우선순위 없음으로 유지, 필요하면 그때 (2026-09-02 유저와 합의). 단 ⓘ가 아직 안 달린
       화면(연구소 등)이 있는지만 나중에 한 번 훑기
-- [ ] (선택) 팀 빌더 바텀시트 인라인 힌트 — 지금은 Part 1 page1 대사로만 안내
 
 ### 클라우드 세이브 Phase 4 (나중)
-- [ ] 충돌 다이얼로그 — dirty 추적(스냅샷 해시 비교) + "클라우드 불러오기 / 내 기기 유지"
-      선택창 (양쪽 총 자산·저장 시각·기기명 표시). push를 트랜잭션으로
-      (`newRev = 클라우드 rev + 1`) 바꿔야 rev 충돌 감지가 확실해짐 — 아래 상세
-- [ ] 정거장 화면에 수동 "백업 / 복원" 버튼
-- [ ] 로그아웃 시 push 후 세션 정리 (`AuthViewModel.signOut()`이 로컬 데이터도 안 지우는
-      죽은 코드 — 로그아웃 UI 추가할 때 같이 처리)
-- [ ] 행동별(구매/매도/강화/파견) 디바운스 push
-- [ ] 죽은 컬럼 `Planet.currentValue` 제거 (buyPrice 복사본, 아무도 안 읽음). 스냅샷
-      마이그레이션이 생겨서 이제 가능 — Room 마이그레이션 추가 + `SCHEMA_VERSION`만 올리면 됨
+- [x] 충돌 다이얼로그 — 조용한 LWW로 충분하다고 판단, 구현 안 하기로 결정 (2026-09-03)
+- [x] 로그아웃 시 push 후 세션 정리 (2026-09-03) — `CloudSaveManager.signOutAndClearLocal()`
+      (push → `LocalSnapshotDataSource.clearLocal()`로 Room 전체 초기화 → `CloudSyncPrefs.resetSyncState()`
+      로 rev 추적 리셋(deviceId는 유지) → Firebase signOut). `AuthViewModel.signOut()`이 이걸 호출.
+      버튼 위치는 정거장에 뒀다가 "정거장에서 로그아웃은 뜬금없다"는 피드백으로 자산 탭
+      헤더로 이동, 스타일도 맨 텍스트 → 판매 버튼과 같은 아웃라인 칩(중립 톤)으로,
+      위치도 제목 옆(위쪽 붕 뜸) → 제목+설명문 Column 오른쪽에 `Alignment.Bottom`으로
+      설명문 아랫줄과 맞춤 — 유저 확인 완료(2026-09-03). `AssetScreen`에 확인
+      다이얼로그+로딩 오버레이도 있음. `MainScreen`/`MainActivity`에 `onSignOut` 콜백 배선 →
+      로그인 화면으로 이동. `compileDebugKotlin` 통과, 실기기 확인 전
+- [x] 죽은 컬럼 `Planet.currentValue` 제거 (2026-09-03) — `Planet`/`PlanetEntity`/`PlanetMapper`/
+      `GeneratePlanetsUseCase`/`ExploreViewModel`/`ExplorationStore`에서 필드 제거,
+      `MIGRATION_17_18`(DB v17→v18, `planet_table` 재생성)로 컬럼 드롭. `compileDebugKotlin` 통과
 
 ### 자잘한 검토
-- [ ] `OFFLINE_PROFIT_DIALOG_THRESHOLD_MINUTES`(10분)를 손실 다이얼로그 전용 상수로 분리할지
-- [ ] `.kotlin/` 빌드 산출물 디렉터리 `.gitignore` 추가 여부 (지금 git이 무시하는지 확인)
-- [ ] 미푸시 커밋 2개 push 여부 (`3427fa3`, `c417e56`)
-- [ ] 강화 다이얼로그 효과 미리보기 실기기 확인 (저렙에서 숫자 체감되는지)
-- [ ] ⓘ 설명문 톤 통일 실기기 육안 확인 (스탯/우주선·우주인/탐사/자산)
+- [x] `OFFLINE_PROFIT_DIALOG_THRESHOLD_MINUTES`(10분) 분리 여부 — 그대로 공유 상수 유지로 결정 (2026-09-03)
+- [x] `.kotlin/` 빌드 산출물 디렉터리 `.gitignore` 추가 (2026-09-03, 추적 안 되고 있었음 — 추가)
+- [x] 미푸시 커밋 2개 push (2026-09-03, `3427fa3`/`c417e56` 포함 `b9fad21`까지 push 완료)
 
 ### 출시 전 (기능·디자인 마무리 후, 아래 "출시 전 확인 필요" 섹션)
 - [ ] Cloud Functions 배포 여부 콘솔 확인
@@ -117,7 +118,6 @@
       수정(`2f8a881`). `StartExpeditionUseCase` 15초 TEST 오버라이드는 커밋 전 원복됨.
       스타터 정찰선/대원/행성도 정상 지급 확인.
       - [ ] 클라우드 복원 유저(기존 세이브 있음)한테는 튜토리얼 전부 안 뜨는지 — 아직 미확인
-- [ ] (선택) 팀 빌더 바텀시트 안에 인라인 힌트 — 바텀시트는 별도 윈도우라 스포트라이트 불가
 
 ### 갈래 2 — 게임 곳곳 설명 부족 보완 (화면마다 조금씩)
 
@@ -180,19 +180,12 @@ read+write, users는 read 허용(리더보드)·write 본인만, notifications/p
 유닛테스트 `SnapshotLoaderTest` 6개. 이제 Room 스키마 자유롭게 변경 가능.
 
 **Phase 4 (나중):**
-- **충돌 다이얼로그** — 지금은 조용한 LWW라 동시/오프라인 다기기 플레이 시 한 기기 세션이
-  통째로 사라짐. 설계:
-  - dirty 판정 = push 성공 시 `hash(스냅샷)` 저장 → restore에서 클라우드가 더 최신인데
-    로컬 해시가 마지막 동기화 해시와 다르면 충돌. (플래그보다 견고 — 호출부에 흩뿌릴 필요 없음)
-  - 스플래시에서 다이얼로그: "이 기기 총 자산 X / 클라우드(다른 기기) 총 자산 Y · N시간 전 ·
-    기기명" + [클라우드 불러오기] / [내 기기 유지]. 클라우드 문서에 `updatedAt`·`deviceId` 이미 있음
-  - push를 트랜잭션(`newRev = 현재 클라우드 rev + 1`)으로 바꿔야 rev가 진짜 전역 단조값이
-    되고, 두 기기가 같은 rev를 써버리는 충돌도 감지됨
-  - 자동 병합(코인 max, 행성 합집합)은 이중 지급 위험 커서 안 함 — 둘 중 택1
-- 정거장에 수동 "백업 / 복원" 버튼
-- 로그아웃 시 push 후 세션 정리 (`AuthViewModel.signOut()` 죽은 코드)
-- 행동별 디바운스 push
-- 죽은 컬럼 `Planet.currentValue` 제거 (스냅샷 마이그레이션 생겨서 이제 가능)
+- ~~충돌 다이얼로그~~ — 조용한 LWW로 충분하다고 판단, 구현 안 하기로 결정 (2026-09-03).
+  실제 충돌은 동시 오프라인 다기기 플레이라는 드문 케이스에만 생기고, 그때 한 기기 세션이
+  사라지는 것은 감수하기로 함
+- ~~로그아웃 시 push 후 세션 정리~~ — 완료 (2026-09-03, `CloudSaveManager.signOutAndClearLocal()`
+  + `HQScreen` 로그아웃 버튼)
+- ~~죽은 컬럼 `Planet.currentValue` 제거~~ — 완료 (2026-09-03, `MIGRATION_17_18`)
 
 ## 행성 시세/이벤트 시스템 (1차 구현 완료, 2026-08-27 커밋됨)
 
@@ -638,6 +631,7 @@ read+write, users는 read 허용(리더보드)·write 본인만, notifications/p
   알림이 최대 5초 늦는 정도라 손대지 않음
 - `AuthViewModel.signOut()`이 로컬 게임 데이터(코인·행성)를 안 지우는 죽은 코드 — 현재
   아무도 호출 안 해서 활성 버그는 아니지만, 나중에 로그아웃 UI를 추가할 때 지뢰가 될 수 있음
+  (→ 2026-09-03 해결, 위 "클라우드 세이브 Phase 4" 참고)
 - `doge://feed` 딥링크가 매니페스트 주석·명세 문서에만 있고 실제로 아무도 안 보내는 죽은 참조 —
   확인만 하고 미수정
 - `AssetScreen`의 판매 다이얼로그가 열려있는 동안 자원 수량이 바뀌어도 다이얼로그 표시값이

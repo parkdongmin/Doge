@@ -14,7 +14,6 @@ data class Planet(
     val buyPrice: Int,
     val acquireTime: Long = System.currentTimeMillis(),
 
-    val currentValue: Int,
     val level: Int = 1,
     val totalProfit: Long = 0L,
 

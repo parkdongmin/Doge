@@ -187,8 +187,7 @@ class ExploreViewModel @Inject constructor(
                     investment = (meta.investmentMin..meta.investmentMax).random(),
                     eventRate = (meta.eventRateMin..meta.eventRateMax).random(),
                     variantId = variantId,
-                    buyPrice = buyPrice,
-                    currentValue = buyPrice
+                    buyPrice = buyPrice
                 )
 
                 // 도감 등록 여부(전체 발견 기록)와 "지금 슬롯에 실제로 들고 있는지"는 별개 —

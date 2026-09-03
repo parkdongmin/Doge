@@ -45,7 +45,7 @@ import com.doge.simulator.util.findActivity
 import kotlinx.coroutines.flow.StateFlow
 
 @Composable
-fun MainScreen(deepLinkFlow: StateFlow<String?>) {
+fun MainScreen(deepLinkFlow: StateFlow<String?>, onSignOut: () -> Unit) {
     val navController = rememberNavController()
     val deepLink by deepLinkFlow.collectAsState()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -145,7 +145,8 @@ fun MainScreen(deepLinkFlow: StateFlow<String?>) {
                 }
                 composable(NavRoutes.Asset.route) {
                     AssetScreen(
-                        onRankClick = { navController.navigate(NavRoutes.Rank.route) { launchSingleTop = true } }
+                        onRankClick = { navController.navigate(NavRoutes.Rank.route) { launchSingleTop = true } },
+                        onSignedOut = onSignOut
                     )
                 }
 

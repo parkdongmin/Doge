@@ -89,7 +89,14 @@ class MainActivity : ComponentActivity() {
                     composable(NavRoutes.Main.route) {
                         // StateFlow를 collectAsState()로 수집 → onNewIntent 시 자동 리컴포지션
                         val deepLink = _deepLink.asStateFlow()
-                        MainScreen(deepLinkFlow = deepLink)
+                        MainScreen(
+                            deepLinkFlow = deepLink,
+                            onSignOut = {
+                                navController.navigate(NavRoutes.Login.route) {
+                                    popUpTo(NavRoutes.Main.route) { inclusive = true }
+                                }
+                            }
+                        )
                     }
                 }
             }

@@ -64,7 +64,7 @@ abstract class PlanetDatabase : RoomDatabase() {
     abstract fun snapshotDao(): SnapshotDao
 
     companion object {
-        const val VERSION = 17
+        const val VERSION = 18
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
@@ -407,6 +407,46 @@ abstract class PlanetDatabase : RoomDatabase() {
                         `occurredAt` INTEGER NOT NULL
                     )"""
                 )
+            }
+        }
+
+        val MIGRATION_17_18 = object : Migration(17, 18) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // 죽은 컬럼 currentValue 제거 (buyPrice 복사본, 갱신 안 되고 아무도 안 읽던 필드).
+                // 매도가·랭킹은 marketValue(buyPrice + upgradeInvestment + marketAdjustment)를 씀
+                database.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `planet_table_new` (
+                        `id` TEXT NOT NULL,
+                        `type` TEXT NOT NULL,
+                        `production` INTEGER NOT NULL,
+                        `risk` INTEGER NOT NULL,
+                        `investment` INTEGER NOT NULL,
+                        `eventRate` INTEGER NOT NULL,
+                        `buyPrice` INTEGER NOT NULL,
+                        `acquireTime` INTEGER NOT NULL,
+                        `level` INTEGER NOT NULL,
+                        `totalProfit` INTEGER NOT NULL,
+                        `variantId` TEXT NOT NULL DEFAULT '',
+                        `upgradeInvestment` INTEGER NOT NULL DEFAULT 0,
+                        `lastProfitTime` INTEGER NOT NULL,
+                        `productionMultiplier` REAL NOT NULL DEFAULT 1.0,
+                        `marketAdjustment` INTEGER NOT NULL DEFAULT 0,
+                        `lastEventTime` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )"""
+                )
+                database.execSQL(
+                    """INSERT INTO `planet_table_new`
+                        (id, type, production, risk, investment, eventRate, buyPrice, acquireTime,
+                         level, totalProfit, variantId, upgradeInvestment, lastProfitTime,
+                         productionMultiplier, marketAdjustment, lastEventTime)
+                       SELECT id, type, production, risk, investment, eventRate, buyPrice, acquireTime,
+                              level, totalProfit, variantId, upgradeInvestment, lastProfitTime,
+                              productionMultiplier, marketAdjustment, lastEventTime
+                       FROM `planet_table`"""
+                )
+                database.execSQL("DROP TABLE `planet_table`")
+                database.execSQL("ALTER TABLE `planet_table_new` RENAME TO `planet_table`")
             }
         }
     }

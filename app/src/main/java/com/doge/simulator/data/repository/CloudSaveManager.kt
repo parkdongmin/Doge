@@ -36,6 +36,15 @@ class CloudSaveManager @Inject constructor(
     /** 로컬 상태를 클라우드로 밀어올린다. 백그라운드 트리거용 — 실패는 조용히 무시. */
     suspend fun push(): Boolean = mutex.withLock { pushLocked() }
 
+    /** 로그아웃: 마지막 push 시도 → 로컬 게임 데이터·동기화 메타데이터 정리 → Firebase 로그아웃.
+     * push가 실패해도(네트워크 등) 로그아웃 자체는 막지 않는다 — 마지막 저장 시점 데이터로 남는다. */
+    suspend fun signOutAndClearLocal() = mutex.withLock {
+        runCatching { pushLocked() }
+        snapshotSource.clearLocal()
+        syncPrefs.resetSyncState()
+        authRepository.signOut()
+    }
+
     /** 스플래시 진입 시 1회. LWW: 클라우드 rev가 이 기기가 마지막으로 적용한 rev보다 크면 import. */
     suspend fun restore(): CloudRestoreResult = mutex.withLock {
         val uid = authRepository.getCurrentUser()?.uid ?: return@withLock CloudRestoreResult.FAILED

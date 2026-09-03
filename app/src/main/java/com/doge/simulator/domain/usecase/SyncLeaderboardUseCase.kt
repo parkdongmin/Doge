@@ -24,7 +24,6 @@ class SyncLeaderboardUseCase @Inject constructor(
         val planets = planetRepository.getOwnedPlanets().first()
         // 행성 가치는 매도가(SellPlanetUseCase)·자산 화면(AssetViewModel)과 동일하게
         // marketValue(buyPrice + upgradeInvestment + marketAdjustment)로 계산한다.
-        // currentValue는 구매 시점 가격에서 갱신되지 않는 죽은 필드라 쓰지 않는다
         val totalAsset = coins + planets.sumOf { it.marketValue }
         val displayName = user.displayName
             ?.takeIf { it.isNotBlank() }

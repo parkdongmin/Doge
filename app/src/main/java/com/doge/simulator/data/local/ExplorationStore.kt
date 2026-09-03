@@ -29,7 +29,6 @@ class ExplorationStore @Inject constructor(
             putInt("planet_risk", planet.risk)
             putInt("planet_investment", planet.investment)
             putInt("planet_event_rate", planet.eventRate)
-            putInt("planet_current_value", planet.currentValue)
             putString("resources", serializeResources(resources))
         }
     }
@@ -51,8 +50,7 @@ class ExplorationStore @Inject constructor(
                 production = prefs.getInt("planet_production", 0),
                 risk = prefs.getInt("planet_risk", 0),
                 investment = prefs.getInt("planet_investment", 0),
-                eventRate = prefs.getInt("planet_event_rate", 0),
-                currentValue = prefs.getInt("planet_current_value", 0)
+                eventRate = prefs.getInt("planet_event_rate", 0)
             )
         } catch (e: Exception) { null }
     }

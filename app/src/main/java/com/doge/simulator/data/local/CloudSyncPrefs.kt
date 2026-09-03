@@ -30,6 +30,16 @@ class CloudSyncPrefs @Inject constructor(
         get() = prefs.getLong(KEY_LAST_PUSH_ATTEMPT_AT, 0L)
         set(value) = prefs.edit { putLong(KEY_LAST_PUSH_ATTEMPT_AT, value) }
 
+    // 로그아웃 시 호출 — deviceId는 기기 고유값이라 유지하고, rev 추적만 지운다.
+    // 안 지우면 로컬(방금 비운 DB)이 다음 로그인 계정의 클라우드 rev보다 높게 남아
+    // restore()가 "로컬이 최신"으로 오판, 빈 데이터를 그 계정 세이브에 덮어쓸 위험이 있다.
+    fun resetSyncState() {
+        prefs.edit {
+            remove(KEY_LAST_APPLIED_REV)
+            remove(KEY_LAST_PUSH_ATTEMPT_AT)
+        }
+    }
+
     private companion object {
         const val KEY_DEVICE_ID = "device_id"
         const val KEY_LAST_APPLIED_REV = "last_applied_rev"

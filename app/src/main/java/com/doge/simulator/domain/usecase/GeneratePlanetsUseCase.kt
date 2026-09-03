@@ -26,8 +26,7 @@ class GeneratePlanetsUseCase @Inject constructor() {
             investment = meta.investmentMin,
             eventRate = eventRate,
             variantId = meta.variants.first().variantId,
-            buyPrice = buyPrice,
-            currentValue = buyPrice
+            buyPrice = buyPrice
         )
     }
 
@@ -49,8 +48,7 @@ class GeneratePlanetsUseCase @Inject constructor() {
             investment = investment,
             eventRate = eventRate,
             variantId = variant.variantId,
-            buyPrice = buyPrice,
-            currentValue = buyPrice
+            buyPrice = buyPrice
         )
     }
 

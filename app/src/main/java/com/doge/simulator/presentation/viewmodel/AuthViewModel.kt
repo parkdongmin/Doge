@@ -2,6 +2,7 @@ package com.doge.simulator.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.doge.simulator.data.repository.CloudSaveManager
 import com.doge.simulator.domain.repository.AuthRepository
 import com.google.firebase.auth.FirebaseUser
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -13,7 +14,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val cloudSaveManager: CloudSaveManager
 ) : ViewModel() {
 
     sealed class AuthState {
@@ -50,7 +52,7 @@ class AuthViewModel @Inject constructor(
 
     fun signOut() {
         viewModelScope.launch {
-            authRepository.signOut()
+            cloudSaveManager.signOutAndClearLocal()
             _state.value = AuthState.Unauthenticated
         }
     }

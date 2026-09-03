@@ -54,7 +54,7 @@ class SnapshotRoundTripTest {
             listOf(
                 PlanetEntity(
                     id = "p1", type = "GAS_GIANT", production = 40, risk = 12, investment = 3,
-                    eventRate = 45, buyPrice = 1000, acquireTime = 111L, currentValue = 900,
+                    eventRate = 45, buyPrice = 1000, acquireTime = 111L,
                     level = 7, totalProfit = 5000L, variantId = "v1", upgradeInvestment = 800L,
                     lastProfitTime = 222L, productionMultiplier = 0.7, marketAdjustment = -300L,
                     lastEventTime = 333L

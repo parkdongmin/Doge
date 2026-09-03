@@ -34,12 +34,15 @@ import com.doge.simulator.presentation.component.InfoDialog
 import com.doge.simulator.presentation.component.InfoEntry
 import com.doge.simulator.presentation.component.rememberLiveCoinDisplay
 import com.doge.simulator.presentation.viewmodel.AssetViewModel
+import com.doge.simulator.presentation.viewmodel.AuthViewModel
 import com.doge.simulator.ui.theme.*
 
 @Composable
 fun AssetScreen(
     onRankClick: () -> Unit = {},
-    viewModel: AssetViewModel = hiltViewModel()
+    onSignedOut: () -> Unit = {},
+    viewModel: AssetViewModel = hiltViewModel(),
+    authViewModel: AuthViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     val displayCoins = rememberLiveCoinDisplay(baseCoins = state.coins, netPerMin = state.netProductionPerMin)
@@ -48,7 +51,33 @@ fun AssetScreen(
     val resources = state.resources
     var sellDialogResource by remember { mutableStateOf<Resource?>(null) }
     var showAssetInfo by remember { mutableStateOf(false) }
+    var showSignOutConfirm by remember { mutableStateOf(false) }
+    var isSigningOut by remember { mutableStateOf(false) }
+    val authState by authViewModel.state.collectAsState()
 
+    LaunchedEffect(authState) {
+        if (authState is AuthViewModel.AuthState.Unauthenticated) onSignedOut()
+    }
+
+    if (showSignOutConfirm) {
+        AlertDialog(
+            onDismissRequest = { showSignOutConfirm = false },
+            title = { Text("로그아웃") },
+            text = { Text("로그아웃할까요? 진행 상황은 클라우드에 저장돼 있어 다시 로그인하면 이어서 할 수 있어요.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showSignOutConfirm = false
+                    isSigningOut = true
+                    authViewModel.signOut()
+                }) { Text("로그아웃") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSignOutConfirm = false }) { Text("취소") }
+            }
+        )
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -68,18 +97,36 @@ fun AssetScreen(
         }
 
         // ── 헤더 ──────────────────────────────────────────────────────
-        Text(
-            text = "나의 자산",
-            color = TextPrimary,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(Spacing.xs))
-        Text(
-            text = "보유 자산과 자원 현황을 확인하세요",
-            color = TextSecondary,
-            style = MaterialTheme.typography.bodySmall
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Bottom
+        ) {
+            Column {
+                Text(
+                    text = "나의 자산",
+                    color = TextPrimary,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(Spacing.xs))
+                Text(
+                    text = "보유 자산과 자원 현황을 확인하세요",
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            OutlinedButton(
+                enabled = !isSigningOut,
+                onClick = { showSignOutConfirm = true },
+                contentPadding = ButtonPadding.listItemAction,
+                shape = RoundedCornerShape(6.dp),
+                border = BorderStroke(1.dp, SpaceMid),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary)
+            ) {
+                Text("로그아웃", style = MaterialTheme.typography.labelSmall)
+            }
+        }
 
         Spacer(modifier = Modifier.height(Spacing.xl))
 
@@ -293,6 +340,18 @@ fun AssetScreen(
                 Text(text = "랭킹 보기", style = MaterialTheme.typography.bodyMedium)
             }
         }
+    }
+
+    if (isSigningOut) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f)),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(color = GoldAccent)
+        }
+    }
     }
 
     sellDialogResource?.let { resource ->
