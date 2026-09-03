@@ -107,7 +107,23 @@ private fun ResearchFieldCard(
     }
     val canUpgrade = !isMaxLevel && canAffordCoins && canAffordResources
 
-    // 레벨별 효과 설명
+    // 레벨별 효과 설명 — 최대 레벨이 아니면 "현재값 → 다음값"으로 다음 연구 결과를 미리 보여줌
+    val nextLab = when (field) {
+        ResearchField.EXPLORATION_TECH -> researchLab.copy(explorationTechLevel = currentLevel + 1)
+        ResearchField.CELESTIAL_ANALYSIS -> researchLab.copy(celestialAnalysisLevel = currentLevel + 1)
+        ResearchField.HR_MANAGEMENT -> researchLab.copy(hrLevel = currentLevel + 1)
+        ResearchField.SPACE_ENGINEERING -> researchLab.copy(engineeringLevel = currentLevel + 1)
+    }
+    // 변화가 있으면 "지금 → 다음", 없거나 최대 레벨이면 현재값만
+    fun step(now: Int, next: Int, unit: String) =
+        if (isMaxLevel || now == next) "$now$unit" else "$now → $next$unit"
+    // 실제 발견 확률(CompleteExpeditionUseCase와 동일 공식, 80%로 코어스)
+    fun discoveryChance(lab: ResearchLab, planetCategory: Boolean): Int {
+        val extra = if (planetCategory) GameConstants.PLANET_DISCOVERY_PLANET_CATEGORY_BONUS else 0f
+        val bonus = lab.celestialAnalysisLevel * GameConstants.PLANET_DISCOVERY_CELESTIAL_BONUS_PER_LEVEL
+        return ((GameConstants.PLANET_DISCOVERY_BASE_CHANCE + extra + bonus).coerceIn(0f, 0.8f) * 100).toInt()
+    }
+
     val effectDescription = when (field) {
         ResearchField.EXPLORATION_TECH -> when {
             currentLevel <= 2 -> "현재: 광물·행성 탐사 가능"
@@ -115,19 +131,15 @@ private fun ResearchFieldCard(
             !isMaxLevel -> "Lv.${maxLevel} 달성 시: 외계 문명 탐사 해금"
             else -> "현재: 모든 탐사 분야 해금 완료 (최대 레벨)"
         }
-        ResearchField.CELESTIAL_ANALYSIS -> {
-            // 실제 발견 확률(CompleteExpeditionUseCase와 동일 공식)은 80%로 코어스되므로,
-            // 상한 없이 계속 오르는 것처럼 보이는 원시 보너스(레벨×3%) 대신 실제 확률을 그대로 표시
-            val celestialBonus = currentLevel * GameConstants.PLANET_DISCOVERY_CELESTIAL_BONUS_PER_LEVEL
-            val normalChance = (GameConstants.PLANET_DISCOVERY_BASE_CHANCE + celestialBonus).coerceIn(0f, 0.8f)
-            val planetChance = (GameConstants.PLANET_DISCOVERY_BASE_CHANCE +
-                    GameConstants.PLANET_DISCOVERY_PLANET_CATEGORY_BONUS + celestialBonus).coerceIn(0f, 0.8f)
-            "행성 슬롯 ${researchLab.maxPlanetSlots}개 · 행성 발견 확률 ${(normalChance * 100).toInt()}%(행성 탐사 시 ${(planetChance * 100).toInt()}%)"
-        }
+        ResearchField.CELESTIAL_ANALYSIS ->
+            "행성 슬롯 ${step(researchLab.maxPlanetSlots, nextLab.maxPlanetSlots, "개")} · " +
+                "발견 확률 ${step(discoveryChance(researchLab, false), discoveryChance(nextLab, false), "%")}" +
+                "(행성 탐사 시 ${step(discoveryChance(researchLab, true), discoveryChance(nextLab, true), "%")})"
         ResearchField.HR_MANAGEMENT ->
-            "우주인 최대 ${researchLab.maxAstronauts}명 · 훈련 슬롯 ${researchLab.maxTrainingSlots}개"
+            "우주인 ${step(researchLab.maxAstronauts, nextLab.maxAstronauts, "명")} · " +
+                "훈련 슬롯 ${step(researchLab.maxTrainingSlots, nextLab.maxTrainingSlots, "개")}"
         ResearchField.SPACE_ENGINEERING ->
-            "우주선 최대 ${researchLab.maxSpaceships}척 보유 가능"
+            "우주선 ${step(researchLab.maxSpaceships, nextLab.maxSpaceships, "척")} 보유 가능"
     }
 
     Card(
