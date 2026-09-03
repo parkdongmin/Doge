@@ -35,9 +35,8 @@
 ### 바로 할 만한 것
 - [x] 다기기 동기화 안내 문구 — 로그인 화면(상시) + 스플래시 "동기화 중" 아래 두 곳에
       추가 (`LoginScreen.kt`/`SplashScreen.kt`, `BodyReading`). 2026-09-02
-- [ ] 튜토리얼 갈래 2 나머지 ⓘ — `InfoDialog`가 각 화면 ⓘ로 이미 커버하므로 중복.
-      우선순위 없음으로 유지, 필요하면 그때 (2026-09-02 유저와 합의). 단 ⓘ가 아직 안 달린
-      화면(연구소 등)이 있는지만 나중에 한 번 훑기
+- [x] 튜토리얼 갈래 2 나머지 ⓘ — `InfoDialog`가 각 화면 ⓘ로 이미 커버하므로 중복이라 우선순위
+      없음으로 유지하기로 함(2026-09-02). 연구소 ⓘ는 필요 없다고 확정(2026-09-03) — 종료
 
 ### 클라우드 세이브 Phase 4 (나중)
 - [x] 충돌 다이얼로그 — 조용한 LWW로 충분하다고 판단, 구현 안 하기로 결정 (2026-09-03)
@@ -49,7 +48,7 @@
       위치도 제목 옆(위쪽 붕 뜸) → 제목+설명문 Column 오른쪽에 `Alignment.Bottom`으로
       설명문 아랫줄과 맞춤 — 유저 확인 완료(2026-09-03). `AssetScreen`에 확인
       다이얼로그+로딩 오버레이도 있음. `MainScreen`/`MainActivity`에 `onSignOut` 콜백 배선 →
-      로그인 화면으로 이동. `compileDebugKotlin` 통과, 실기기 확인 전
+      로그인 화면으로 이동. `compileDebugKotlin` 통과, 실기기 확인 완료(2026-09-03)
 - [x] 죽은 컬럼 `Planet.currentValue` 제거 (2026-09-03) — `Planet`/`PlanetEntity`/`PlanetMapper`/
       `GeneratePlanetsUseCase`/`ExploreViewModel`/`ExplorationStore`에서 필드 제거,
       `MIGRATION_17_18`(DB v17→v18, `planet_table` 재생성)로 컬럼 드롭. `compileDebugKotlin` 통과
