@@ -242,6 +242,13 @@ object PlanetMetaDataTable {
         )
     )
 
+    // variantId → 등급. 티어 해금 조건(GameConstants.firstLockedTier)이 "발견한 적 있는
+    // variantId 집합"만으로 등급별 개수를 셀 수 있게 해준다 (PlanetScreen의 variantLookup과
+    // 같은 매핑을 도감/티어 해금 양쪽에서 공유)
+    val variantRarity: Map<String, RarityTier> by lazy {
+        data.flatMap { (_, meta) -> meta.variants.map { it.variantId to meta.rarity } }.toMap()
+    }
+
     private fun generateVariants(prefix: String, count: Int): List<PlanetVariant> {
         val base = BuildConfig.FIREBASE_STORAGE_BASE_URL
         return (1..count).map { index ->

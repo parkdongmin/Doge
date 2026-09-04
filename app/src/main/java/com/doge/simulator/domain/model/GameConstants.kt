@@ -176,6 +176,30 @@ object GameConstants {
         10 to TierUnlockCondition(RarityTier.LEGENDARY,1, "LEGENDARY 행성 1개+")
     )
 
+    // 티어는 사다리처럼 순서대로만 열린다 — 각 티어 조건은 서로 독립적인 희귀도 기준이라,
+    // 운 좋게 상위 희귀도 행성을 하나 일찍 주우면 뒤 티어 조건은 채우고 앞 티어 조건(개수)은
+    // 못 채운 "구멍"이 생길 수 있다(예: 언커먼 1개만 있으면 T5 자체 조건은 만족하지만
+    // T4의 "커먼 이상 3개+"는 아직 부족). 그래서 1..maxTier를 순서대로 훑어 "가장 먼저
+    // 막힌 티어"를 찾고, 그 이전 티어까지만 실제로 열린 것으로 친다.
+    // null = maxTier까지 전부 열림.
+    //
+    // 기준은 "현재 보유 중인 행성"이 아니라 "한 번이라도 발견한 적 있는 도감 기록"
+    // (discoveredVariantIds)이다 — 매도는 이 게임의 정상적인 플레이(손절/차익실현)인데,
+    // 보유 개수 기준이면 행성 하나 파는 순간 사다리 위 티어가 전부 같이 잠겨버리는 문제가
+    // 있었음(2026-09-04). 도감은 챕터 진행·도감 완성과 같은 성격의 영구 기록이라 매도로
+    // 흔들리지 않는다.
+    fun firstLockedTier(discoveredVariantIds: Set<String>, maxTier: Int = 10): Int? {
+        for (t in 1..maxTier) {
+            val condition = TIER_UNLOCK_CONDITIONS[t] ?: continue
+            val count = discoveredVariantIds.count { variantId ->
+                val rarity = PlanetMetaDataTable.variantRarity[variantId]
+                rarity != null && rarity.ordinal >= condition.requiredRarity.ordinal
+            }
+            if (count < condition.requiredCount) return t
+        }
+        return null
+    }
+
     // 탐사 성공 시 행성 발견 확률. 천체 분석 레벨(+3%/레벨)과 행성 카테고리 보너스로 후반에 상승,
     // 최종 상한은 discoveryChance 계산부(CompleteExpeditionUseCase)에서 80%로 코어스.
     // 기존 0.35+0.10(연구소 투자 없이도 PLANET 카테고리 48%)는 시뮬레이션상 행성 10슬롯이

@@ -25,6 +25,11 @@ class GenerateExpeditionReportUseCase @Inject constructor(
         val progress = storyRepository.getProgressOnce()
 
         // ── 챕터 마일스톤 체크 ───────────────────────────────────────
+        // 마일스톤은 순서 없이 어느 때나 달성될 수 있다(예: 유적/외계문명 탐사 전에
+        // 티어5부터 찍을 수도 있음). 달성 여부는 여기서 바로 반영해 progress에 저장하되,
+        // 실제 챕터 전진은 아래에서 "현재 챕터를 빠져나가는 조건"이 충족될 때만 한
+        // 챕터씩 순서대로만 진행한다 — 나중 마일스톤을 먼저 밟았다고 스토리 비트
+        // (조우·동맹인가 적인가)를 건너뛰지 않기 위함
         val isFirstRuins = !progress.firstRuinsCompleted &&
                 expedition.category == ExpeditionCategory.RUINS && isSuccess
         val isFirstAlienCiv = !progress.firstAlienCivCompleted &&
@@ -32,16 +37,25 @@ class GenerateExpeditionReportUseCase @Inject constructor(
         val isFirstT3 = !progress.firstT3Completed && expedition.tier >= 3 && isSuccess
         val isFirstT5 = !progress.firstT5Completed && expedition.tier >= 5 && isSuccess
 
-        val isChapterEnding = isFirstRuins || isFirstAlienCiv || isFirstT3 || isFirstT5
+        val ruinsMilestoneMet = progress.firstRuinsCompleted || isFirstRuins
+        val alienCivMilestoneMet = progress.firstAlienCivCompleted || isFirstAlienCiv
+        val t3MilestoneMet = progress.firstT3Completed || isFirstT3
+        val t5MilestoneMet = progress.firstT5Completed || isFirstT5
+
+        // 챕터 N을 빠져나가는 데 필요한 조건 (챕터1→2엔 유적, 2→3엔 외계문명, ...)
+        fun exitMilestoneMet(chapter: Int): Boolean = when (chapter) {
+            1 -> ruinsMilestoneMet
+            2 -> alienCivMilestoneMet
+            3 -> t3MilestoneMet
+            4 -> t5MilestoneMet
+            else -> false
+        }
 
         // ── 챕터 계산 ────────────────────────────────────────────────
-        val newChapter = when {
-            isFirstT5 || progress.firstT5Completed -> 5
-            isFirstT3 || progress.firstT3Completed -> 4
-            isFirstAlienCiv || progress.firstAlienCivCompleted -> 3
-            isFirstRuins || progress.firstRuinsCompleted -> 2
-            else -> 1
-        }
+        // 밀린 마일스톤이 여러 개 쌓여 있어도 한 기록에서 한 챕터만 전진한다.
+        // (이미 밴킹된 뒷 마일스톤들은 앞 챕터가 열릴 때마다 다음 기록들에서 순서대로 소진됨)
+        val isChapterEnding = progress.currentChapter < 5 && exitMilestoneMet(progress.currentChapter)
+        val newChapter = if (isChapterEnding) progress.currentChapter + 1 else progress.currentChapter
 
         val newTotalRecords = progress.totalRecordsCompleted + 1
 
@@ -78,10 +92,10 @@ class GenerateExpeditionReportUseCase @Inject constructor(
             progress.copy(
                 totalRecordsCompleted = newTotalRecords,
                 currentChapter = newChapter,
-                firstRuinsCompleted = progress.firstRuinsCompleted || isFirstRuins,
-                firstAlienCivCompleted = progress.firstAlienCivCompleted || isFirstAlienCiv,
-                firstT3Completed = progress.firstT3Completed || isFirstT3,
-                firstT5Completed = progress.firstT5Completed || isFirstT5
+                firstRuinsCompleted = ruinsMilestoneMet,
+                firstAlienCivCompleted = alienCivMilestoneMet,
+                firstT3Completed = t3MilestoneMet,
+                firstT5Completed = t5MilestoneMet
             )
         )
 

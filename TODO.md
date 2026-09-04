@@ -1,19 +1,120 @@
 # 할 일
 
-## 남은 할 일 요약 (2026-09-03 저녁 갱신)
+## 남은 할 일 요약 (2026-09-04 갱신)
 
 **푸시 상태:** `origin/main` = 로컬(`540158b`). 미푸시 커밋 없음.
 
 **기능·디자인·설명·연출은 마무리됨. 실기기 테스트도 완료.**
 남은 건 전부 **출시 파이프라인**(아래 "출시 전" 섹션):
-- [ ] Cloud Functions 배포 여부 Firebase 콘솔 확인
-- [ ] Play 출시 서명 (keystore + `signingConfigs`) — release 빌드에 아직 없음
-- [ ] release `isMinifyEnabled`(R8) 적용 여부 결정 (현재 `false`)
+- [x] ~~Cloud Functions 배포 확인~~ — **필요 없음으로 확정 (2026-09-04)**. 앱은 클라우드 함수를
+      전혀 안 씀. 모든 알림이 기기 로컬(WorkManager 워커가 `NotificationManager.notify()` 직접).
+      `sendPlanetNotification` + 트리거하던 죽은 코드(`NotificationFirestoreService`,
+      `DogeFirebaseMessagingService`, `firebase-messaging` 의존성, `functions/` 디렉터리,
+      manifest FCM 서비스, `firestore.rules` notifications 블록) 전부 삭제. `compileDebugKotlin` 통과
+- [x] **release 빌드 깨져 있던 것 발견·수정 (2026-09-04)** — `compileReleaseKotlin`이
+      `PlanetScreen.kt:483` `FlowRow(modifier, horizontalArrangement, verticalArrangement)`에서
+      "experimental API" 에러로 실패. 원인: **debug/release가 서로 다른 Compose 버전으로 해석**되고
+      있었음. `lifecycle 2.10.0`(atomic group)이 Compose를 1.9.x로 끌어올리는데, debug는
+      `ui-tooling`(debugImplementation) 때문에 compile classpath도 1.9.x로 정렬되고 release는
+      낡은 BOM(2024.12.01=1.7.6)에 머물러 있었음. 1.7.6엔 그 3-인자 `FlowRow` 안정 오버로드가
+      없음(1.8+에서 안정화). 즉 **그동안 실기기(debug)는 1.9.x로 테스트, release는 1.7.6 헤더로
+      컴파일**되는 불일치 상태였음.
+      → 수정: `composeBom` `2024.12.01` → `2025.09.00`(Compose 1.9.1)로 올려 전 variant 정렬.
+      `compileRelease`/`compileDebug`/`assembleRelease`/`assembleDebug`/`testDebugUnitTest` 전부 통과.
+      material3도 BOM 따라 1.3.x→1.4.x — **release 빌드 실기기 스모크 테스트 필요**
+- [~] Play 출시 서명 — `signingConfigs.release` 추가함(`app/build.gradle.kts`, `local.properties`에
+      값 있을 때만 붙음, `*.jks`/`keystore.properties` gitignore). 남은 것: 유저가 Android Studio
+      마법사(Build → Generate Signed App Bundle)로 `doge-release.jks` 생성 → 서명된 AAB 확인.
+      (커맨드라인도 쓰려면 `local.properties`에 `RELEASE_STORE_FILE`/`_STORE_PASSWORD`/
+      `_KEY_ALIAS`/`_KEY_PASSWORD` 4줄 — 선택)
+- [x] release `isMinifyEnabled`(R8) — **끄는 걸로 확정 (2026-09-04)**. 그대로 `false` 유지.
+      이유: R8 이득(용량 축소·약한 난독화)은 작고, 클라우드 세이브가 kotlinx-serialization
+      기반이라 enum 이름 직렬화 경로가 R8 처리에 따라 조용히 깨질 위험 — 출시 직전 감수할
+      리스크 아님. Firestore 파싱은 전부 수동(`getString`/`getLong`)이라 그쪽 위험은 낮음.
+      나중에 1.0.1에서 `-keepclassmembers class **$$serializer` + enum keep 룰 넣고
+      릴리스 빌드 세이브 왕복 테스트 거쳐 켜기
 - [ ] BGM 앰비언트 루프 **라이선스 정리** — 지금 트랙은 AI 생성물이라 `res/raw/` gitignore.
       정식 라이선스(직접 제작/구매/CC0) 확보 후 gitignore에서 빼고 커밋
 - [ ] 효과음(SFX) — 출시 후 폴리시로 미룸 (강화/탐사 결과는 진동 대체 중)
 
 **선택 (우선순위 미정):** 나머지 화면 ⓘ (강화 성공률 표, 자원별 용도 등)
+
+---
+
+## 스토리 디테일 점검 (2026-09-04, 진행 중)
+
+출시 파이프라인 작업 중 "확인 안 하고 넘어간 스토리 디테일을 점검하자"에서 시작.
+`탐사기록`(챕터 5개 + 기록 제목 풀 + 이벤트) 시스템을 코드로 훑어 문제 5개 정리:
+
+1. **[x] 챕터 스킵 버그 — 수정 완료 (2026-09-04)**. 챕터 진행이 4개 마일스톤(최초 유적/
+   최초 외계문명/최초 T3/최초 T5 성공)을 캐스케이드 `when`으로 계산해서, **T5를 외계문명보다
+   먼저 달성하면 "조우"(챕터3)·"동맹인가 적인가"(챕터4)를 건너뛰고 바로 "미지의 공간"
+   (챕터5)으로 점프**하는 논리적 결함이 있었음. 외계인을 한 번도 안 만났는데 챕터5 타이틀이
+   뜨는 모순.
+   → `GenerateExpeditionReportUseCase`: 마일스톤 달성 여부는 순서 상관없이 그때그때
+   `StoryProgress`에 저장하되, **챕터 전진은 "현재 챕터를 빠져나가는 조건"이 충족될 때만
+   한 챕터씩만** 오르게 변경. 나중 마일스톤을 먼저 밟아도 해당 챕터에 도달하면 다음
+   기록들에서 순서대로(한 기록당 한 챕터) "캐치업"됨 — 스토리 비트를 건너뛰지도, 이미
+   딴 마일스톤을 다시 요구하지도 않음. 단위테스트 3개 추가
+   (`GenerateExpeditionReportUseCaseTest`) — out-of-order 마일스톤 캐치업, 정상 순서 진행,
+   실패한 탐사에서의 캐치업. `compileDebugKotlin` + `testDebugUnitTest` 통과
+
+   **연장 — 탐사 티어(T1~T10) 해금도 사다리식으로 순서 강제 (2026-09-04)**. ①을 고치면서
+   나온 부가 논의: "운 좋게 T5(행성 난이도)가 외계인도 안 나온 초반에 열리는 게 스토리랑
+   밸런스가 안 맞아 보인다"는 지적. 스토리 챕터랑 시스템 자체를 묶진 않기로 하고(순환 의존·
+   소프트락 위험, 방치형에서 스토리를 진행 게이트로 쓰면 답답해짐), 대신 **티어 해금 자체를
+   순서대로만** 열리게 함 — 원래 `TIER_UNLOCK_CONDITIONS`가 티어별로 서로 다른 독립 희귀도
+   조건(T3=커먼1+, T4=커먼3+, T5=언커먼1+, ...)이라 상위 희귀도 행성 하나를 일찍 주우면
+   `T4는 잠긴 채 T5만 먼저 열리는` 구멍이 있었음.
+   → `GameConstants.firstLockedTier(ownedPlanets, maxTier)` 신설 — 1..maxTier를 순서대로
+   훑어 "가장 먼저 막힌 티어"를 반환, 그 이전 티어까지만 열린 것으로 침. 이걸 **3곳**에서
+   공유: `ExploreScreen`의 "다음 해제 목표" 배너(원래도 같은 걸 계산했는데 중복 로직이었음
+   → 공용 함수로 교체) / 티어 선택 버튼(`nextLockedTier` 이전만 클릭 가능. 조건 문구는
+   "바로 다음 목표" 티어에만 표시 — 처음엔 잠긴 티어 전부에 병목 조건을 복사해 보여줬다가
+   "T10까지 커먼 3개+라고 뜨는 게 이상하다"는 지적으로 수정. 조건 하나만 채우면 그 뒤
+   티어까지 다 열리는 것처럼 오해할 수 있어서, 바로 다음 목표에만 조건을 달고 나머진
+   자물쇠만 표시) /
+   **`StartExpeditionUseCase`의 실제 파견 검증**(UI만 막고 서버 검증은 옛날 방식이면 픽커를
+   우회해 파견될 수 있어서 여기도 같이 고침 — 진짜 게이트). 단위테스트 4개 추가
+   (`GameConstantsTierLadderTest`). `compileDebugKotlin`/`compileReleaseKotlin`/
+   `assembleDebug`/`assembleRelease`/`testDebugUnitTest` 전부 통과
+
+   **연장의 연장 — 판정 기준을 "보유 중"에서 "도감 발견 이력"으로 전환 (2026-09-04)**.
+   숫자 자체(커먼1/3, 언커먼1/2/3, 레어/에픽/레전더리 각 1)는 실제 희귀도 드랍표
+   (`PLANET_RARITY_WEIGHTS`, 레어부터는 등급 자체가 T3+/T4+/T5+에서만 나오기 시작해
+   난이도가 이미 확보됨)로 봤을 때 대체로 합리적이라 그대로 둠. 대신 조건 판정 기준이
+   `ownedPlanets`(현재 보유, 매도하면 줄어듦)였던 게 사다리 구조와 만나 더 위험해짐 —
+   행성 하나 팔면 그 티어부터 위로 전부 같이 잠길 수 있음(매도는 정상 플레이인데
+   그것만으로 진행도가 무너지는 셈). 챕터 마일스톤·도감 완성도 다 영구 기록인데 여기만
+   보유 기준인 게 일관성도 없었음.
+   → `GameConstants.firstLockedTier` 파라미터를 `List<Planet>`(보유) → `Set<String>`
+   (`discoveredVariantIds`, 도감 — 매도해도 안 줄어듦)로 교체. `PlanetMetaDataTable.variantRarity`
+   (variantId→등급 맵) 신설. `StartExpeditionUseCase`는 `PlanetRepository` 대신
+   `UserRepository.getDiscoveredVariantIds()` 사용. `ExploreViewModel.discoveredVariantIds`
+   StateFlow 추가 → `ExploreScreen`/`TeamBuilderContent`에 배선(`ownedPlanets` 파라미터를
+   완전히 대체 — 그 쓰임이 티어 판정뿐이었음). 테스트도 variantId 기반으로 갱신 +
+   "발견 후 매도해도 안 잠긴다" 케이스 추가(총 5개). 전부 통과
+
+   **연장 3 — "낮은 티어만 돌면 레어 이상 절대 안 나온다"는 걸 몰랐을 수 있어서 안내 추가
+   (2026-09-04)**. "아무것도 모르고 T2에서 계속 행성만 탐사하면 어떡하냐"는 지적 —
+   `PLANET_RARITY_WEIGHTS`상 RARE/EPIC/LEGENDARY는 각각 T3/T4/T5 미만에서는 확률표에
+   아예 없어 절대 못 만남. 새 ⓘ 팝업 대신 "탐사 지역 (티어)" 섹션 바로 아래 상시 노출
+   캡션 한 줄 추가("티어가 높을수록 더 희귀한 행성이 나와요. RARE는 T3, EPIC은 T4,
+   LEGENDARY는 T5부터...") — 기존 "탐사 안내" ⓘ에 중복으로 안 넣은 이유는 결정이
+   필요한 그 지점(티어 피커)에서 바로 보여야 효과적이고, 탭 안 해도 보이는 게
+   ⓘ보다 나아서(과거 "InfoDialog가 커버하니 중복" 판단과 같은 원칙 — 이미 보이는 곳에
+   중복 설명 안 넣음)
+2. **[ ] 스토리 완주(엔딩) 지점이 없음** — 스펙 문서(002)엔 "도감 완성 + 스토리 완주"가
+   핵심 목표라고 적혀 있는데, 챕터5 "미지의 공간"이 사실상 끝. 8개 기록 제목이 무한
+   순환할 뿐 "완주했다"는 걸 알리는 지점이 코드에 없음. 설계 필요
+3. **[ ] 기록 제목이 실제 탐사 내용과 무관** — 제목은 "챕터+순번"으로만 정해져서 지금
+   탐사 카테고리·이벤트와 안 맞을 수 있음(예: 광물 채굴인데 외계인 관련 문구가 뜸)
+4. **[ ] 챕터당 기록 제목 8개 고정 순환** — 오래 플레이하면 정확히 8기록마다 문장이
+   토씨 하나 안 틀리고 반복됨
+5. **[ ] 이벤트 풀이 챕터와 무관** — 챕터5(외계 문명과 이미 얽힌 시점)에서도 챕터1급
+   "이상한 결정체 발견" 같은 초반 톤 이벤트가 그대로 나올 수 있음
+
+2~5번은 설계 선택 영역이라 우선순위·범위 정하고 진행 예정.
 
 ### 2026-09-03 저녁 완료 (커밋 `2709c82`·`11e32d3`, 실기기 확인·푸시 완료)
 - [x] 연구소 카드 "현재 → 다음 연구 결과" 미리보기 (천체 분석/인사 관리/우주 공학)
@@ -74,9 +175,9 @@
 - [x] 미푸시 커밋 2개 push (2026-09-03, `3427fa3`/`c417e56` 포함 `b9fad21`까지 push 완료)
 
 ### 출시 전 (기능·디자인 마무리 후, 아래 "출시 전 확인 필요" 섹션)
-- [ ] Cloud Functions 배포 여부 콘솔 확인
-- [ ] Play 출시 서명(keystore + `signingConfigs`)
-- [ ] release `isMinifyEnabled`(R8) 결정
+- [x] ~~Cloud Functions 배포~~ — 안 쓰는 게 확정, 관련 죽은 코드 전부 삭제 (2026-09-04). 위 요약 참고
+- [~] Play 출시 서명 — `signingConfigs.release` 배선 완료(2026-09-04), keystore 생성 + local.properties만 남음
+- [x] release `isMinifyEnabled`(R8) — 끄는 걸로 확정 (2026-09-04). 상세는 위 요약 참고
 - [ ] 효과음(SFX) — 출시 후 폴리시로 내림. 강화/탐사 결과는 진동으로 대체 중
 - [ ] BGM 앰비언트 루프 라이선스 정리 — 지금 트랙은 AI 생성물이라 레포에 안 올림
       (`res/raw/` 통째로 `.gitignore`). 정식 라이선스(직접 제작/구매/CC0) 확보하면 gitignore에서

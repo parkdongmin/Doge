@@ -70,6 +70,7 @@ fun ExploreScreen(
     val activeExpeditions by viewModel.activeExpeditions.collectAsState()
     val researchLab by viewModel.researchLab.collectAsState()
     val ownedPlanets by viewModel.ownedPlanets.collectAsState()
+    val discoveredVariantIds by viewModel.discoveredVariantIds.collectAsState()
     val astronauts by viewModel.astronauts.collectAsState()
     val spaceships by viewModel.spaceships.collectAsState()
     val busyShipIds by viewModel.busyShipIds.collectAsState()
@@ -173,7 +174,7 @@ fun ExploreScreen(
             TeamBuilderContent(
                 uiState = uiState,
                 researchLab = researchLab,
-                ownedPlanets = ownedPlanets,
+                discoveredVariantIds = discoveredVariantIds,
                 astronauts = astronauts,
                 spaceships = spaceships,
                 busyShipIds = busyShipIdsSnapshot,
@@ -663,7 +664,7 @@ private fun ActivityDots(color: Color, modifier: Modifier = Modifier) {
 private fun TeamBuilderContent(
     uiState: ExploreUiState,
     researchLab: ResearchLab,
-    ownedPlanets: List<com.doge.simulator.domain.model.Planet>,
+    discoveredVariantIds: Set<String>,
     astronauts: List<com.doge.simulator.domain.model.Astronaut>,
     spaceships: List<Spaceship>,
     busyShipIds: Set<String> = emptySet(),
@@ -706,19 +707,15 @@ private fun TeamBuilderContent(
         Spacer(modifier = Modifier.height(Spacing.md))
 
         // ── 다음 해제 목표 배너 ────────────────────────────────────────
-        val nextLockedTier = (1..10).firstOrNull { tier ->
-            val cond = GameConstants.TIER_UNLOCK_CONDITIONS[tier] ?: return@firstOrNull false
-            val count = ownedPlanets.count { planet ->
-                val meta = PlanetMetaDataTable.data[planet.type]
-                meta != null && meta.rarity.ordinal >= cond.requiredRarity.ordinal
-            }
-            count < cond.requiredCount
-        }
+        // 사다리 순서상 가장 먼저 막힌 티어(GameConstants.firstLockedTier) — 티어 선택
+        // 잠금·실제 파견 검증(StartExpeditionUseCase)과 같은 기준을 쓴다. 도감 발견 이력
+        // 기준이라 매도해도 이 진행도는 줄지 않는다
+        val nextLockedTier = GameConstants.firstLockedTier(discoveredVariantIds)
         if (nextLockedTier != null) {
             val cond = GameConstants.TIER_UNLOCK_CONDITIONS[nextLockedTier]!!
-            val currentCount = ownedPlanets.count { planet ->
-                val meta = PlanetMetaDataTable.data[planet.type]
-                meta != null && meta.rarity.ordinal >= cond.requiredRarity.ordinal
+            val currentCount = discoveredVariantIds.count { variantId ->
+                val rarity = PlanetMetaDataTable.variantRarity[variantId]
+                rarity != null && rarity.ordinal >= cond.requiredRarity.ordinal
             }
             val locationName = GameConstants.TIER_LABELS[nextLockedTier] ?: "T$nextLockedTier"
             Surface(
@@ -827,17 +824,26 @@ private fun TeamBuilderContent(
 
         Spacer(modifier = Modifier.height(Spacing.lg))
         SectionLabel("탐사 지역 (티어)")
+        Spacer(modifier = Modifier.height(Spacing.xxs))
+        // 낮은 티어만 반복하면 RARE 이상은 확률표에 아예 없어서 영영 못 만난다는 걸
+        // 모르고 계속 T1~T2만 돌 수 있어 추가한 안내 (2026-09-04)
+        Text(
+            "티어가 높을수록 더 희귀한 행성이 나와요. RARE는 T3, EPIC은 T4, LEGENDARY는 T5부터 나오기 시작해요.",
+            color = TextSecondary,
+            style = MaterialTheme.typography.labelSmall
+        )
         Spacer(modifier = Modifier.height(Spacing.sm))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             items((1..10).toList()) { tier ->
-                val condition = GameConstants.TIER_UNLOCK_CONDITIONS[tier]
-                val isUnlocked = condition == null || run {
-                    val count = ownedPlanets.count { planet ->
-                        val meta = PlanetMetaDataTable.data[planet.type]
-                        meta != null && meta.rarity.ordinal >= condition.requiredRarity.ordinal
-                    }
-                    count >= condition.requiredCount
-                }
+                // 사다리 방식: nextLockedTier(가장 먼저 막힌 티어) 앞쪽만 실제로 열려 있다.
+                // 운 좋게 상위 희귀도 행성을 하나 일찍 주워도(예: 언커먼 1개 → T5 자체 조건은
+                // 충족) 그 앞의 T4가 안 열려 있으면 T5도 잠긴 채로 유지된다.
+                val isUnlocked = nextLockedTier == null || tier < nextLockedTier
+                // 조건 문구는 "바로 다음 목표" 티어에만 보여준다. 그 뒤 티어(T6, T7...)까지
+                // 전부 같은 문구(예: T4 조건)를 반복하면 "이것만 채우면 다 열린다"는 오해를
+                // 준다 — 실제론 한 단계씩 더 있어서다. 위쪽 "다음 해제 목표" 배너가 이미
+                // 지금 할 일을 알려주므로 나머지 잠긴 티어는 자물쇠만 표시한다
+                val condition = if (tier == nextLockedTier) GameConstants.TIER_UNLOCK_CONDITIONS[tier] else null
                 val selected = uiState.selectedTier == tier && isUnlocked
                 Surface(
                     modifier = Modifier.clickable(enabled = isUnlocked) { onSelectTier(tier) },

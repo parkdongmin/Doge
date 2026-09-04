@@ -104,6 +104,10 @@ class ExploreViewModel @Inject constructor(
     val ownedPlanets = getOwnedPlanetsUseCase()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    // 티어 해금 판정용 — 매도해도 안 줄어드는 영구 발견 기록(도감)
+    val discoveredVariantIds = userRepository.getDiscoveredVariantIds()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
     val astronauts = getAstronautsUseCase()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
