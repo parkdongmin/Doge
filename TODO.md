@@ -1,47 +1,28 @@
 # 할 일
 
-## 남은 할 일 요약 (2026-09-04 갱신)
+## 남은 할 일 요약 (2026-09-05 갱신)
 
-**푸시 상태:** `origin/main` = 로컬(`540158b`). 미푸시 커밋 없음.
+**푸시 상태:** `origin/main` = 로컬(`5207906`). 미푸시 커밋 없음.
 
-**기능·디자인·설명·연출은 마무리됨. 실기기 테스트도 완료.**
-남은 건 전부 **출시 파이프라인**(아래 "출시 전" 섹션):
-- [x] ~~Cloud Functions 배포 확인~~ — **필요 없음으로 확정 (2026-09-04)**. 앱은 클라우드 함수를
-      전혀 안 씀. 모든 알림이 기기 로컬(WorkManager 워커가 `NotificationManager.notify()` 직접).
-      `sendPlanetNotification` + 트리거하던 죽은 코드(`NotificationFirestoreService`,
-      `DogeFirebaseMessagingService`, `firebase-messaging` 의존성, `functions/` 디렉터리,
-      manifest FCM 서비스, `firestore.rules` notifications 블록) 전부 삭제. `compileDebugKotlin` 통과
-- [x] **release 빌드 깨져 있던 것 발견·수정 (2026-09-04)** — `compileReleaseKotlin`이
-      `PlanetScreen.kt:483` `FlowRow(modifier, horizontalArrangement, verticalArrangement)`에서
-      "experimental API" 에러로 실패. 원인: **debug/release가 서로 다른 Compose 버전으로 해석**되고
-      있었음. `lifecycle 2.10.0`(atomic group)이 Compose를 1.9.x로 끌어올리는데, debug는
-      `ui-tooling`(debugImplementation) 때문에 compile classpath도 1.9.x로 정렬되고 release는
-      낡은 BOM(2024.12.01=1.7.6)에 머물러 있었음. 1.7.6엔 그 3-인자 `FlowRow` 안정 오버로드가
-      없음(1.8+에서 안정화). 즉 **그동안 실기기(debug)는 1.9.x로 테스트, release는 1.7.6 헤더로
-      컴파일**되는 불일치 상태였음.
-      → 수정: `composeBom` `2024.12.01` → `2025.09.00`(Compose 1.9.1)로 올려 전 variant 정렬.
-      `compileRelease`/`compileDebug`/`assembleRelease`/`assembleDebug`/`testDebugUnitTest` 전부 통과.
-      material3도 BOM 따라 1.3.x→1.4.x — **release 빌드 실기기 스모크 테스트 필요**
-- [~] Play 출시 서명 — `signingConfigs.release` 추가함(`app/build.gradle.kts`, `local.properties`에
-      값 있을 때만 붙음, `*.jks`/`keystore.properties` gitignore). 남은 것: 유저가 Android Studio
-      마법사(Build → Generate Signed App Bundle)로 `doge-release.jks` 생성 → 서명된 AAB 확인.
-      (커맨드라인도 쓰려면 `local.properties`에 `RELEASE_STORE_FILE`/`_STORE_PASSWORD`/
-      `_KEY_ALIAS`/`_KEY_PASSWORD` 4줄 — 선택)
-- [x] release `isMinifyEnabled`(R8) — **끄는 걸로 확정 (2026-09-04)**. 그대로 `false` 유지.
-      이유: R8 이득(용량 축소·약한 난독화)은 작고, 클라우드 세이브가 kotlinx-serialization
-      기반이라 enum 이름 직렬화 경로가 R8 처리에 따라 조용히 깨질 위험 — 출시 직전 감수할
-      리스크 아님. Firestore 파싱은 전부 수동(`getString`/`getLong`)이라 그쪽 위험은 낮음.
-      나중에 1.0.1에서 `-keepclassmembers class **$$serializer` + enum keep 룰 넣고
-      릴리스 빌드 세이브 왕복 테스트 거쳐 켜기
+**기능·디자인·설명·연출·스토리·전체 일관성 점검 전부 마무리됨.**
+남은 건 실기기 확인 1개 + 완전 외부 대기 2개뿐:
+
+- [x] ~~Cloud Functions 배포 확인~~ — 불필요 확정, 관련 죽은 코드 삭제 완료 (2026-09-04)
+- [x] release 빌드 깨져 있던 Compose 버전 불일치 버그 발견·수정 완료 (2026-09-04)
+- [x] release `isMinifyEnabled`(R8) — 끄는 걸로 확정 (2026-09-04)
+- [x] **Play 출시 서명 — 완료 (2026-09-05)**. `signingConfigs.release` 배선 +
+      Android Studio 마법사로 `doge-release.jks` 생성 → 서명된 `app-release.aab` 산출 확인함.
+      - [ ] **남은 것: 이 AAB(코드 여러 번 바뀐 뒤 최신본)로 실기기 스모크 테스트** — 특히
+        도감 탭(FlowRow 버그 있던 곳), 탐사 탭 티어 선택(사다리 해금), 연구소(미리보기 문구)
 - [ ] BGM 앰비언트 루프 **라이선스 정리** — 지금 트랙은 AI 생성물이라 `res/raw/` gitignore.
-      정식 라이선스(직접 제작/구매/CC0) 확보 후 gitignore에서 빼고 커밋
-- [ ] 효과음(SFX) — 출시 후 폴리시로 미룸 (강화/탐사 결과는 진동 대체 중)
+      정식 라이선스(직접 제작/구매/CC0) 확보 후 gitignore에서 빼고 커밋 — **외부 리소스 대기**
+- [ ] 효과음(SFX) — 출시 후 폴리시로 미룸 — **의도적 보류**
 
 **선택 (우선순위 미정):** 나머지 화면 ⓘ (강화 성공률 표, 자원별 용도 등)
 
 ---
 
-## 스토리 디테일 점검 (2026-09-04, 진행 중)
+## 스토리 디테일 점검 (2026-09-04~05, 완료)
 
 출시 파이프라인 작업 중 "확인 안 하고 넘어간 스토리 디테일을 점검하자"에서 시작.
 `탐사기록`(챕터 5개 + 기록 제목 풀 + 이벤트) 시스템을 코드로 훑어 문제 5개 정리:
@@ -282,7 +263,9 @@
 
 ### 출시 전 (기능·디자인 마무리 후, 아래 "출시 전 확인 필요" 섹션)
 - [x] ~~Cloud Functions 배포~~ — 안 쓰는 게 확정, 관련 죽은 코드 전부 삭제 (2026-09-04). 위 요약 참고
-- [~] Play 출시 서명 — `signingConfigs.release` 배선 완료(2026-09-04), keystore 생성 + local.properties만 남음
+- [x] Play 출시 서명 — 완료(2026-09-05). `signingConfigs.release` 배선 + keystore 생성 +
+      Android Studio 마법사로 서명된 `app-release.aab` 산출 확인. 남은 건 이 AAB로 실기기
+      스모크 테스트(위 요약 참고)
 - [x] release `isMinifyEnabled`(R8) — 끄는 걸로 확정 (2026-09-04). 상세는 위 요약 참고
 - [ ] 효과음(SFX) — 출시 후 폴리시로 내림. 강화/탐사 결과는 진동으로 대체 중
 - [ ] BGM 앰비언트 루프 라이선스 정리 — 지금 트랙은 AI 생성물이라 레포에 안 올림
