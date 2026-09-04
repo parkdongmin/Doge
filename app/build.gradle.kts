@@ -49,9 +49,30 @@ android {
         manifestPlaceholders["admobAppId"] = "ca-app-pub-3940256099942544~3347511713"
     }
 
+    signingConfigs {
+        // 출시 서명 값은 local.properties에 둔다 (다른 비밀값과 동일 방식, VCS 제외).
+        //   RELEASE_STORE_FILE=../doge-release.jks       (rootProject 기준 상대경로 또는 절대경로)
+        //   RELEASE_STORE_PASSWORD=...
+        //   RELEASE_KEY_ALIAS=...
+        //   RELEASE_KEY_PASSWORD=...
+        val releaseStoreFile = localProps.getProperty("RELEASE_STORE_FILE")
+        if (releaseStoreFile != null) {
+            create("release") {
+                storeFile = rootProject.file(releaseStoreFile)
+                storePassword = localProps.getProperty("RELEASE_STORE_PASSWORD")
+                keyAlias = localProps.getProperty("RELEASE_KEY_ALIAS")
+                keyPassword = localProps.getProperty("RELEASE_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+
+            // local.properties에 서명 값이 있을 때만 release 서명을 붙인다.
+            // 없으면 서명 안 된 산출물이 나오고 빌드는 계속 통과한다.
+            signingConfigs.findByName("release")?.let { signingConfig = it }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -133,7 +154,6 @@ dependencies {
 
     // Firebase
     implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.messaging)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.storage)
     implementation(libs.firebase.auth)

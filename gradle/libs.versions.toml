@@ -5,7 +5,7 @@ espressoCore = "3.7.0"
 lifecycleRuntimeKtx = "2.10.0"
 agp = "8.6.0"
 kotlin = "2.0.0"
-composeBom = "2024.12.01"
+composeBom = "2025.09.00"
 coreKtx = "1.13.1"
 activityCompose = "1.9.0"
 lifecycle = "2.8.4"
@@ -56,7 +56,6 @@ lifecycle-process = { group = "androidx.lifecycle", name = "lifecycle-process", 
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebase-bom" }
-firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging-ktx" }
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore-ktx" }
 firebase-storage = { group = "com.google.firebase", name = "firebase-storage-ktx" }
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth-ktx" }

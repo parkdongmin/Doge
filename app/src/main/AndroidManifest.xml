@@ -45,7 +45,7 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- FCM 딥링크: doge://planet/{id}, doge://feed, doge://asset -->
+            <!-- 알림 탭 딥링크: doge://planet, doge://feed, doge://asset -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -53,15 +53,6 @@
                 <data android:scheme="doge" />
             </intent-filter>
         </activity>
-
-        <!-- FCM 메시지 수신 서비스 (포그라운드 알림 처리) -->
-        <service
-            android:name=".firebase.DogeFirebaseMessagingService"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT" />
-            </intent-filter>
-        </service>
     </application>
 
 </manifest>

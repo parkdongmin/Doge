@@ -17,5 +17,14 @@
 local.properties
 .claude/settings.local.json
 
+# 출시 서명 키스토어 — 절대 커밋 금지
+*.jks
+*.keystore
+/keystore.properties
+
+# Android Studio "서명된 번들/APK 생성" 마법사 산출물 (app/build/ 밖에 따로 생김)
+*.aab
+/app/release/
+
 # BGM/사운드 에셋 — 라이선스 정리 전까지 레포에 안 올림 (로컬 빌드에만 존재)
 /app/src/main/res/raw/
