@@ -82,7 +82,9 @@ class StoryRepositoryImpl @Inject constructor(
         firstRuinsCompleted = firstRuinsCompleted,
         firstAlienCivCompleted = firstAlienCivCompleted,
         firstT3Completed = firstT3Completed,
-        firstT5Completed = firstT5Completed
+        firstT5Completed = firstT5Completed,
+        firstT10Completed = firstT10Completed,
+        storyCompleted = storyCompleted
     )
 
     private fun StoryProgress.toEntity() = StoryProgressEntity(
@@ -91,7 +93,9 @@ class StoryRepositoryImpl @Inject constructor(
         firstRuinsCompleted = firstRuinsCompleted,
         firstAlienCivCompleted = firstAlienCivCompleted,
         firstT3Completed = firstT3Completed,
-        firstT5Completed = firstT5Completed
+        firstT5Completed = firstT5Completed,
+        firstT10Completed = firstT10Completed,
+        storyCompleted = storyCompleted
     )
 
     private fun ExpeditionReportEntity.toDomain(events: List<StoryEventEntity>) = ExpeditionReport(
@@ -101,6 +105,7 @@ class StoryRepositoryImpl @Inject constructor(
         chapterTitle = chapterTitle,
         recordTitle = recordTitle,
         isChapterEnding = isChapterEnding,
+        isStoryEnding = isStoryEnding,
         events = events.map { it.toDomain() },
         isRead = isRead,
         completedAt = completedAt
@@ -113,6 +118,7 @@ class StoryRepositoryImpl @Inject constructor(
         chapterTitle = chapterTitle,
         recordTitle = recordTitle,
         isChapterEnding = isChapterEnding,
+        isStoryEnding = isStoryEnding,
         isRead = isRead,
         completedAt = completedAt
     )

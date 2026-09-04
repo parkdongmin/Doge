@@ -13,5 +13,7 @@ data class StoryProgressEntity(
     val firstRuinsCompleted: Boolean = false,
     val firstAlienCivCompleted: Boolean = false,
     val firstT3Completed: Boolean = false,
-    val firstT5Completed: Boolean = false
+    val firstT5Completed: Boolean = false,
+    val firstT10Completed: Boolean = false,
+    val storyCompleted: Boolean = false
 )

@@ -36,11 +36,15 @@ class GenerateExpeditionReportUseCase @Inject constructor(
                 expedition.category == ExpeditionCategory.ALIEN_CIVILIZATION && isSuccess
         val isFirstT3 = !progress.firstT3Completed && expedition.tier >= 3 && isSuccess
         val isFirstT5 = !progress.firstT5Completed && expedition.tier >= 5 && isSuccess
+        // 챕터5("미지의 공간")를 빠져나가는 조건 = 최초 T10 달성. 챕터6은 없어서 이 마일스톤은
+        // 챕터를 더 못 올리고, 대신 "완주" 기록 한 번을 트리거하는 데만 쓰인다(아래 참고)
+        val isFirstT10 = !progress.firstT10Completed && expedition.tier >= 10 && isSuccess
 
         val ruinsMilestoneMet = progress.firstRuinsCompleted || isFirstRuins
         val alienCivMilestoneMet = progress.firstAlienCivCompleted || isFirstAlienCiv
         val t3MilestoneMet = progress.firstT3Completed || isFirstT3
         val t5MilestoneMet = progress.firstT5Completed || isFirstT5
+        val t10MilestoneMet = progress.firstT10Completed || isFirstT10
 
         // 챕터 N을 빠져나가는 데 필요한 조건 (챕터1→2엔 유적, 2→3엔 외계문명, ...)
         fun exitMilestoneMet(chapter: Int): Boolean = when (chapter) {
@@ -48,25 +52,35 @@ class GenerateExpeditionReportUseCase @Inject constructor(
             2 -> alienCivMilestoneMet
             3 -> t3MilestoneMet
             4 -> t5MilestoneMet
+            5 -> t10MilestoneMet
             else -> false
         }
 
         // ── 챕터 계산 ────────────────────────────────────────────────
         // 밀린 마일스톤이 여러 개 쌓여 있어도 한 기록에서 한 챕터만 전진한다.
         // (이미 밴킹된 뒷 마일스톤들은 앞 챕터가 열릴 때마다 다음 기록들에서 순서대로 소진됨)
+        // 챕터5는 그 뒤가 없어 여기서는 전진시키지 않고, 대신 바로 아래 "완주" 트리거로 처리한다
         val isChapterEnding = progress.currentChapter < 5 && exitMilestoneMet(progress.currentChapter)
         val newChapter = if (isChapterEnding) progress.currentChapter + 1 else progress.currentChapter
+
+        // ── 스토리 완주 ──────────────────────────────────────────────
+        // 챕터5에 이미 도달해 있고 T10 마일스톤이 이번(혹은 예전에) 충족됐는데 아직
+        // 완주 처리를 안 한 경우 — 딱 한 번만 "완주" 기록으로 표시한다
+        val triggersEnding = !progress.storyCompleted && progress.currentChapter == 5 && exitMilestoneMet(5)
+        val newStoryCompleted = progress.storyCompleted || triggersEnding
 
         val newTotalRecords = progress.totalRecordsCompleted + 1
 
         // ── 기록 제목 선정 ───────────────────────────────────────────
-        val recordTitle = if (isChapterEnding) {
-            StoryContent.chapterEndingTitles[progress.currentChapter]
+        val recordTitle = when {
+            triggersEnding -> StoryContent.storyEndingTitle
+            isChapterEnding -> StoryContent.chapterEndingTitles[progress.currentChapter]
                 ?: "미지의 공간으로 한 발짝 더 나아갔다"
-        } else {
-            val pool = StoryContent.recordTitlePool[newChapter] ?: emptyList()
-            val indexWithinChapter = (newTotalRecords - 1) % pool.size.coerceAtLeast(1)
-            pool.getOrNull(indexWithinChapter) ?: "탐사가 완료됐다"
+            else -> {
+                val pool = StoryContent.recordTitlePool[newChapter] ?: emptyList()
+                val indexWithinChapter = (newTotalRecords - 1) % pool.size.coerceAtLeast(1)
+                pool.getOrNull(indexWithinChapter) ?: "탐사가 완료됐다"
+            }
         }
 
         // ── 이벤트 생성 ──────────────────────────────────────────────
@@ -77,9 +91,16 @@ class GenerateExpeditionReportUseCase @Inject constructor(
             val chance = eventChance(durationMs)
             val maxEvents = if (durationMs >= 8 * 60 * 60 * 1000L) 2 else 1
 
+            // 챕터5(미지의 공간, 외계 문명 조우 이후)에 들어서면 지금 뭘 탐사하든
+            // 카테고리별 초반 톤 이벤트 대신 챕터5 전용 풀로 완전히 교체한다
             repeat(maxEvents) {
                 if (Random.nextFloat() < chance) {
-                    StoryContent.randomEvent(expedition.category, expedition.id)?.let { events.add(it) }
+                    val event = if (newChapter >= 5) {
+                        StoryContent.randomChapter5Event(expedition.id)
+                    } else {
+                        StoryContent.randomEvent(expedition.category, expedition.id)
+                    }
+                    event?.let { events.add(it) }
                 }
             }
 
@@ -95,7 +116,9 @@ class GenerateExpeditionReportUseCase @Inject constructor(
                 firstRuinsCompleted = ruinsMilestoneMet,
                 firstAlienCivCompleted = alienCivMilestoneMet,
                 firstT3Completed = t3MilestoneMet,
-                firstT5Completed = t5MilestoneMet
+                firstT5Completed = t5MilestoneMet,
+                firstT10Completed = t10MilestoneMet,
+                storyCompleted = newStoryCompleted
             )
         )
 
@@ -106,6 +129,7 @@ class GenerateExpeditionReportUseCase @Inject constructor(
             chapterTitle = StoryProgress(currentChapter = newChapter).chapterTitle,
             recordTitle = recordTitle,
             isChapterEnding = isChapterEnding,
+            isStoryEnding = triggersEnding,
             events = events,
             isRead = false,
             completedAt = System.currentTimeMillis()

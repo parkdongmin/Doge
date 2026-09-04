@@ -14,9 +14,19 @@ object StoryContent {
             "알 수 없는 주파수가 잡혔다. 패턴이 있다",
             "기지 터에서 타 버린 장비들. 누가, 왜?",
             "행성 표면에 거대한 선형 구조물이 있다",
-            "센서가 이상한 반응을 보였다. 일시적인 오류다",
+            // 화성 궤도 통과 시점 — 엔딩의 복선. 그때는 그냥 넘겼던 반응이었다는 게 나중에 회수됨
+            "화성 궤도를 지날 때 센서가 이상 반응을 보였다. 대수롭지 않게 넘겼다",
             "보급품 일부가 사라졌다. 대원들은 모두 부인한다",
-            "귀환 도중 통신이 잠시 끊겼다. 이유를 모른다"
+            "귀환 도중 통신이 잠시 끊겼다. 이유를 모른다",
+            // 2026-09-04 추가 (초안 — 검토 필요)
+            "낡은 궤도 위성이 여전히 신호를 보내고 있었다. 발신 목적은 불명",
+            "얼음 표면 아래 인공적으로 보이는 균열 패턴을 발견했다",
+            "탐사 기록에 우리가 남기지 않은 좌표가 하나 더 있었다",
+            "동면 중인 대원이 며칠째 같은 꿈을 꾼다고 말했다",
+            "같은 항로를 두 번 지났는데 풍경이 미묘하게 달라져 있었다",
+            "무전기에서 정체불명의 카운트다운이 들렸다. 끝나기 전에 꺼버렸다",
+            "탐사 기록 보관함 하나가 잠겨 있었다. 열쇠는 아무도 갖고 있지 않다",
+            "밤하늘의 별자리가 지도와 미세하게 어긋나 있었다"
         ),
         2 to listOf(
             "그 주파수가 다시 잡혔다. 더 강해졌다",
@@ -26,48 +36,104 @@ object StoryContent {
             "대원 한 명이 며칠째 조용하다",
             "같은 행성에서 같은 신호가 두 번 잡혔다",
             "신호가 우리를 향해 방향을 바꿨다",
-            "유적 속 장치가 우리 접근에 반응했다"
+            "유적 속 장치가 우리 접근에 반응했다",
+            // 2026-09-04 추가 (초안 — 검토 필요)
+            "해독된 문자 중 일부가 우리 숫자 체계와 겹쳤다",
+            "신호 발신원 주변에서만 자기장이 흐트러졌다",
+            "유적 벽화 하나가 우리 탐사선의 항로와 똑같았다",
+            "신호를 끄려 하자 주파수가 세 배로 커졌다",
+            "오래된 유적인데 먼지가 거의 쌓여있지 않았다",
+            "다른 탐사팀 채널에서도 같은 신호가 잡혔다는 보고가 왔다",
+            "구조물 중심부에 사람 크기의 빈 공간이 있었다. 무언가 있던 자리처럼",
+            "신호 패턴을 거꾸로 재생하자 우리 언어의 조각이 섞여 있었다"
         ),
         3 to listOf(
-            "그림자가 보였다. 우주복 형태였다",
+            // 조우 — 사람이 아니다. 그들도 우리처럼 우주를 표류하며 행성 탐사로
+            // 자원을 모아 생존하는 처지(정복욕이 없는 이유). 말은 안 통해도
+            // "고향으로 돌아가고 싶다"는 마음만은 서로 읽힘. 실제 소통(숫자·좌표)은
+            // 챕터4에서 본격적으로 쌓인다 — 여기선 감정적 신뢰만 트임
+            "그림자가 보였다. 사람의 형태가 아니었다",
             "통신을 시도했다. 응답이 없다",
             "그들이 먼저 접근해왔다. 무기는 없었다",
             "언어는 달랐지만, 의도는 읽혔다",
             "교환을 제안해왔다. 뭘 원하는지 몰랐다",
             "같은 별을 바라보고 있었다. 우연이 아닐 수 있다",
             "대원 한 명이 그들을 따라가려 했다",
-            "그들은 우리 기술에 전혀 관심이 없었다"
+            "그들은 우리 기술에 전혀 관심이 없었다",
+            // 2026-09-04 개정 (초안 — 검토 필요)
+            "그들의 우주선도 여기저기 급조해 고친 흔적투성이였다. 우리처럼",
+            "손짓 하나로 대화가 절반은 통했다. 나머지 절반은 여전히 미궁",
+            "숫자를 세는 듯한 몸짓을 반복했다. 뭔가를 맞춰보려는 것 같았다",
+            "경계 태세를 풀자 그들도 똑같이 풀었다",
+            "선물이라며 건넨 물건은 우리 우주선 부품과 비슷한 합금이었다",
+            "그들도 누군가를 기다리는 듯 자꾸 하늘을 올려다봤다",
+            "정복도, 지배도 아니었다. 그들이 원한 건 그저 생존이었다",
+            "헤어지기 직전, 그들의 몸짓이 처음으로 편안해 보였다"
         ),
         4 to listOf(
-            "그들의 행성에 초대받았다",
-            "우리가 모르는 기술이 있었다",
-            "무언가를 요구하고 있다",
+            // 동맹인가, 적인가 — 실제론 적대가 아니라 "말이 안 통해서 생기는 오해"와
+            // 그걸 뚫고 자라는 신뢰. 핵심 줄기: 숫자 → 같은 별의 깜빡임 주기로 시간
+            // 단위 맞추기(펄서 주기 — 실제 보이저 금박판에도 쓰인 우주 공통 기준) →
+            // 좌표계 대조 → 공동 제작 지도 완성 → 각자 고향 방향으로 작별.
+            // "돌아오지 않은 대원"은 사실 그들과 가장 깊이 통하게 된 다리 역할로 귀환
+            "그들의 임시 거처에 초대받았다",
+            "우리가 모르는 생존 기술이 있었다",
+            "그들이 뭔가 도움을 요청하고 있었다",
             "대원 한 명이 돌아오지 않았다",
-            "협상 테이블이 만들어졌다",
+            "숫자를 하나씩 맞춰가며 대화를 시도했다",
             "그들이 먼저 선물을 보내왔다",
-            "우리 중 누군가와 이미 접촉했다는 증거가 있다",
-            "침묵이 이어졌다. 서로 기다리고 있다"
+            "돌아오지 않았던 대원이, 그들과 함께 걸어서 돌아왔다",
+            "침묵이 이어졌다. 서로 기다리고 있다",
+            // 2026-09-04 개정 (초안 — 검토 필요)
+            "그 대원이 그들과 손짓만으로 숫자를 주고받고 있었다",
+            "같은 별의 깜빡이는 주기를 짚어가며 시간 단위를 맞췄다",
+            "숫자와 별의 주기로, 서로의 위치를 그려보기 시작했다",
+            "며칠째, 서로의 항법 자료를 맞춰보는 작업이 이어졌다",
+            "마침내 두 좌표계가 하나의 지도 위에서 겹쳐졌다",
+            "지도는 완성됐다. 이제 각자, 고향이라 믿는 방향으로",
+            "떠나기 전, 그들이 마지막으로 우리 쪽을 오래 바라봤다",
+            "같은 우주를 향해, 서로 다른 방향으로 흩어졌다"
         ),
         5 to listOf(
-            "지도에 없는 성계로 신호가 이어진다",
-            "그곳엔 행성이 없다. 무언가가 행성을 지웠다",
-            "고대 유물에서 같은 문자를 발견했다",
-            "진실에 가까워질수록 대원들이 불안해한다",
-            "빛이 없는 곳에서 뭔가가 움직였다",
+            // 미지의 공간 — 함께 만든 지도를 따라갔지만 거기엔 아무것도 없다(첫 반전).
+            // 연료·희망이 바닥나는 절망 구간 → 포기하려는 순간 오래된 신호 재포착 →
+            // 챕터1의 "화성 궤도 오류"를 떠올리는 회수 구간 → 엔딩(storyEndingTitle)으로 이어짐
+            "함께 만든 지도를 따라, 가장 먼 곳까지 나아갔다",
+            "우리가 계산한 좌표엔, 그저 텅 빈 우주뿐이었다",
+            "다시 계산해도 결과는 같았다. 여기가 맞는데, 아무것도 없다",
+            "고대 유물에서 낯익은 문자를 또 발견했다. 그들의 흔적일지도 모른다",
+            "연료 게이지가 처음으로 절반 밑으로 떨어졌다",
             "귀환 시간이 계산과 맞지 않는다",
-            "우주의 크기가 우리가 알던 것과 다를 수 있다",
+            "누구도 입 밖에 내지 않았지만, 모두 같은 생각을 하고 있었다",
+            "며칠째, 누구도 농담을 하지 않았다",
+            // 2026-09-04 개정 (초안 — 검토 필요)
+            "포기하려던 순간, 오래되고 희미한 신호 하나가 다시 잡혔다",
+            "신호는 미약했지만, 분명 어딘가에서 반복해서 보내오고 있었다",
+            "문득 떠올랐다 — 태양계를 떠나던 날, '오류'라 넘겼던 그 신호",
+            "그날의 기록을 다시 꺼내 봤다. 좌표가... 낯익다",
+            "이건 새로운 발견이 아닐지도 모른다는 예감이 들었다",
+            "돌아갈 곳이 아니라, 잊고 있던 곳을 향하는 기분이었다",
+            "마지막 남은 연료로, 신호를 향해 방향을 돌렸다",
             "처음부터 찾는 것이 아니라 찾아지고 있었다"
         )
     )
 
-    // 챕터 전환 시 클리프행어 문장
+    // 챕터 전환 시 클리프행어 문장 (5는 챕터6이 없어 미사용 — storyEndingTitle이 그 자리를 대신함)
     val chapterEndingTitles: Map<Int, String> = mapOf(
         1 to "이 행성에... 우리만 있는 게 아닌데?",
         2 to "그들은... 우리가 오기를 기다리고 있었다",
         3 to "적이 아니다. 하지만 친구도 아니다",
-        4 to "우리는 이미 선택을 강요받고 있었다",
-        5 to "이건 탐사가 아니었다. 처음부터"
+        // 2026-09-04 개정 — 강요/위협 뉘앙스에서 "함께 만든 지도로 작별"로 톤 변경
+        4 to "지도는 완성됐다. 이제, 각자의 별을 향해"
     )
+
+    // 스토리 엔딩 — 챕터5("미지의 공간")에서 최초로 T10 탐사에 성공한 기록에 딱 한 번 붙는
+    // 타이틀. chapterEndingTitles와 달리 챕터를 6으로 넘기진 않고(챕터는 계속 5), 이
+    // 기록 하나만 "완주" 기록으로 특별 표시하는 데 쓰인다.
+    // 2026-09-04 개정 — 신호를 따라간 곳이 화성(챕터1 "센서 오류"의 정체)이었다는 반전.
+    // 화성엔 지구와 오래전 연락이 끊긴 인류 정착지가 있었다 — "가장 먼 곳"인 줄 알았던
+    // 여정의 끝이 사실 "가장 가까운 곳"이었다는 아이러니로 마무리
+    const val storyEndingTitle = "가장 먼 곳까지 왔다고 믿었다. 그 끝에서 만난 건, 화성에 남아 있던 우리였다"
 
     // ── 카테고리별 이벤트 풀 ─────────────────────────────────────────
     data class EventTemplate(
@@ -190,6 +256,46 @@ object StoryContent {
                 choice2Label = "수신만 한다",
                 choice2Type = ResourceType.ALIEN_TECH, choice2Amount = 6L
             )
+        )
+    )
+
+    // ── 챕터5 전용 이벤트 (2026-09-04 개정, 초안 — 검토 필요) ─────────────
+    // 카테고리 무관 — 챕터5("미지의 공간": 함께 만든 지도가 빈 좌표로 끝나고, 옛 신호를
+    // 다시 좇는 시기)에 도달하면 지금 뭘 채굴하든 이 풀에서만 뽑는다. "누군가 조작한다"는
+    // 뉘앙스 대신, 우리 자신의 오래된 기록을 다시 마주하는 쪽으로 개정 — 미지의 존재가
+    // 아니라 우리가 지나쳐온 것들이 진짜 정체라는 결말과 톤을 맞춤
+    val chapter5EventPool: List<EventTemplate> = listOf(
+        EventTemplate(
+            title = "잊고 있던 항법 기록을 뒤늦게 찾았습니다",
+            description = "정리 안 된 옛 기록을 뒤지다, 태양계를 떠나던 날의 로그를 다시 찾았다. 그때는 대수롭지 않게 넘겼다.",
+            choice1Label = "기록을 정밀 분석한다",
+            choice1Type = ResourceType.UNKNOWN_MATTER, choice1Amount = 7L,
+            choice2Label = "일단 계속 나아간다",
+            choice2Type = ResourceType.QUANTUM_CORE, choice2Amount = 5L
+        ),
+        EventTemplate(
+            title = "신호가 예상보다 훨씬 오래된 것으로 확인됐습니다",
+            description = "발신 시점을 역산해보니 수십 년은 된 신호였다. 누군가 그만큼 오래 기다려온 걸까.",
+            choice1Label = "발신원을 추적한다",
+            choice1Type = ResourceType.QUANTUM_CORE, choice1Amount = 6L,
+            choice2Label = "일지에 기록만 남긴다",
+            choice2Type = ResourceType.UNKNOWN_MATTER, choice2Amount = 5L
+        ),
+        EventTemplate(
+            title = "대원 하나가 낯익은 지형이라고 말했습니다",
+            description = "본 적 없는 곳이라기엔 이상하게 익숙하다는 반응. 착각으로 넘기기엔 표정이 진지했다.",
+            choice1Label = "그 말을 믿고 더 살펴본다",
+            choice1Type = ResourceType.UNKNOWN_MATTER, choice1Amount = 8L,
+            choice2Label = "피로 때문이라 여기고 넘어간다",
+            choice2Type = ResourceType.QUANTUM_CORE, choice2Amount = 5L
+        ),
+        EventTemplate(
+            title = "연료 재계산 결과가 아슬아슬하게 나왔습니다",
+            description = "돌아갈 걱정과 계속 갈 걱정을 동시에 해야 하는 처지가 됐다. 그래도 신호는 계속 온다.",
+            choice1Label = "신호를 향해 계속 나아간다",
+            choice1Type = ResourceType.QUANTUM_CORE, choice1Amount = 7L,
+            choice2Label = "안전하게 회항 경로부터 확보한다",
+            choice2Type = ResourceType.UNKNOWN_MATTER, choice2Amount = 5L
         )
     )
 
@@ -346,24 +452,29 @@ object StoryContent {
         )
     }
 
+    private fun eventFromTemplate(template: EventTemplate, expeditionId: String): StoryEvent = StoryEvent(
+        id = UUID.randomUUID().toString(),
+        expeditionId = expeditionId,
+        title = template.title,
+        description = template.description,
+        choice1Label = template.choice1Label,
+        choice1ResourceType = template.choice1Type,
+        choice1Amount = template.choice1Amount,
+        choice2Label = template.choice2Label,
+        choice2ResourceType = template.choice2Type,
+        choice2Amount = template.choice2Amount,
+        choice3Label = template.choice3Label,
+        choice3ResourceType = template.choice3Type,
+        choice3Amount = template.choice3Amount
+    )
+
     fun randomEvent(category: ExpeditionCategory, expeditionId: String): StoryEvent? {
         val pool = eventPool[category] ?: return null
         if (pool.isEmpty()) return null
-        val template = pool.random()
-        return StoryEvent(
-            id = UUID.randomUUID().toString(),
-            expeditionId = expeditionId,
-            title = template.title,
-            description = template.description,
-            choice1Label = template.choice1Label,
-            choice1ResourceType = template.choice1Type,
-            choice1Amount = template.choice1Amount,
-            choice2Label = template.choice2Label,
-            choice2ResourceType = template.choice2Type,
-            choice2Amount = template.choice2Amount,
-            choice3Label = template.choice3Label,
-            choice3ResourceType = template.choice3Type,
-            choice3Amount = template.choice3Amount
-        )
+        return eventFromTemplate(pool.random(), expeditionId)
     }
+
+    // 챕터5 전용 — chapter5EventPool은 항상 비어있지 않으므로(고정 목록) null 없이 반환
+    fun randomChapter5Event(expeditionId: String): StoryEvent =
+        eventFromTemplate(chapter5EventPool.random(), expeditionId)
 }

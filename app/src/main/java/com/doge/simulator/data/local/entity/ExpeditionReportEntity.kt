@@ -13,6 +13,7 @@ data class ExpeditionReportEntity(
     val chapterTitle: String,
     val recordTitle: String,
     val isChapterEnding: Boolean,
+    val isStoryEnding: Boolean = false,
     val isRead: Boolean,
     val completedAt: Long
 )

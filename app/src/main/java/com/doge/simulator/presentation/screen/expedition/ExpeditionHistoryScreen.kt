@@ -328,8 +328,10 @@ private fun ReportCard(
         }
     }
 
+    // 챕터 전환("완주" 포함)은 같은 골드 강조를 쓴다 — 완주는 그 위에 배지·문구만 다르게
+    val isHighlighted = report.isChapterEnding || report.isStoryEnding
     val borderColor = when {
-        report.isChapterEnding -> GoldAccent.copy(alpha = 0.7f)
+        isHighlighted -> GoldAccent.copy(alpha = 0.7f)
         isPending -> SpaceAccent.copy(alpha = 0.6f)
         else -> SpaceMid.copy(alpha = 0.4f)
     }
@@ -352,7 +354,7 @@ private fun ReportCard(
                 ) {
                     Text(
                         report.recordLabel,
-                        color = if (report.isChapterEnding) GoldAccent else SpaceAccent,
+                        color = if (isHighlighted) GoldAccent else SpaceAccent,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -361,16 +363,16 @@ private fun ReportCard(
                         color = SpaceBlue.copy(alpha = 0.3f)
                     ) {
                         Text(
-                            "챕터 ${report.chapter} · ${report.chapterTitle}",
+                            if (report.isStoryEnding) "완주" else "챕터 ${report.chapter} · ${report.chapterTitle}",
                             color = TextSecondary,
                             style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.xxs)
                         )
                     }
                 }
-                if (report.isChapterEnding) {
+                if (isHighlighted) {
                     Image(
-                        painter = painterResource(R.drawable.ic_ui_star),
+                        painter = painterResource(if (report.isStoryEnding) R.drawable.ic_ui_trophy else R.drawable.ic_ui_star),
                         contentDescription = null,
                         modifier = Modifier.size(IconGlyphSize.small.value.dp)
                     )
@@ -382,9 +384,9 @@ private fun ReportCard(
             // ── 기록 제목 ─────────────────────────────────────────────
             Text(
                 report.recordTitle,
-                color = if (report.isChapterEnding) GoldAccent else TextPrimary,
+                color = if (isHighlighted) GoldAccent else TextPrimary,
                 style = MaterialTheme.typography.bodySmall,
-                fontWeight = if (report.isChapterEnding) FontWeight.Bold else FontWeight.Normal
+                fontWeight = if (isHighlighted) FontWeight.Bold else FontWeight.Normal
             )
 
             // ── 이벤트 카드들 ─────────────────────────────────────────

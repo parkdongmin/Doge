@@ -64,7 +64,7 @@ abstract class PlanetDatabase : RoomDatabase() {
     abstract fun snapshotDao(): SnapshotDao
 
     companion object {
-        const val VERSION = 18
+        const val VERSION = 19
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
@@ -447,6 +447,16 @@ abstract class PlanetDatabase : RoomDatabase() {
                 )
                 database.execSQL("DROP TABLE `planet_table`")
                 database.execSQL("ALTER TABLE `planet_table_new` RENAME TO `planet_table`")
+            }
+        }
+
+        val MIGRATION_18_19 = object : Migration(18, 19) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // 스토리 엔딩 — 챕터5("미지의 공간")를 빠져나가는 조건(최초 T10 달성)과
+                // 완주 여부를 기록할 필드 추가
+                database.execSQL("ALTER TABLE story_progress_table ADD COLUMN firstT10Completed INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE story_progress_table ADD COLUMN storyCompleted INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE expedition_report_table ADD COLUMN isStoryEnding INTEGER NOT NULL DEFAULT 0")
             }
         }
     }

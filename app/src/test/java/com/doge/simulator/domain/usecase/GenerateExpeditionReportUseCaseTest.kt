@@ -107,4 +107,31 @@ class GenerateExpeditionReportUseCaseTest {
         assertEquals(3, failedReport.chapter)
         assertFalse(failedReport.isChapterEnding)
     }
+
+    @Test
+    fun `T10을 달성하면 챕터5는 그대로 유지되고 완주 기록이 딱 한 번 뜬다`() = runBlocking {
+        val repo = FakeStoryRepository()
+        val useCase = GenerateExpeditionReportUseCase(repo)
+
+        // 챕터5까지 정상 순서로 도달
+        useCase(expedition(ExpeditionCategory.RUINS, 1), true)
+        useCase(expedition(ExpeditionCategory.ALIEN_CIVILIZATION, 1), true)
+        useCase(expedition(ExpeditionCategory.MINERAL, 3), true)
+        useCase(expedition(ExpeditionCategory.MINERAL, 5), true)
+        assertEquals(5, repo.getProgressOnce().currentChapter)
+        assertFalse(repo.getProgressOnce().storyCompleted)
+
+        // T10 달성 → 챕터는 6으로 안 넘어가고 5 그대로, 대신 완주 기록이 뜬다
+        val endingReport = useCase(expedition(ExpeditionCategory.MINERAL, tier = 10), true)
+        assertEquals(5, endingReport.chapter)
+        assertFalse("챕터가 6으로 넘어가면 안 된다(콘텐츠 없음)", endingReport.isChapterEnding)
+        assertTrue(endingReport.isStoryEnding)
+        assertTrue(repo.getProgressOnce().storyCompleted)
+
+        // 그 뒤로 T10을 또 완료해도 완주 기록은 다시 뜨지 않는다(한 번만)
+        val afterEnding = useCase(expedition(ExpeditionCategory.MINERAL, tier = 10), true)
+        assertEquals(5, afterEnding.chapter)
+        assertFalse(afterEnding.isStoryEnding)
+        assertFalse(afterEnding.isChapterEnding)
+    }
 }
