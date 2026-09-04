@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.doge.simulator.domain.model.ExpeditionCategory
 import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.ResearchField
 import com.doge.simulator.domain.model.ResearchLab
@@ -125,11 +126,18 @@ private fun ResearchFieldCard(
     }
 
     val effectDescription = when (field) {
-        ResearchField.EXPLORATION_TECH -> when {
-            currentLevel <= 2 -> "현재: 광물·행성 탐사 가능"
-            currentLevel == 3 -> "Lv.3 달성 시: 유적 탐사 해금"
-            !isMaxLevel -> "Lv.${maxLevel} 달성 시: 외계 문명 탐사 해금"
-            else -> "현재: 모든 탐사 분야 해금 완료 (최대 레벨)"
+        ResearchField.EXPLORATION_TECH -> {
+            // 매직넘버(3, 6) 대신 실제 해금 기준(ExpeditionCategory.researchLevelRequired)에서
+            // 직접 끌어온다 — 카테고리 해금 레벨이 나중에 바뀌어도 이 문구가 안 따라가는
+            // 일이 없게. 예전엔 Lv.0~2 구간에 "다음 해금" 미리보기가 아예 안 뜨고,
+            // 정확히 Lv.3에 "달성 시"라는 미래형 문구가 뜨는(이미 달성했는데) 버그가 있었음
+            val ruinsLv = ExpeditionCategory.RUINS.researchLevelRequired
+            val alienLv = ExpeditionCategory.ALIEN_CIVILIZATION.researchLevelRequired
+            when {
+                currentLevel < ruinsLv -> "현재: 광물·행성 탐사 가능 · Lv.$ruinsLv 달성 시 유적 탐사 해금"
+                currentLevel < alienLv -> "현재: 유적 탐사까지 가능 · Lv.$alienLv 달성 시 외계 문명 탐사 해금"
+                else -> "현재: 모든 탐사 분야 해금 완료 (최대 레벨)"
+            }
         }
         ResearchField.CELESTIAL_ANALYSIS ->
             "행성 슬롯 ${step(researchLab.maxPlanetSlots, nextLab.maxPlanetSlots, "개")} · " +

@@ -1441,7 +1441,7 @@ private fun SwapPickerDialog(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    "판매가는 매입가 + 강화 투자액의 95%예요. 여러 개를 팔아 코인을 모은 뒤 구매하기를 눌러도 돼요",
+                    "판매가는 투자액 + 시세 변동에서 수수료 5%를 뗀 금액이에요. 여러 개를 팔아 코인을 모은 뒤 구매하기를 눌러도 돼요",
                     color = TextSecondary,
                     style = MaterialTheme.typography.labelSmall,
                     modifier = Modifier.padding(top = Spacing.xs, bottom = Spacing.md)

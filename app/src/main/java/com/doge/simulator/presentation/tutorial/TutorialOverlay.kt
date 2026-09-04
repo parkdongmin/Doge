@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.ui.theme.BodyReading
 import com.doge.simulator.ui.theme.ButtonDepth
 import com.doge.simulator.ui.theme.ButtonPadding
@@ -93,7 +94,7 @@ fun TutorialOverlay(
         )
         is TutorialStep.UpgradeIntro -> OverlaySpec(
             body = "행성 상세 화면이에요. '강화'하면 생산량이 오릅니다 — 코인·자원이 들어요.\n\n" +
-                "레벨 11부터는 강화 실패 위험이 커지니 무리하지 마세요. " +
+                "레벨 ${GameConstants.DANGER_ZONE_START}부터는 강화 실패 위험이 커지니 무리하지 마세요. " +
                 "필요 없어진 행성은 '매도'로 정리할 수 있어요.",
             buttonLabel = "확인",
             target = null,

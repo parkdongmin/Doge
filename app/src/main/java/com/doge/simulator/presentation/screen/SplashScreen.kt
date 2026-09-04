@@ -34,6 +34,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.doge.simulator.BuildConfig
 import com.doge.simulator.R
 import com.doge.simulator.presentation.viewmodel.AuthViewModel
 import com.doge.simulator.presentation.viewmodel.BootstrapViewModel
@@ -137,9 +138,10 @@ private fun SplashContent(isSyncing: Boolean) {
             Spacer(modifier = Modifier.weight(0.68f))
         }
 
-        // 버전
+        // 버전 — app/build.gradle.kts의 versionName을 그대로 가져옴 (하드코딩 금지,
+        // 릴리스 버전 올릴 때 여기 안 맞춰도 자동으로 따라감)
         Text(
-            text = "v1.0.0",
+            text = "v${BuildConfig.VERSION_NAME}",
             style = MaterialTheme.typography.labelSmall,
             color = TextSecondary,
             modifier = Modifier
