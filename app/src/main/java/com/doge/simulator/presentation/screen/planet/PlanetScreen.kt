@@ -275,8 +275,10 @@ private fun PlanetListCard(
                 )
                 Spacer(modifier = Modifier.height(Spacing.sm))
                 Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    MiniStatChip(iconRes = R.drawable.ic_ui_energy, value = "${planet.effectiveProduction}/분", color = StatusGreen)
-                    MiniStatChip(iconRes = R.drawable.ic_ui_coin, value = "+${"%,d".format(planet.effectiveProduction * 60L)}/시", color = GoldAccent)
+                    val productionColor = if (planet.effectiveProduction >= 0) StatusGreen else StatusRed
+                    val hourlySign = if (planet.effectiveProduction > 0) "+" else ""
+                    MiniStatChip(iconRes = R.drawable.ic_ui_energy, value = "${planet.effectiveProduction}/분", color = productionColor)
+                    MiniStatChip(iconRes = R.drawable.ic_ui_coin, value = "$hourlySign${"%,d".format(planet.effectiveProduction * 60L)}/시", color = productionColor)
                 }
             }
 

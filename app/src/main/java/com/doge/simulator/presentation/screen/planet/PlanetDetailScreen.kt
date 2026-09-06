@@ -312,7 +312,9 @@ fun PlanetDetailScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(text = "누적 수익", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
-                        Text(text = "+%,d 코인".format(liveProfit), color = StatusGreen, style = NumericSmall)
+                        val profitSign = if (liveProfit > 0) "+" else ""
+                        val profitColor = if (liveProfit >= 0) StatusGreen else StatusRed
+                        Text(text = "$profitSign${"%,d".format(liveProfit)} 코인", color = profitColor, style = NumericSmall)
                     }
                 }
             }
