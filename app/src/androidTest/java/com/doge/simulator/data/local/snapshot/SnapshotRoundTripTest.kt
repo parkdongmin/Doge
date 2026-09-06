@@ -80,7 +80,7 @@ class SnapshotRoundTripTest {
             )
         )
         dao.insertReports(
-            listOf(ExpeditionReportEntity("e0", 1, 1, "1장", "첫 기록", false, false, 5L))
+            listOf(ExpeditionReportEntity("e0", 1, 1, "1장", "첫 기록", false, isRead = false, completedAt = 5L))
         )
         dao.insertStoryEvents(
             listOf(

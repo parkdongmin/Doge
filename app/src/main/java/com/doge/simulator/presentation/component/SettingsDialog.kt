@@ -110,6 +110,14 @@ fun SettingsDialog(
                     )
                 }
 
+                // Pixabay 음원 라이선스 필수 표기 (이미지와 달리 오디오는 크레딧 필요)
+                Spacer(Modifier.height(Spacing.xs))
+                Text(
+                    "출처: Music by Maksim Chubrey from Pixabay",
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.labelSmall
+                )
+
                 Spacer(Modifier.height(Spacing.md))
                 HorizontalDivider(color = SpaceMid)
                 Spacer(Modifier.height(Spacing.md))

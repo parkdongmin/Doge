@@ -1,22 +1,39 @@
 # 할 일
 
-## 남은 할 일 요약 (2026-09-05 갱신)
+## 남은 할 일 요약 (2026-09-06 갱신 — 실기기 스모크 테스트까지 전부 완료)
 
-**푸시 상태:** `origin/main` = 로컬(`5207906`). 미푸시 커밋 없음.
-
-**기능·디자인·설명·연출·스토리·전체 일관성 점검 전부 마무리됨.**
-남은 건 실기기 확인 1개 + 완전 외부 대기 2개뿐:
+**출시 파이프라인 전부 마무리됨. 남은 필수 작업 없음.**
 
 - [x] ~~Cloud Functions 배포 확인~~ — 불필요 확정, 관련 죽은 코드 삭제 완료 (2026-09-04)
 - [x] release 빌드 깨져 있던 Compose 버전 불일치 버그 발견·수정 완료 (2026-09-04)
 - [x] release `isMinifyEnabled`(R8) — 끄는 걸로 확정 (2026-09-04)
 - [x] **Play 출시 서명 — 완료 (2026-09-05)**. `signingConfigs.release` 배선 +
       Android Studio 마법사로 `doge-release.jks` 생성 → 서명된 `app-release.aab` 산출 확인함.
-      - [ ] **남은 것: 이 AAB(코드 여러 번 바뀐 뒤 최신본)로 실기기 스모크 테스트** — 특히
-        도감 탭(FlowRow 버그 있던 곳), 탐사 탭 티어 선택(사다리 해금), 연구소(미리보기 문구)
-- [ ] BGM 앰비언트 루프 **라이선스 정리** — 지금 트랙은 AI 생성물이라 `res/raw/` gitignore.
-      정식 라이선스(직접 제작/구매/CC0) 확보 후 gitignore에서 빼고 커밋 — **외부 리소스 대기**
-- [ ] 효과음(SFX) — 출시 후 폴리시로 미룸 — **의도적 보류**
+- [x] **BGM 라이선스 정리 — 완료 (2026-09-06)**. Pixabay(cozyvibes, 곡 "Voices" by Maksim
+      Chubrey) 음원 — 이미지와 달리 오디오는 크레딧 표기가 라이선스 조건이라, 설정
+      다이얼로그(`SettingsDialog.kt`)의 배경 음악 토글 바로 아래 "출처: Music by Maksim
+      Chubrey from Pixabay" 한 줄 추가(첫 배치는 "내 ID" 섹션 바로 위였는데, ID 표기처럼
+      보여 헷갈린다는 피드백으로 토글 아래·라벨 붙여 이동)하고 `.gitignore`의
+      `/app/src/main/res/raw/` 제외 규칙 삭제 → `bgm_ambient.mp3` 레포에 커밋 대상으로 전환.
+      `compileDebugKotlin` 통과
+- [x] 효과음(SFX) — 출시 후 폴리시로 미루는 걸로 최종 확정 (2026-09-06, 유저 확인)
+- [x] **androidTest 컴파일 깨짐 발견·수정 (2026-09-06)** — `SnapshotRoundTripTest.kt`가
+      챕터5 엔딩 작업(9/4)에서 `ExpeditionReportEntity`에 `isStoryEnding` 필드가
+      `isChapterEnding`과 `isRead` 사이에 추가된 뒤로 옛 8-포지셔널-인자 생성자 호출 그대로
+      남아있었음(계측 테스트라 `compileDebugKotlin`/`assembleRelease` 경로엔 안 걸려서
+      미발견 상태였음). `isRead`/`completedAt`을 이름 붙은 인자로 바꿔 `isStoryEnding`
+      기본값을 쓰도록 수정. `compileDebugAndroidTestKotlin` 통과
+- [x] **release 서명(`doge-release.jks`)으로 구글 로그인 안 되던 버그 발견·수정 (2026-09-06)**
+      — 원인: Firebase에 디버그 키 SHA-1만 등록돼 있고 release 키 SHA-1은 미등록.
+      `keytool -list -v`로 release SHA-1 뽑아 Firebase 콘솔에 지문 추가 → 새
+      `google-services.json` 다운받아 `app/google-services.json` 교체. 재빌드한 APK로
+      로그인 정상 확인
+- [x] **실기기 스모크 테스트 — 완료 (2026-09-06)**. 도감 탭 / 탐사 탭 티어 선택(사다리 해금) /
+      연구소(미리보기 문구) / 구글 로그인 / 기타 기능 전부 정상 확인
+- [x] **로그인 화면 다기기 동기화 안내 문구 삭제 (2026-09-06)** — "동시에 여러 기기로 플레이하는
+      일이 실제로는 거의 없을 텐데 매번 뜨는 게 거슬린다"는 피드백. 로그인 화면(상시 노출) 쪽만
+      삭제, 스플래시 "동기화 중" 아래 문구(실제 동기화 상황에서만 뜸)는 유지하기로 함
+      (`LoginScreen.kt`). 안 쓰게 된 `BodyReading` import도 같이 정리. `compileDebugKotlin` 통과
 
 **선택 (우선순위 미정):** 나머지 화면 ⓘ (강화 성공률 표, 자원별 용도 등)
 
@@ -264,13 +281,14 @@
 ### 출시 전 (기능·디자인 마무리 후, 아래 "출시 전 확인 필요" 섹션)
 - [x] ~~Cloud Functions 배포~~ — 안 쓰는 게 확정, 관련 죽은 코드 전부 삭제 (2026-09-04). 위 요약 참고
 - [x] Play 출시 서명 — 완료(2026-09-05). `signingConfigs.release` 배선 + keystore 생성 +
-      Android Studio 마법사로 서명된 `app-release.aab` 산출 확인. 남은 건 이 AAB로 실기기
-      스모크 테스트(위 요약 참고)
+      Android Studio 마법사로 서명된 `app-release.aab` 산출 확인. 실기기 스모크 테스트도
+      2026-09-06 완료(위 요약 참고) — 도중 release 키 SHA-1 미등록으로 구글 로그인 안 되던
+      버그 발견·수정
 - [x] release `isMinifyEnabled`(R8) — 끄는 걸로 확정 (2026-09-04). 상세는 위 요약 참고
-- [ ] 효과음(SFX) — 출시 후 폴리시로 내림. 강화/탐사 결과는 진동으로 대체 중
-- [ ] BGM 앰비언트 루프 라이선스 정리 — 지금 트랙은 AI 생성물이라 레포에 안 올림
-      (`res/raw/` 통째로 `.gitignore`). 정식 라이선스(직접 제작/구매/CC0) 확보하면 gitignore에서
-      빼고 커밋. 그때까지는 로컬 빌드에만 BGM 존재
+- [x] 효과음(SFX) — 출시 후 폴리시로 내리는 걸로 최종 확정 (2026-09-06). 강화/탐사 결과는 진동으로 대체 중
+- [x] BGM 앰비언트 루프 라이선스 정리 — 완료 (2026-09-06). Pixabay 음원("Voices" by Maksim
+      Chubrey, cozyvibes)이라 크레딧 표기가 라이선스 조건 — 설정 다이얼로그에 표기 문구 추가하고
+      gitignore 제외 규칙 삭제해 `bgm_ambient.mp3` 레포에 커밋
 
 ---
 
