@@ -75,7 +75,9 @@ fun LoginScreen(
             .fillMaxSize()
             .background(BrandBackgroundGradient)
     ) {
-        // 하단 행성 일러스트 — 스플래시와 동일 위치·크기라 전환이 이어짐
+        // 하단 행성 일러스트 — 스플래시와 동일 위치·크기라 전환이 이어짐.
+        // fillMaxWidth+FillWidth라 화면 폭 기준으로 커지지만, MainActivity에서
+        // 앱 전체를 480dp 폭으로 제한해두어 폰 비율을 벗어나지 않는다.
         Image(
             painter = painterResource(R.drawable.splash_planet),
             contentDescription = null,

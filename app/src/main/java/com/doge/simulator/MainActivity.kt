@@ -9,6 +9,14 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -18,6 +26,7 @@ import com.doge.simulator.presentation.screen.MainScreen
 import com.doge.simulator.presentation.screen.SplashScreen
 import com.doge.simulator.presentation.screen.auth.LoginScreen
 import com.doge.simulator.ui.theme.DogeTheme
+import com.doge.simulator.ui.theme.SpaceDark
 import com.google.android.gms.ads.MobileAds
 import com.google.android.ump.ConsentInformation
 import com.google.android.ump.ConsentRequestParameters
@@ -57,46 +66,62 @@ class MainActivity : ComponentActivity() {
             DogeTheme {
                 val navController = rememberNavController()
 
-                NavHost(
-                    navController = navController,
-                    startDestination = NavRoutes.Splash.route
+                // 폰 기준으로 디자인된 화면을 폴더블 펼침 화면 등 넓은 기기에서 그대로
+                // 가로로 늘리면 하단바·이미지가 비정상적으로 커진다. 최대 폭을 제한하고
+                // 가운데 정렬 + 좌우 레터박스로 보여줘서 폰 비율을 유지한다.
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(SpaceDark),
+                    contentAlignment = Alignment.Center
                 ) {
-                    composable(NavRoutes.Splash.route) {
-                        SplashScreen(
-                            onNavigateToMain = {
-                                navController.navigate(NavRoutes.Main.route) {
-                                    popUpTo(NavRoutes.Splash.route) { inclusive = true }
-                                }
-                            },
-                            onNavigateToLogin = {
-                                navController.navigate(NavRoutes.Login.route) {
-                                    popUpTo(NavRoutes.Splash.route) { inclusive = true }
-                                }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .widthIn(max = 480.dp)
+                    ) {
+                        NavHost(
+                            navController = navController,
+                            startDestination = NavRoutes.Splash.route
+                        ) {
+                            composable(NavRoutes.Splash.route) {
+                                SplashScreen(
+                                    onNavigateToMain = {
+                                        navController.navigate(NavRoutes.Main.route) {
+                                            popUpTo(NavRoutes.Splash.route) { inclusive = true }
+                                        }
+                                    },
+                                    onNavigateToLogin = {
+                                        navController.navigate(NavRoutes.Login.route) {
+                                            popUpTo(NavRoutes.Splash.route) { inclusive = true }
+                                        }
+                                    }
+                                )
                             }
-                        )
-                    }
-                    composable(NavRoutes.Login.route) {
-                        LoginScreen(
-                            // 로그인 성공 후 Splash를 다시 거쳐 클라우드 세이브 복원을 태운다
-                            // (새 기기 = 새 설치 + 로그인 시나리오가 이 경로).
-                            onLoginSuccess = {
-                                navController.navigate(NavRoutes.Splash.route) {
-                                    popUpTo(NavRoutes.Login.route) { inclusive = true }
-                                }
+                            composable(NavRoutes.Login.route) {
+                                LoginScreen(
+                                    // 로그인 성공 후 Splash를 다시 거쳐 클라우드 세이브 복원을 태운다
+                                    // (새 기기 = 새 설치 + 로그인 시나리오가 이 경로).
+                                    onLoginSuccess = {
+                                        navController.navigate(NavRoutes.Splash.route) {
+                                            popUpTo(NavRoutes.Login.route) { inclusive = true }
+                                        }
+                                    }
+                                )
                             }
-                        )
-                    }
-                    composable(NavRoutes.Main.route) {
-                        // StateFlow를 collectAsState()로 수집 → onNewIntent 시 자동 리컴포지션
-                        val deepLink = _deepLink.asStateFlow()
-                        MainScreen(
-                            deepLinkFlow = deepLink,
-                            onSignOut = {
-                                navController.navigate(NavRoutes.Login.route) {
-                                    popUpTo(NavRoutes.Main.route) { inclusive = true }
-                                }
+                            composable(NavRoutes.Main.route) {
+                                // StateFlow를 collectAsState()로 수집 → onNewIntent 시 자동 리컴포지션
+                                val deepLink = _deepLink.asStateFlow()
+                                MainScreen(
+                                    deepLinkFlow = deepLink,
+                                    onSignOut = {
+                                        navController.navigate(NavRoutes.Login.route) {
+                                            popUpTo(NavRoutes.Main.route) { inclusive = true }
+                                        }
+                                    }
+                                )
                             }
-                        )
+                        }
                     }
                 }
             }
