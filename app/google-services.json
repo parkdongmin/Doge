@@ -38,6 +38,14 @@
           }
         },
         {
+          "client_id": "351903809147-hk4mrqdqrngddh57sihhbf1rdi5gj3jo.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.doge.simulator",
+            "certificate_hash": "9d6146b6fbc39f4562a97e4c097e39ec7103023b"
+          }
+        },
+        {
           "client_id": "351903809147-vucmu6rh1otipu0gg1ldj044aneiksab.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
