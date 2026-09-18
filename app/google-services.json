@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "351903809147-2d3fsfre3p01n9dtqu0lnbvvo7d8v3lf.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.doge.simulator",
+            "certificate_hash": "2c890bf483e597323ff667b11df7b411fb5a90e3"
+          }
+        },
+        {
           "client_id": "351903809147-89df9nnp8lgkmosj4u57ob0iqnlr6mb6.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
