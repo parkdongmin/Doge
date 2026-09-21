@@ -1,5 +1,6 @@
 package com.doge.simulator.presentation.screen.orbit
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -19,6 +20,14 @@ fun OrbitResultScreen(
     viewModel: OrbitViewModel = hiltViewModel()
 ) {
     val settlement by viewModel.lastSettlement.collectAsState()
+
+    // 시스템/제스처 뒤로가기도 "휴게실로"와 동일하게 처리 — 그냥 화면만 닫히면 끝난 매치의
+    // 스냅샷/정산 결과가 뷰모델에 남아있게 되어, 다음에 베팅 화면에 들어갔을 때 그 잔여
+    // 스냅샷을 보고 곧장 게임 화면으로 튀어버리는 버그로 이어졌다.
+    BackHandler {
+        viewModel.returnToLounge()
+        onReturnToLounge()
+    }
 
     Column(
         modifier = Modifier

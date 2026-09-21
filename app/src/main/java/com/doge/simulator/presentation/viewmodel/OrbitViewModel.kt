@@ -17,6 +17,7 @@ import com.doge.simulator.domain.model.orbit.OrbitCard
 import com.doge.simulator.domain.model.orbit.OrbitMatchState
 import com.doge.simulator.domain.model.orbit.OrbitRiskTier
 import com.doge.simulator.domain.model.orbit.PlayerSide
+import com.doge.simulator.domain.model.orbit.RoundEndReason
 import com.doge.simulator.domain.repository.UserRepository
 import com.doge.simulator.domain.usecase.orbit.AdvanceOrbitTurnUseCase
 import com.doge.simulator.domain.usecase.orbit.ClaimOrbitDailyAdRewardUseCase
@@ -51,6 +52,10 @@ data class OrbitUiSnapshot(
     val matchResult: MatchOutcome?,
     val bet: OrbitBet?
 )
+
+// 카드 OUT이 아니라 덱 소진/무승부로 라운드가 끝났을 때 보여줄 정보. 이 경우 화면에 알려줄
+// "방금 사용된 카드"가 없어서, 아무 설명 없이 SIGNAL만 조용히 바뀌는 문제를 막기 위함.
+data class OrbitRoundEndInfo(val reason: RoundEndReason, val winner: PlayerSide?)
 
 private fun OrbitMatchState.toSnapshot(): OrbitUiSnapshot {
     val round = currentRound
@@ -102,6 +107,10 @@ class OrbitViewModel @Inject constructor(
     // "방금 사용된 카드"는 일회성으로만 노출한다 — 지속 로그는 만들지 않는다(FR-004).
     private val _lastPlayedCard = MutableStateFlow<PlayOrbitCardUseCase.PlayedCardSummary?>(null)
     val lastPlayedCard: StateFlow<PlayOrbitCardUseCase.PlayedCardSummary?> = _lastPlayedCard.asStateFlow()
+
+    // 덱 소진/무승부로 라운드가 끝났을 때만 채워진다(OUT은 lastPlayedCard로 이미 설명됨).
+    private val _roundEndBanner = MutableStateFlow<OrbitRoundEndInfo?>(null)
+    val roundEndBanner: StateFlow<OrbitRoundEndInfo?> = _roundEndBanner.asStateFlow()
 
     private val _lastSettlement = MutableStateFlow<OrbitBetSettlement?>(null)
     val lastSettlement: StateFlow<OrbitBetSettlement?> = _lastSettlement.asStateFlow()
@@ -170,23 +179,51 @@ class OrbitViewModel @Inject constructor(
     private fun beginMatch(match: OrbitMatchState) {
         b01Memory = B01Memory()
         _lastSettlement.value = null
+        _lastPlayedCard.value = null
+        _roundEndBanner.value = null
         activeMatch = match
         publishSnapshot()
-        viewModelScope.launch { runTurnLoop() }
+        viewModelScope.launch { advanceUntilPlayerTurnOrPause() }
     }
 
+    // 카드를 낸 결과("방금 사용된 카드")는 타이머로 자동으로 사라지지 않는다 — 플레이어가
+    // acknowledgePlayedCard()로 직접 "확인"을 눌러야 다음 턴(내 턴이든 B-01 턴이든)으로
+    // 진행된다. 예전에는 1.5초 뒤 자동으로 사라져서 SENSOR로 본 상대 카드 등을 읽을 시간이
+    // 부족하다는 피드백이 있었음.
     fun playCard(card: OrbitCard, input: OrbitCardEffectInput = OrbitCardEffectInput.None) {
         val match = activeMatch ?: return
         val round = match.currentRound
-        if (round.currentTurn != PlayerSide.PLAYER || round.isOver) return
+        // lastPlayedCard가 남아있다는 건 아직 이전 결과를 확인 안 했다는 뜻 — 중복 입력 방지.
+        if (round.currentTurn != PlayerSide.PLAYER || round.isOver || _lastPlayedCard.value != null) return
 
         val result = playOrbitCardUseCase(round, PlayerSide.PLAYER, card, input, b01Memory)
         if (result is PlayOrbitCardUseCase.Result.Applied) {
-            emitPlayedCard(result.summary)
+            finishRoundIfNeeded(match)
+            publishSnapshot()
+            _lastPlayedCard.value = result.summary
         }
-        finishRoundIfNeeded(match)
-        publishSnapshot()
-        viewModelScope.launch { runTurnLoop() }
+        // InvalidMove면 상태를 전혀 바꾸지 않고 그대로 반환 — 플레이어가 다른 카드를 고를 수 있다.
+    }
+
+    // 결과 확인 후 다음 단계로 진행한다: 내 턴이 남아있으면 그냥 대기, B-01 턴이면 B-01이
+    // 한 수를 두고 다시 멈춘다.
+    fun acknowledgePlayedCard() {
+        if (_lastPlayedCard.value == null) return
+        _lastPlayedCard.value = null
+        proceedAfterAcknowledgement()
+    }
+
+    // 덱 소진/무승부 배너 확인 후 다음 단계로 진행한다.
+    fun acknowledgeRoundEnd() {
+        if (_roundEndBanner.value == null) return
+        _roundEndBanner.value = null
+        proceedAfterAcknowledgement()
+    }
+
+    private fun proceedAfterAcknowledgement() {
+        val match = activeMatch ?: return
+        if (match.isOver) return // 결과 화면 이동은 matchOver 관찰로 처리됨(화면 쪽 LaunchedEffect)
+        viewModelScope.launch { advanceUntilPlayerTurnOrPause() }
     }
 
     fun leaveMatch() {
@@ -194,65 +231,87 @@ class OrbitViewModel @Inject constructor(
         settleOrbitBetUseCase.settleAbandoned(match)
         activeMatch = null
         _uiSnapshot.value = null
+        _lastPlayedCard.value = null
+        _roundEndBanner.value = null
     }
 
     fun playAgain() {
         _lastSettlement.value = null
         activeMatch = null
         _uiSnapshot.value = null
+        _lastPlayedCard.value = null
+        _roundEndBanner.value = null
     }
 
     fun returnToLounge() {
         _lastSettlement.value = null
         activeMatch = null
         _uiSnapshot.value = null
+        _lastPlayedCard.value = null
+        _roundEndBanner.value = null
     }
 
-    // B-01 턴을 필요한 만큼 자동으로 진행한다. 사람 턴이 되거나 매치가 끝나면 멈춘다.
-    private suspend fun runTurnLoop() {
-        var match = activeMatch ?: return
-        var invalidMoveStreak = 0
-        while (!match.isOver && !match.currentRound.isOver && match.currentRound.currentTurn == PlayerSide.B01) {
-            val canPlay = advanceOrbitTurnUseCase(match.currentRound)
-            if (!canPlay) {
-                finishRoundIfNeeded(match)
-                publishSnapshot()
-                match = activeMatch ?: return
-                continue
-            }
-            publishSnapshot()
-            delay(B01_THINK_DELAY_MS)
+    // 내 턴이 될 때까지 진행한다. B-01 턴이면 한 수만 두고 그 결과를 "확인"할 때까지 멈추고,
+    // 내 턴이면 드로우만 진행해 손패 2장을 보여준 뒤 멈춘다(카드 선택은 UI 입력을 기다림).
+    // 덱 소진/무승부로 라운드가 끝나면 그 즉시 배너를 띄우고 멈춘다 — acknowledgeRoundEnd()가
+    // 이어서 진행한다.
+    private suspend fun advanceUntilPlayerTurnOrPause() {
+        val match = activeMatch ?: return
+        if (match.isOver || _roundEndBanner.value != null) return
 
-            val mistakeRate = match.bet?.riskTier?.aiMistakeRate ?: OrbitRiskTier.LOWEST.aiMistakeRate
-            val decision = B01OrbitAi.decide(match.currentRound, b01Memory, mistakeRate)
-            val result = playOrbitCardUseCase(
-                match.currentRound, PlayerSide.B01, decision.card, decision.input, b01Memory
-            )
-            if (result is PlayOrbitCardUseCase.Result.Applied) {
-                invalidMoveStreak = 0
-                emitPlayedCard(result.summary)
-            } else {
-                // 안전장치: 정상적으로는 B01OrbitAi가 낼 수 없는 카드를 고르지 않아야 하지만,
-                // 혹시라도 계속 실패하면(턴이 안 넘어가 무한 반복될 수 있는 상황) 몇 번 만에
-                // 포기하고 사람 턴 대기로 넘어간다 — 화면이 멈추는 것보다 낫다.
-                invalidMoveStreak += 1
-                if (invalidMoveStreak >= 3) break
-            }
+        if (match.currentRound.currentTurn == PlayerSide.B01) {
+            playB01TurnStep(match)
+            return
+        }
+
+        val canPlay = advanceOrbitTurnUseCase(match.currentRound)
+        if (!canPlay) {
             finishRoundIfNeeded(match)
             publishSnapshot()
-            match = activeMatch ?: return
-        }
-        // 사람 턴이면 드로우까지만 미리 진행해 손패 2장을 보여준다.
-        if (!match.isOver && !match.currentRound.isOver && match.currentRound.currentTurn == PlayerSide.PLAYER) {
-            val canPlay = advanceOrbitTurnUseCase(match.currentRound)
-            if (!canPlay) finishRoundIfNeeded(match)
+            // 덱 소진/DRAW면 위에서 _roundEndBanner가 채워져 여기서 멈추고, 사용자가 확인을
+            // 누르면 acknowledgeRoundEnd()가 다시 이 함수를 호출해 이어서 진행한다.
+        } else {
             publishSnapshot()
         }
     }
 
+    // B-01의 턴 한 번(드로우 + 카드 선택 + 실행)을 진행한다. 카드를 냈다면 그 결과를 플레이어가
+    // "확인"할 때까지 멈춘다(acknowledgePlayedCard/acknowledgeRoundEnd가 다음 단계를 이어감).
+    private suspend fun playB01TurnStep(match: OrbitMatchState) {
+        val canPlay = advanceOrbitTurnUseCase(match.currentRound)
+        if (!canPlay) {
+            finishRoundIfNeeded(match)
+            publishSnapshot()
+            return
+        }
+        publishSnapshot()
+        delay(B01_THINK_DELAY_MS)
+
+        val mistakeRate = match.bet?.riskTier?.aiMistakeRate ?: OrbitRiskTier.LOWEST.aiMistakeRate
+        val decision = B01OrbitAi.decide(match.currentRound, b01Memory, mistakeRate)
+        val result = playOrbitCardUseCase(
+            match.currentRound, PlayerSide.B01, decision.card, decision.input, b01Memory
+        )
+        if (result is PlayOrbitCardUseCase.Result.Applied) {
+            finishRoundIfNeeded(match)
+            publishSnapshot()
+            _lastPlayedCard.value = result.summary
+        } else {
+            // 이론상 발생하면 안 됨 — B01OrbitAi는 낼 수 없는 카드를 애초에 고르지 않는다.
+            // 혹시 발생하더라도 무한 반복하지 않고 여기서 조용히 멈춘다.
+            publishSnapshot()
+        }
+    }
+
+    // 카드 OUT으로 끝나면(lastPlayedCard가 이미 설명함) 아무 배너도 띄우지 않고, 덱 소진/
+    // 무승부로 끝나면 별도 배너를 띄운다. 매치가 함께 끝났다면 베팅도 정산한다.
     private fun finishRoundIfNeeded(match: OrbitMatchState) {
         if (!match.currentRound.isOver) return
+        val endedRound = match.currentRound
         match.onRoundEnded()
+        if (endedRound.endReason != RoundEndReason.OUT) {
+            _roundEndBanner.value = OrbitRoundEndInfo(endedRound.endReason!!, endedRound.winner)
+        }
         if (match.isOver) {
             viewModelScope.launch {
                 _lastSettlement.value = settleOrbitBetUseCase.settleFinished(match)
@@ -261,14 +320,6 @@ class OrbitViewModel @Inject constructor(
                 // spec.md Assumptions에 따라 이번 범위에서 확정하지 않는다. 실제로 노출하려면
                 // 여기서 기존 InterstitialAdManager + AdFrequencyGate 조합을 재사용하면 된다.
             }
-        }
-    }
-
-    private fun emitPlayedCard(summary: PlayOrbitCardUseCase.PlayedCardSummary) {
-        _lastPlayedCard.value = summary
-        viewModelScope.launch {
-            delay(CARD_REVEAL_DURATION_MS)
-            if (_lastPlayedCard.value == summary) _lastPlayedCard.value = null
         }
     }
 
@@ -284,6 +335,5 @@ class OrbitViewModel @Inject constructor(
 
     private companion object {
         const val B01_THINK_DELAY_MS = 600L
-        const val CARD_REVEAL_DURATION_MS = 1500L
     }
 }

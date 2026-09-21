@@ -1,5 +1,6 @@
 package com.doge.simulator.presentation.screen.orbit
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,6 +14,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.doge.simulator.domain.model.orbit.OrbitCard
 import com.doge.simulator.domain.model.orbit.OrbitCardType
 import com.doge.simulator.domain.model.orbit.PlayerSide
+import com.doge.simulator.domain.model.orbit.RoundEndReason
 import com.doge.simulator.domain.usecase.orbit.OrbitCardEffectInput
 import com.doge.simulator.presentation.viewmodel.OrbitViewModel
 import com.doge.simulator.ui.theme.*
@@ -27,11 +29,26 @@ fun OrbitGameScreen(
 ) {
     val snapshot by viewModel.uiSnapshot.collectAsState()
     val lastPlayed by viewModel.lastPlayedCard.collectAsState()
+    val roundEndBanner by viewModel.roundEndBanner.collectAsState()
     var pendingScoutCard by remember { mutableStateOf<OrbitCard?>(null) }
     var pendingEmpCard by remember { mutableStateOf<OrbitCard?>(null) }
 
-    LaunchedEffect(snapshot?.matchOver) {
-        if (snapshot?.matchOver == true) onMatchFinished()
+    // 매치가 방금 끝났더라도, 마지막 수의 결과(lastPlayed)나 라운드 종료 배너를 플레이어가
+    // 아직 "확인"하지 않았다면 곧바로 결과 화면으로 넘기지 않는다 — 안 그러면 승부를 가른
+    // 장면을 볼 새도 없이 화면이 바뀌어버린다.
+    LaunchedEffect(snapshot?.matchOver, lastPlayed, roundEndBanner) {
+        if (snapshot?.matchOver == true && lastPlayed == null && roundEndBanner == null) {
+            onMatchFinished()
+        }
+    }
+
+    // 시스템/제스처 뒤로가기가 "나가기" 버튼을 그냥 지나쳐 화면만 닫아버리면 activeMatch가
+    // 정리되지 않은 채 남는다 — 그 상태로 휴게실에서 다시 카드 테이블에 들어가면 베팅 화면이
+    // 남아있던 매치 스냅샷을 보고 곧장 게임 화면으로 튀어버리는 버그로 이어졌다. 뒤로가기도
+    // 반드시 leaveMatch()를 거치게 한다.
+    BackHandler {
+        viewModel.leaveMatch()
+        onExit()
     }
 
     val current = snapshot ?: return
@@ -92,6 +109,20 @@ fun OrbitGameScreen(
                     summary.revealedOpponentCard?.let {
                         Text("상대 카드: ${cardLabel(it.type)}", color = StatusYellow)
                     }
+                    // 타이머로 자동으로 사라지지 않는다 — 다 읽었으면 직접 확인을 눌러야 다음
+                    // 턴으로 넘어간다.
+                    Spacer(Modifier.height(Spacing.sm))
+                    Button(onClick = { viewModel.acknowledgePlayedCard() }) {
+                        Text("확인")
+                    }
+                }
+                roundEndBanner?.let { info ->
+                    Spacer(Modifier.height(Spacing.xs))
+                    Text(roundEndBannerText(info), color = GoldAccent, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(Spacing.sm))
+                    Button(onClick = { viewModel.acknowledgeRoundEnd() }) {
+                        Text("확인")
+                    }
                 }
             }
         }
@@ -111,7 +142,8 @@ fun OrbitGameScreen(
             current.playerHand.forEach { card ->
                 OrbitCardTile(
                     card = card,
-                    enabled = current.currentTurn == PlayerSide.PLAYER,
+                    enabled = current.currentTurn == PlayerSide.PLAYER &&
+                        lastPlayed == null && roundEndBanner == null,
                     onClick = {
                         when (card.type) {
                             OrbitCardType.SCOUT_DRONE -> pendingScoutCard = card
@@ -225,6 +257,16 @@ private fun EmpTargetDialog(onTarget: (PlayerSide) -> Unit, onDismiss: () -> Uni
         }
     )
 }
+
+private fun roundEndBannerText(info: com.doge.simulator.presentation.viewmodel.OrbitRoundEndInfo): String =
+    when (info.reason) {
+        RoundEndReason.DRAW -> "덱 소진 — 무승부! 새 라운드를 시작해요."
+        RoundEndReason.DECK_EXHAUSTED -> {
+            val who = if (info.winner == PlayerSide.PLAYER) "내가" else "B-01이"
+            "덱 소진 — $who 라운드를 가져갔어요!"
+        }
+        RoundEndReason.OUT -> "" // 이 배너는 OUT일 때는 쓰지 않는다
+    }
 
 private fun cardLabel(type: OrbitCardType): String = when (type) {
     OrbitCardType.SCOUT_DRONE -> "SCOUT DRONE"
