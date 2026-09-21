@@ -18,12 +18,18 @@ import com.doge.simulator.domain.model.orbit.OrbitCardType
 import com.doge.simulator.domain.model.orbit.PlayerSide
 import com.doge.simulator.domain.model.orbit.RoundEndReason
 import com.doge.simulator.domain.usecase.orbit.OrbitCardEffectInput
+import com.doge.simulator.domain.usecase.orbit.PlayOrbitCardUseCase
 import com.doge.simulator.presentation.viewmodel.OrbitRoundEndInfo
 import com.doge.simulator.presentation.viewmodel.OrbitViewModel
 import com.doge.simulator.ui.theme.*
 
-// ORBIT 게임 화면. 카드가 사용되는 순간에만 일시적으로 결과를 보여주고(FR-004), 지금까지
-// 사용된 카드의 지속 열람 목록은 두지 않는다 — 플레이어가 직접 기억해야 하는 요소.
+// ORBIT 게임 화면.
+//
+// 카드 사용 결과는 "마지막으로 낸 카드" 슬롯(진영당 하나)에 계속 남아있다가 그 진영이 다음
+// 카드를 내는 순간 덮어써진다 — 타이머나 확인 버튼 없이도 방금 무슨 일이 있었는지 내 페이스로
+// 읽을 수 있고, 그 이전 기록까지는 남지 않아 전체 히스토리를 만들지는 않는다(FR-004).
+// 라운드가 끝나는 것만은 별도로 명시적인 "확인"을 받는다 — SIGNAL만 조용히 바뀌고 지나가면
+// 라운드가 끝난 건지 헷갈린다는 피드백 반영.
 //
 // 카드 선택은 2단계다: 손패에서 카드를 누르면 먼저 "선택"만 되어 위쪽에 크게 뜨고 전체 설명이
 // 나온다(바로 발동되지 않음) — 다시 한번 "이 카드 사용"을 눌러야 실제로 낸다. 실수로 CAPTAIN을
@@ -35,24 +41,21 @@ fun OrbitGameScreen(
     viewModel: OrbitViewModel = hiltViewModel()
 ) {
     val snapshot by viewModel.uiSnapshot.collectAsState()
-    val lastPlayed by viewModel.lastPlayedCard.collectAsState()
     val roundEndBanner by viewModel.roundEndBanner.collectAsState()
     var selectedCard by remember { mutableStateOf<OrbitCard?>(null) }
     var pendingScoutCard by remember { mutableStateOf<OrbitCard?>(null) }
     var pendingEmpCard by remember { mutableStateOf<OrbitCard?>(null) }
 
-    val awaitingAck = lastPlayed != null || roundEndBanner != null
-
-    // 매치가 방금 끝났더라도, 마지막 수의 결과(lastPlayed)나 라운드 종료 배너를 플레이어가
-    // 아직 "확인"하지 않았다면 곧바로 결과 화면으로 넘기지 않는다 — 안 그러면 승부를 가른
-    // 장면을 볼 새도 없이 화면이 바뀌어버린다.
-    LaunchedEffect(snapshot?.matchOver, awaitingAck) {
-        if (snapshot?.matchOver == true && !awaitingAck) onMatchFinished()
+    // 매치가 방금 끝났더라도, 라운드 종료 배너를 플레이어가 아직 확인하지 않았다면 곧바로
+    // 결과 화면으로 넘기지 않는다 — 안 그러면 승부를 가른 장면을 볼 새도 없이 화면이
+    // 바뀌어버린다.
+    LaunchedEffect(snapshot?.matchOver, roundEndBanner) {
+        if (snapshot?.matchOver == true && roundEndBanner == null) onMatchFinished()
     }
 
-    // 확인 대기 중이거나 내 턴이 아니게 되면 선택을 풀어준다(다음 내 턴엔 손패가 바뀌어있을 수 있음).
-    LaunchedEffect(snapshot?.currentTurn, awaitingAck) {
-        if (awaitingAck || snapshot?.currentTurn != PlayerSide.PLAYER) selectedCard = null
+    // 라운드 종료 확인 대기 중이거나 내 턴이 아니게 되면 선택을 풀어준다.
+    LaunchedEffect(snapshot?.currentTurn, roundEndBanner) {
+        if (roundEndBanner != null || snapshot?.currentTurn != PlayerSide.PLAYER) selectedCard = null
     }
 
     // 시스템/제스처 뒤로가기가 "나가기" 버튼을 그냥 지나쳐 화면만 닫아버리면 activeMatch가
@@ -65,7 +68,7 @@ fun OrbitGameScreen(
     }
 
     val current = snapshot ?: return
-    val canAct = current.currentTurn == PlayerSide.PLAYER && !awaitingAck
+    val canAct = current.currentTurn == PlayerSide.PLAYER && roundEndBanner == null
 
     fun confirmPlay(card: OrbitCard) {
         when (card.type) {
@@ -101,7 +104,7 @@ fun OrbitGameScreen(
 
         Spacer(Modifier.height(Spacing.md))
 
-        // 상단 게임 영역: B-01
+        // 상단 게임 영역: B-01 + B-01이 마지막으로 낸 카드
         SidePanel(
             name = "B-01",
             handCount = current.b01HandSize,
@@ -109,10 +112,12 @@ fun OrbitGameScreen(
             shielded = current.b01Shielded,
             isTurn = current.currentTurn == PlayerSide.B01
         )
+        Spacer(Modifier.height(Spacing.xs))
+        LastPlaySlot(label = "B-01의 마지막 카드", summary = current.lastB01Card)
 
         Spacer(Modifier.height(Spacing.md))
 
-        // 중앙: 덱 / 카드 사용 결과 / 라운드 종료 배너 / 선택한 카드 미리보기
+        // 중앙: 덱 잔여 수 / 라운드 종료 배너 / 선택한 카드 미리보기
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = SpaceMid),
@@ -124,30 +129,10 @@ fun OrbitGameScreen(
             ) {
                 Text("남은 카드 ${current.deckRemaining}장", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
 
-                lastPlayed?.let { summary ->
-                    Spacer(Modifier.height(Spacing.xs))
-                    val who = if (summary.by == PlayerSide.PLAYER) "나" else "B-01"
-                    Text(
-                        "$who → ${cardLabel(summary.card.type)} 사용!",
-                        color = GoldAccent,
-                        fontWeight = FontWeight.Bold
-                    )
-                    if (summary.blockedByShield) {
-                        Text("상대의 SHIELD에 막혔어요!", color = StatusYellow)
-                    }
-                    summary.revealedOpponentCard?.let {
-                        Text("상대 카드: ${cardLabel(it.type)}", color = StatusYellow)
-                    }
-                }
-
                 roundEndBanner?.let { info ->
-                    Spacer(Modifier.height(Spacing.xs))
-                    Text(roundEndBannerText(info), color = GoldAccent, fontWeight = FontWeight.Bold)
-                }
-
-                // 타이머로 자동으로 사라지지 않는다 — 다 읽었으면 직접 확인을 눌러야 다음
-                // 턴으로 넘어간다. lastPlayed/roundEndBanner를 한 번에 같이 지운다.
-                if (awaitingAck) {
+                    Spacer(Modifier.height(Spacing.sm))
+                    Text(roundEndBannerText(info), color = GoldAccent, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                    // 타이머로 자동으로 사라지지 않는다 — 직접 확인을 눌러야 다음 라운드로 넘어간다.
                     Spacer(Modifier.height(Spacing.sm))
                     Button(onClick = { viewModel.acknowledgeAndContinue() }) {
                         Text("확인")
@@ -156,7 +141,7 @@ fun OrbitGameScreen(
 
                 // 손패에서 카드를 선택하면(아직 내지는 않은 상태) 여기 크게 미리보기 + 전체
                 // 설명이 뜬다. "이 카드 사용"을 눌러야 실제로 발동한다.
-                if (!awaitingAck) {
+                if (roundEndBanner == null) {
                     selectedCard?.let { card ->
                         Spacer(Modifier.height(Spacing.md))
                         HorizontalDivider(color = SpaceBlue)
@@ -181,7 +166,9 @@ fun OrbitGameScreen(
 
         Spacer(Modifier.weight(1f))
 
-        // 하단: 플레이어 손패
+        // 하단: 내가 마지막으로 낸 카드 + 손패
+        LastPlaySlot(label = "내 마지막 카드", summary = current.lastPlayerCard)
+        Spacer(Modifier.height(Spacing.xs))
         SidePanel(
             name = "나",
             handCount = current.playerHand.size,
@@ -246,6 +233,32 @@ private fun SidePanel(name: String, handCount: Int, signal: Int, shielded: Boole
     }
 }
 
+// 진영별로 "마지막으로 낸 카드"만 계속 보여주는 자리. 다음 카드가 나오면 덮어써진다.
+@Composable
+private fun LastPlaySlot(label: String, summary: PlayOrbitCardUseCase.PlayedCardSummary?) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("$label: ", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+        if (summary == null) {
+            Text("-", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+        } else {
+            Column {
+                Text(
+                    "${cardLabel(summary.card.type)} (Power ${summary.card.power})",
+                    color = GoldAccent,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                if (summary.blockedByShield) {
+                    Text("→ 상대의 SHIELD에 막혔어요", color = StatusYellow, style = MaterialTheme.typography.labelSmall)
+                }
+                summary.revealedOpponentCard?.let {
+                    Text("→ 상대 카드: ${cardLabel(it.type)}", color = StatusYellow, style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun OrbitCardTile(
     card: OrbitCard,
@@ -299,7 +312,11 @@ private fun ScoutGuessDialog(onGuess: (Int) -> Unit, onDismiss: () -> Unit) {
         text = {
             Column {
                 (2..8).forEach { power ->
-                    TextButton(onClick = { onGuess(power) }) { Text("Power $power") }
+                    // Power 숫자만으로는 "PROBE가 몇 번이었더라" 하고 헷갈리기 쉬워, 카드
+                    // 이름도 함께 보여준다.
+                    TextButton(onClick = { onGuess(power) }) {
+                        Text("$power · ${cardLabel(cardTypeForPower(power))}")
+                    }
                 }
             }
         }
@@ -320,6 +337,9 @@ private fun EmpTargetDialog(onTarget: (PlayerSide) -> Unit, onDismiss: () -> Uni
         }
     )
 }
+
+private fun cardTypeForPower(power: Int): OrbitCardType =
+    OrbitCardType.entries.first { it.power == power }
 
 private fun roundEndBannerText(info: OrbitRoundEndInfo): String {
     val outcome = when (info.winner) {
