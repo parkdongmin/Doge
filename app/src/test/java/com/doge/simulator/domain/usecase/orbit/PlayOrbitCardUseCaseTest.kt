@@ -17,6 +17,26 @@ class PlayOrbitCardUseCaseTest {
 
     private fun scoutDrone() = OrbitCard(OrbitCardType.SCOUT_DRONE)
 
+    // PROBE는 actor가 누구든 대칭적으로 동작해야 한다 — B-01이 PROBE를 내고 남는 카드가
+    // SHIELD(4), 상대(플레이어)는 SCOUT_DRONE(1)만 들고 있으면 Power가 낮은 플레이어가
+    // OUT돼야 한다(B-01 승리). 실기기에서 "결과가 반대로 보인다"는 리포트가 있어 확인차
+    // 추가한 회귀 테스트 — 실제로는 정상이었고, 원인은 뷰모델이 라운드 종료 배너를 보여주기도
+    // 전에 이미 다음 라운드를 시작해버려 화면에 다음 라운드 손패가 섞여 보였던 것이었다.
+    @Test
+    fun `probe is symmetric when b01 is the actor`() {
+        val round = OrbitRoundState.forTest(
+            playerHand = listOf(OrbitCardType.SCOUT_DRONE),
+            b01Hand = listOf(OrbitCardType.PROBE, OrbitCardType.SHIELD),
+            turn = PlayerSide.B01
+        )
+        val result = useCase(
+            round, PlayerSide.B01, OrbitCard(OrbitCardType.PROBE), b01Memory = B01Memory()
+        ) as PlayOrbitCardUseCase.Result.Applied
+
+        assertEquals(PlayerSide.PLAYER, result.summary.outSide)
+        assertEquals(PlayerSide.B01, round.winner)
+    }
+
     @Test
     fun `scout drone correct guess outs the opponent`() {
         val round = OrbitRoundState.forTest(

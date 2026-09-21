@@ -7,6 +7,7 @@ import com.doge.simulator.domain.model.orbit.OrbitRoundState
 import com.doge.simulator.domain.model.orbit.PlayerSide
 import com.doge.simulator.domain.model.orbit.RoundEndReason
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 import kotlin.random.Random
@@ -61,7 +62,7 @@ class ResolveOrbitRoundEndUseCaseTest {
     }
 
     @Test
-    fun `a draw round grants no signal and starts a fresh round`() {
+    fun `a draw round grants no signal and does not end the match`() {
         val match = OrbitMatchState.start(Random(1))
         val drawnRound = OrbitRoundState.forTest(
             playerHand = listOf(OrbitCardType.SENSOR),
@@ -76,6 +77,29 @@ class ResolveOrbitRoundEndUseCaseTest {
         assertEquals(0, match.signals[PlayerSide.PLAYER])
         assertEquals(0, match.signals[PlayerSide.B01])
         assertNull(match.matchResult)
+    }
+
+    // 회귀 테스트: onRoundEnded()가 SIGNAL/매치종료 판정만 하고 곧바로 다음 라운드를 시작하지
+    // 않아야 한다 — 그렇지 않으면 "라운드 종료" 확인 배너가 떠 있는 동안에도 화면에 이미 다음
+    // 라운드의 새 덱/새 손패가 섞여 보인다(실기기 리포트: 방금 끝난 라운드 결과가 헷갈림).
+    // 다음 라운드는 startNextRoundIfNotOver()를 명시적으로 호출해야만 시작된다.
+    @Test
+    fun `onRoundEnded does not advance to the next round by itself`() {
+        val match = OrbitMatchState.start(Random(1))
+        val endedRound = OrbitRoundState.forTest(
+            playerHand = listOf(OrbitCardType.CAPTAIN),
+            b01Hand = listOf(OrbitCardType.SCOUT_DRONE),
+            turn = match.currentRound.firstPlayerOfRound
+        )
+        useCase(endedRound)
+        match.currentRound = endedRound
+
+        match.onRoundEnded()
+        assertEquals(endedRound, match.currentRound) // 아직 그대로 — 새 라운드 시작 안 됨
+
+        match.startNextRoundIfNotOver()
+        assertNotEquals(endedRound, match.currentRound) // 이제서야 다음 라운드로 넘어감
+        assertEquals(PlayerSide.B01, match.currentRound.firstPlayerOfRound) // 직전 라운드 패자(B01)가 선공
     }
 
     @Test

@@ -247,8 +247,15 @@ class OrbitViewModel @Inject constructor(
         lastPlayerPlay = null
         lastB01Play = null
         val match = activeMatch ?: return
+        if (match.isOver) {
+            publishSnapshot() // 결과 화면 이동은 matchOver 관찰로 처리됨(화면 쪽 LaunchedEffect)
+            return
+        }
+        // 다음 라운드는 배너를 확인한 "지금" 시작한다 — onRoundEnded() 시점에 바로 시작해버리면
+        // 아직 방금 끝난 라운드 결과를 보여주는 배너가 떠 있는 동안에도 화면에 이미 다음
+        // 라운드의 새 덱 장수·새 손패가 섞여 보이는 문제가 있었다(실기기 리포트).
+        match.startNextRoundIfNotOver()
         publishSnapshot()
-        if (match.isOver) return // 결과 화면 이동은 matchOver 관찰로 처리됨(화면 쪽 LaunchedEffect)
         viewModelScope.launch { advanceUntilPlayerTurnOrPause() }
     }
 
