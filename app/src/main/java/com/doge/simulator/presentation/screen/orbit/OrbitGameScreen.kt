@@ -43,7 +43,10 @@ fun OrbitGameScreen(
     val snapshot by viewModel.uiSnapshot.collectAsState()
     val roundEndBanner by viewModel.roundEndBanner.collectAsState()
     val message by viewModel.message.collectAsState()
-    var selectedCard by remember { mutableStateOf<OrbitCard?>(null) }
+    // 카드 값이 아니라 손패 안에서의 "자리(인덱스)"로 선택을 추적한다 — OrbitCard는 종류만으로
+    // 동등성을 따지는 data class라, 같은 카드 2장(SENSOR 2장 등)을 들고 있을 때 값으로 비교하면
+    // 하나를 눌러도 두 장 다 선택된 것처럼(테두리가 둘 다 표시) 보이는 버그가 있었다.
+    var selectedIndex by remember { mutableStateOf<Int?>(null) }
     var pendingScoutCard by remember { mutableStateOf<OrbitCard?>(null) }
     var pendingEmpCard by remember { mutableStateOf<OrbitCard?>(null) }
 
@@ -56,7 +59,7 @@ fun OrbitGameScreen(
 
     // 라운드 종료 확인 대기 중이거나 내 턴이 아니게 되면 선택을 풀어준다.
     LaunchedEffect(snapshot?.currentTurn, roundEndBanner) {
-        if (roundEndBanner != null || snapshot?.currentTurn != PlayerSide.PLAYER) selectedCard = null
+        if (roundEndBanner != null || snapshot?.currentTurn != PlayerSide.PLAYER) selectedIndex = null
     }
 
     // 시스템/제스처 뒤로가기가 "나가기" 버튼을 그냥 지나쳐 화면만 닫아버리면 activeMatch가
@@ -77,7 +80,7 @@ fun OrbitGameScreen(
             OrbitCardType.EMP -> pendingEmpCard = card
             else -> {
                 viewModel.playCard(card)
-                selectedCard = null
+                selectedIndex = null
             }
         }
     }
@@ -149,22 +152,25 @@ fun OrbitGameScreen(
                 // 손패에서 카드를 선택하면(아직 내지는 않은 상태) 여기 크게 미리보기 + 전체
                 // 설명이 뜬다. "이 카드 사용"을 눌러야 실제로 발동한다.
                 if (roundEndBanner == null) {
-                    selectedCard?.let { card ->
-                        Spacer(Modifier.height(Spacing.md))
-                        HorizontalDivider(color = SpaceBlue)
-                        Spacer(Modifier.height(Spacing.md))
-                        OrbitCardTile(card = card, enabled = true, selected = true, large = true, onClick = {})
-                        Spacer(Modifier.height(Spacing.sm))
-                        Text(
-                            cardFullDescription(card.type),
-                            color = TextSecondary,
-                            style = BodyReading,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(Modifier.height(Spacing.md))
-                        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                            OutlinedButton(onClick = { selectedCard = null }) { Text("선택 취소") }
-                            Button(onClick = { confirmPlay(card) }) { Text("이 카드 사용") }
+                    selectedIndex?.let { idx ->
+                        val card = current.playerHand.getOrNull(idx)
+                        if (card != null) {
+                            Spacer(Modifier.height(Spacing.md))
+                            HorizontalDivider(color = SpaceBlue)
+                            Spacer(Modifier.height(Spacing.md))
+                            OrbitCardTile(card = card, enabled = true, selected = true, large = true, onClick = {})
+                            Spacer(Modifier.height(Spacing.sm))
+                            Text(
+                                cardFullDescription(card.type),
+                                color = TextSecondary,
+                                style = BodyReading,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(Modifier.height(Spacing.md))
+                            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                                OutlinedButton(onClick = { selectedIndex = null }) { Text("선택 취소") }
+                                Button(onClick = { confirmPlay(card) }) { Text("이 카드 사용") }
+                            }
                         }
                     }
                 }
@@ -185,13 +191,13 @@ fun OrbitGameScreen(
         )
         Spacer(Modifier.height(Spacing.sm))
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-            current.playerHand.forEach { card ->
+            current.playerHand.forEachIndexed { index, card ->
                 OrbitCardTile(
                     card = card,
                     enabled = canAct,
-                    selected = card == selectedCard,
+                    selected = index == selectedIndex,
                     onClick = {
-                        selectedCard = if (selectedCard == card) null else card
+                        selectedIndex = if (selectedIndex == index) null else index
                     }
                 )
             }
@@ -203,7 +209,7 @@ fun OrbitGameScreen(
             onGuess = { power ->
                 viewModel.playCard(card, OrbitCardEffectInput.ScoutGuess(power))
                 pendingScoutCard = null
-                selectedCard = null
+                selectedIndex = null
             },
             onDismiss = { pendingScoutCard = null }
         )
@@ -213,7 +219,7 @@ fun OrbitGameScreen(
             onTarget = { target ->
                 viewModel.playCard(card, OrbitCardEffectInput.EmpTarget(target))
                 pendingEmpCard = null
-                selectedCard = null
+                selectedIndex = null
             },
             onDismiss = { pendingEmpCard = null }
         )
