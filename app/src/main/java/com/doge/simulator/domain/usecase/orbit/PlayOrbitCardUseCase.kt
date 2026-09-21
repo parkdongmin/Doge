@@ -29,7 +29,10 @@ class PlayOrbitCardUseCase @Inject constructor() {
         val card: OrbitCard,
         val outSide: PlayerSide? = null,
         // SENSOR를 "플레이어가" 사용했을 때만 채워진다 — 화면에 일시적으로 보여줄 값(FR-004).
-        val revealedOpponentCard: OrbitCard? = null
+        val revealedOpponentCard: OrbitCard? = null,
+        // 대상이 SHIELD로 보호돼 있어 효과가 전혀 적용되지 않았는지(FR-006) — 화면에서
+        // "막혔다"는 걸 알려주기 위한 값. 카드 자체는 정상적으로 소모된다.
+        val blockedByShield: Boolean = false
     )
 
     operator fun invoke(
@@ -62,19 +65,26 @@ class PlayOrbitCardUseCase @Inject constructor() {
 
         var outSide: PlayerSide? = null
         var revealedOpponentCard: OrbitCard? = null
+        var blockedByShield = false
 
         when (card.type) {
             OrbitCardType.SCOUT_DRONE -> {
-                val guess = (input as? OrbitCardEffectInput.ScoutGuess)?.guessedPower
-                if (!opponentShielded && guess != null && guess != 1 &&
-                    opponent.hand.isNotEmpty() && opponent.hand.first().power == guess
-                ) {
-                    opponent.markOut()
-                    outSide = opponentSide
+                if (opponentShielded) {
+                    blockedByShield = true
+                } else {
+                    val guess = (input as? OrbitCardEffectInput.ScoutGuess)?.guessedPower
+                    if (guess != null && guess != 1 &&
+                        opponent.hand.isNotEmpty() && opponent.hand.first().power == guess
+                    ) {
+                        opponent.markOut()
+                        outSide = opponentSide
+                    }
                 }
             }
             OrbitCardType.SENSOR -> {
-                if (!opponentShielded && opponent.hand.isNotEmpty()) {
+                if (opponentShielded) {
+                    blockedByShield = true
+                } else if (opponent.hand.isNotEmpty()) {
                     val seen = opponent.hand.first()
                     if (actingSide == PlayerSide.B01) {
                         b01Memory.reveal(seen)
@@ -84,7 +94,9 @@ class PlayOrbitCardUseCase @Inject constructor() {
                 }
             }
             OrbitCardType.PROBE -> {
-                if (!opponentShielded && actor.hand.isNotEmpty() && opponent.hand.isNotEmpty()) {
+                if (opponentShielded) {
+                    blockedByShield = true
+                } else if (actor.hand.isNotEmpty() && opponent.hand.isNotEmpty()) {
                     val myPower = actor.hand.first().power
                     val oppPower = opponent.hand.first().power
                     when {
@@ -100,7 +112,9 @@ class PlayOrbitCardUseCase @Inject constructor() {
             OrbitCardType.EMP -> {
                 val target = (input as? OrbitCardEffectInput.EmpTarget)?.target ?: opponentSide
                 val targetShielded = round.player(target).shieldActive
-                if (target == actingSide || !targetShielded) {
+                if (target != actingSide && targetShielded) {
+                    blockedByShield = true
+                } else {
                     val targetState = round.player(target)
                     val discarded = targetState.hand.firstOrNull()
                     if (discarded != null) {
@@ -118,7 +132,9 @@ class PlayOrbitCardUseCase @Inject constructor() {
                 }
             }
             OrbitCardType.WARP_GATE -> {
-                if (!opponentShielded && actor.hand.isNotEmpty() && opponent.hand.isNotEmpty()) {
+                if (opponentShielded) {
+                    blockedByShield = true
+                } else if (actor.hand.isNotEmpty() && opponent.hand.isNotEmpty()) {
                     val playerState = round.player(PlayerSide.PLAYER)
                     val b01State = round.player(PlayerSide.B01)
                     val playerCardBefore = playerState.hand.removeAt(0)
@@ -150,6 +166,6 @@ class PlayOrbitCardUseCase @Inject constructor() {
             }
         }
 
-        return Result.Applied(PlayedCardSummary(actingSide, card, outSide, revealedOpponentCard))
+        return Result.Applied(PlayedCardSummary(actingSide, card, outSide, revealedOpponentCard, blockedByShield))
     }
 }

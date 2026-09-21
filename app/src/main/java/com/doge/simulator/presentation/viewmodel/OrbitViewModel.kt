@@ -53,9 +53,15 @@ data class OrbitUiSnapshot(
     val bet: OrbitBet?
 )
 
-// 카드 OUT이 아니라 덱 소진/무승부로 라운드가 끝났을 때 보여줄 정보. 이 경우 화면에 알려줄
-// "방금 사용된 카드"가 없어서, 아무 설명 없이 SIGNAL만 조용히 바뀌는 문제를 막기 위함.
-data class OrbitRoundEndInfo(val reason: RoundEndReason, val winner: PlayerSide?)
+// 라운드가 끝날 때마다(사유 불문) 채워진다. "방금 이 카드를 썼다"는 알아도 "그래서 라운드가
+// 끝났다"는 게 눈에 안 띄고 SIGNAL만 조용히 바뀌어 지나가버린다는 피드백을 반영 — 라운드
+// 종료는 항상 이유·승자·현재 SIGNAL 스코어를 명시적으로 보여주고 확인을 받는다.
+data class OrbitRoundEndInfo(
+    val reason: RoundEndReason,
+    val winner: PlayerSide?,
+    val playerSignal: Int,
+    val b01Signal: Int
+)
 
 private fun OrbitMatchState.toSnapshot(): OrbitUiSnapshot {
     val round = currentRound
@@ -108,7 +114,7 @@ class OrbitViewModel @Inject constructor(
     private val _lastPlayedCard = MutableStateFlow<PlayOrbitCardUseCase.PlayedCardSummary?>(null)
     val lastPlayedCard: StateFlow<PlayOrbitCardUseCase.PlayedCardSummary?> = _lastPlayedCard.asStateFlow()
 
-    // 덱 소진/무승부로 라운드가 끝났을 때만 채워진다(OUT은 lastPlayedCard로 이미 설명됨).
+    // 라운드가 끝날 때마다 채워진다(사유 불문) — 카드 OUT이면 lastPlayedCard와 함께 보여준다.
     private val _roundEndBanner = MutableStateFlow<OrbitRoundEndInfo?>(null)
     val roundEndBanner: StateFlow<OrbitRoundEndInfo?> = _roundEndBanner.asStateFlow()
 
@@ -193,8 +199,10 @@ class OrbitViewModel @Inject constructor(
     fun playCard(card: OrbitCard, input: OrbitCardEffectInput = OrbitCardEffectInput.None) {
         val match = activeMatch ?: return
         val round = match.currentRound
-        // lastPlayedCard가 남아있다는 건 아직 이전 결과를 확인 안 했다는 뜻 — 중복 입력 방지.
-        if (round.currentTurn != PlayerSide.PLAYER || round.isOver || _lastPlayedCard.value != null) return
+        // 확인 안 한 이전 결과/배너가 남아있으면 입력을 받지 않는다 — 중복 입력 방지.
+        if (round.currentTurn != PlayerSide.PLAYER || round.isOver ||
+            _lastPlayedCard.value != null || _roundEndBanner.value != null
+        ) return
 
         val result = playOrbitCardUseCase(round, PlayerSide.PLAYER, card, input, b01Memory)
         if (result is PlayOrbitCardUseCase.Result.Applied) {
@@ -205,22 +213,13 @@ class OrbitViewModel @Inject constructor(
         // InvalidMove면 상태를 전혀 바꾸지 않고 그대로 반환 — 플레이어가 다른 카드를 고를 수 있다.
     }
 
-    // 결과 확인 후 다음 단계로 진행한다: 내 턴이 남아있으면 그냥 대기, B-01 턴이면 B-01이
-    // 한 수를 두고 다시 멈춘다.
-    fun acknowledgePlayedCard() {
-        if (_lastPlayedCard.value == null) return
+    // 카드 사용 결과/라운드 종료 배너를 확인하고 다음 단계로 진행한다: 내 턴이 남아있으면
+    // 그냥 대기, B-01 턴이면 B-01이 한 수를 두고 다시 멈춘다. 카드 OUT으로 라운드가 끝나면
+    // lastPlayedCard와 roundEndBanner가 동시에 채워지므로 화면은 이 함수 하나로 둘 다 지운다.
+    fun acknowledgeAndContinue() {
+        if (_lastPlayedCard.value == null && _roundEndBanner.value == null) return
         _lastPlayedCard.value = null
-        proceedAfterAcknowledgement()
-    }
-
-    // 덱 소진/무승부 배너 확인 후 다음 단계로 진행한다.
-    fun acknowledgeRoundEnd() {
-        if (_roundEndBanner.value == null) return
         _roundEndBanner.value = null
-        proceedAfterAcknowledgement()
-    }
-
-    private fun proceedAfterAcknowledgement() {
         val match = activeMatch ?: return
         if (match.isOver) return // 결과 화면 이동은 matchOver 관찰로 처리됨(화면 쪽 LaunchedEffect)
         viewModelScope.launch { advanceUntilPlayerTurnOrPause() }
@@ -253,8 +252,8 @@ class OrbitViewModel @Inject constructor(
 
     // 내 턴이 될 때까지 진행한다. B-01 턴이면 한 수만 두고 그 결과를 "확인"할 때까지 멈추고,
     // 내 턴이면 드로우만 진행해 손패 2장을 보여준 뒤 멈춘다(카드 선택은 UI 입력을 기다림).
-    // 덱 소진/무승부로 라운드가 끝나면 그 즉시 배너를 띄우고 멈춘다 — acknowledgeRoundEnd()가
-    // 이어서 진행한다.
+    // 라운드가 끝나면 그 즉시 종료 배너를 띄우고 멈춘다 — acknowledgeAndContinue()가 이어서
+    // 진행한다.
     private suspend fun advanceUntilPlayerTurnOrPause() {
         val match = activeMatch ?: return
         if (match.isOver || _roundEndBanner.value != null) return
@@ -269,14 +268,14 @@ class OrbitViewModel @Inject constructor(
             finishRoundIfNeeded(match)
             publishSnapshot()
             // 덱 소진/DRAW면 위에서 _roundEndBanner가 채워져 여기서 멈추고, 사용자가 확인을
-            // 누르면 acknowledgeRoundEnd()가 다시 이 함수를 호출해 이어서 진행한다.
+            // 누르면 acknowledgeAndContinue()가 다시 이 함수를 호출해 이어서 진행한다.
         } else {
             publishSnapshot()
         }
     }
 
     // B-01의 턴 한 번(드로우 + 카드 선택 + 실행)을 진행한다. 카드를 냈다면 그 결과를 플레이어가
-    // "확인"할 때까지 멈춘다(acknowledgePlayedCard/acknowledgeRoundEnd가 다음 단계를 이어감).
+    // "확인"할 때까지 멈춘다(acknowledgeAndContinue가 다음 단계를 이어감).
     private suspend fun playB01TurnStep(match: OrbitMatchState) {
         val canPlay = advanceOrbitTurnUseCase(match.currentRound)
         if (!canPlay) {
@@ -303,15 +302,18 @@ class OrbitViewModel @Inject constructor(
         }
     }
 
-    // 카드 OUT으로 끝나면(lastPlayedCard가 이미 설명함) 아무 배너도 띄우지 않고, 덱 소진/
-    // 무승부로 끝나면 별도 배너를 띄운다. 매치가 함께 끝났다면 베팅도 정산한다.
+    // 라운드가 끝나면 사유와 관계없이 항상 종료 배너를 채운다(카드 OUT이면 lastPlayedCard와
+    // 함께 보여줌). 매치가 함께 끝났다면 베팅도 정산한다.
     private fun finishRoundIfNeeded(match: OrbitMatchState) {
         if (!match.currentRound.isOver) return
         val endedRound = match.currentRound
         match.onRoundEnded()
-        if (endedRound.endReason != RoundEndReason.OUT) {
-            _roundEndBanner.value = OrbitRoundEndInfo(endedRound.endReason!!, endedRound.winner)
-        }
+        _roundEndBanner.value = OrbitRoundEndInfo(
+            reason = endedRound.endReason!!,
+            winner = endedRound.winner,
+            playerSignal = match.signals[PlayerSide.PLAYER] ?: 0,
+            b01Signal = match.signals[PlayerSide.B01] ?: 0
+        )
         if (match.isOver) {
             viewModelScope.launch {
                 _lastSettlement.value = settleOrbitBetUseCase.settleFinished(match)

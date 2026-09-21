@@ -131,6 +131,7 @@ class PlayOrbitCardUseCaseTest {
         ) as PlayOrbitCardUseCase.Result.Applied
 
         assertNull(result.summary.outSide)
+        assertTrue(result.summary.blockedByShield)
         assertFalse(round.player(PlayerSide.PLAYER).isOut)
     }
 
@@ -142,11 +143,45 @@ class PlayOrbitCardUseCaseTest {
             turn = PlayerSide.PLAYER
         )
         useCase(round, PlayerSide.PLAYER, OrbitCard(OrbitCardType.SHIELD), b01Memory = B01Memory())
-        useCase(round, PlayerSide.B01, OrbitCard(OrbitCardType.PROBE), b01Memory = B01Memory())
+        val result = useCase(
+            round, PlayerSide.B01, OrbitCard(OrbitCardType.PROBE), b01Memory = B01Memory()
+        ) as PlayOrbitCardUseCase.Result.Applied
 
         assertEquals(1, round.player(PlayerSide.B01).hand.size)
+        assertTrue(result.summary.blockedByShield)
         assertFalse(round.player(PlayerSide.PLAYER).isOut)
         assertFalse(round.player(PlayerSide.B01).isOut)
+    }
+
+    @Test
+    fun `shield does not report blocked for effects that do not target the shielded side`() {
+        val round = OrbitRoundState.forTest(
+            playerHand = listOf(OrbitCardType.SHIELD),
+            b01Hand = listOf(OrbitCardType.SENSOR)
+        )
+        val result = useCase(
+            round, PlayerSide.PLAYER, OrbitCard(OrbitCardType.SHIELD), b01Memory = B01Memory()
+        ) as PlayOrbitCardUseCase.Result.Applied
+
+        assertFalse(result.summary.blockedByShield)
+    }
+
+    @Test
+    fun `emp on self is not blocked by the actor's own shield`() {
+        val round = OrbitRoundState.forTest(
+            playerHand = listOf(OrbitCardType.EMP, OrbitCardType.SENSOR),
+            b01Hand = listOf(OrbitCardType.PROBE),
+            remainingDeck = listOf(OrbitCardType.CAPTAIN)
+        )
+        round.player(PlayerSide.PLAYER).shieldActive = true
+
+        val result = useCase(
+            round, PlayerSide.PLAYER, OrbitCard(OrbitCardType.EMP),
+            OrbitCardEffectInput.EmpTarget(PlayerSide.PLAYER), B01Memory()
+        ) as PlayOrbitCardUseCase.Result.Applied
+
+        assertFalse(result.summary.blockedByShield)
+        assertEquals(OrbitCardType.CAPTAIN, round.player(PlayerSide.PLAYER).hand.single().type)
     }
 
     @Test

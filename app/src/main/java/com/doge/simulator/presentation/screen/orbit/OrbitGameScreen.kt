@@ -1,6 +1,7 @@
 package com.doge.simulator.presentation.screen.orbit
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -9,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.doge.simulator.domain.model.orbit.OrbitCard
@@ -16,11 +18,16 @@ import com.doge.simulator.domain.model.orbit.OrbitCardType
 import com.doge.simulator.domain.model.orbit.PlayerSide
 import com.doge.simulator.domain.model.orbit.RoundEndReason
 import com.doge.simulator.domain.usecase.orbit.OrbitCardEffectInput
+import com.doge.simulator.presentation.viewmodel.OrbitRoundEndInfo
 import com.doge.simulator.presentation.viewmodel.OrbitViewModel
 import com.doge.simulator.ui.theme.*
 
 // ORBIT 게임 화면. 카드가 사용되는 순간에만 일시적으로 결과를 보여주고(FR-004), 지금까지
 // 사용된 카드의 지속 열람 목록은 두지 않는다 — 플레이어가 직접 기억해야 하는 요소.
+//
+// 카드 선택은 2단계다: 손패에서 카드를 누르면 먼저 "선택"만 되어 위쪽에 크게 뜨고 전체 설명이
+// 나온다(바로 발동되지 않음) — 다시 한번 "이 카드 사용"을 눌러야 실제로 낸다. 실수로 CAPTAIN을
+// 눌러 즉시 OUT되는 사고 등을 막기 위함.
 @Composable
 fun OrbitGameScreen(
     onExit: () -> Unit,
@@ -30,16 +37,22 @@ fun OrbitGameScreen(
     val snapshot by viewModel.uiSnapshot.collectAsState()
     val lastPlayed by viewModel.lastPlayedCard.collectAsState()
     val roundEndBanner by viewModel.roundEndBanner.collectAsState()
+    var selectedCard by remember { mutableStateOf<OrbitCard?>(null) }
     var pendingScoutCard by remember { mutableStateOf<OrbitCard?>(null) }
     var pendingEmpCard by remember { mutableStateOf<OrbitCard?>(null) }
+
+    val awaitingAck = lastPlayed != null || roundEndBanner != null
 
     // 매치가 방금 끝났더라도, 마지막 수의 결과(lastPlayed)나 라운드 종료 배너를 플레이어가
     // 아직 "확인"하지 않았다면 곧바로 결과 화면으로 넘기지 않는다 — 안 그러면 승부를 가른
     // 장면을 볼 새도 없이 화면이 바뀌어버린다.
-    LaunchedEffect(snapshot?.matchOver, lastPlayed, roundEndBanner) {
-        if (snapshot?.matchOver == true && lastPlayed == null && roundEndBanner == null) {
-            onMatchFinished()
-        }
+    LaunchedEffect(snapshot?.matchOver, awaitingAck) {
+        if (snapshot?.matchOver == true && !awaitingAck) onMatchFinished()
+    }
+
+    // 확인 대기 중이거나 내 턴이 아니게 되면 선택을 풀어준다(다음 내 턴엔 손패가 바뀌어있을 수 있음).
+    LaunchedEffect(snapshot?.currentTurn, awaitingAck) {
+        if (awaitingAck || snapshot?.currentTurn != PlayerSide.PLAYER) selectedCard = null
     }
 
     // 시스템/제스처 뒤로가기가 "나가기" 버튼을 그냥 지나쳐 화면만 닫아버리면 activeMatch가
@@ -52,6 +65,18 @@ fun OrbitGameScreen(
     }
 
     val current = snapshot ?: return
+    val canAct = current.currentTurn == PlayerSide.PLAYER && !awaitingAck
+
+    fun confirmPlay(card: OrbitCard) {
+        when (card.type) {
+            OrbitCardType.SCOUT_DRONE -> pendingScoutCard = card
+            OrbitCardType.EMP -> pendingEmpCard = card
+            else -> {
+                viewModel.playCard(card)
+                selectedCard = null
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -87,7 +112,7 @@ fun OrbitGameScreen(
 
         Spacer(Modifier.height(Spacing.md))
 
-        // 중앙: 덱/일시 공개 연출
+        // 중앙: 덱 / 카드 사용 결과 / 라운드 종료 배너 / 선택한 카드 미리보기
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = SpaceMid),
@@ -98,6 +123,7 @@ fun OrbitGameScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text("남은 카드 ${current.deckRemaining}장", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+
                 lastPlayed?.let { summary ->
                     Spacer(Modifier.height(Spacing.xs))
                     val who = if (summary.by == PlayerSide.PLAYER) "나" else "B-01"
@@ -106,22 +132,48 @@ fun OrbitGameScreen(
                         color = GoldAccent,
                         fontWeight = FontWeight.Bold
                     )
+                    if (summary.blockedByShield) {
+                        Text("상대의 SHIELD에 막혔어요!", color = StatusYellow)
+                    }
                     summary.revealedOpponentCard?.let {
                         Text("상대 카드: ${cardLabel(it.type)}", color = StatusYellow)
                     }
-                    // 타이머로 자동으로 사라지지 않는다 — 다 읽었으면 직접 확인을 눌러야 다음
-                    // 턴으로 넘어간다.
-                    Spacer(Modifier.height(Spacing.sm))
-                    Button(onClick = { viewModel.acknowledgePlayedCard() }) {
-                        Text("확인")
-                    }
                 }
+
                 roundEndBanner?.let { info ->
                     Spacer(Modifier.height(Spacing.xs))
                     Text(roundEndBannerText(info), color = GoldAccent, fontWeight = FontWeight.Bold)
+                }
+
+                // 타이머로 자동으로 사라지지 않는다 — 다 읽었으면 직접 확인을 눌러야 다음
+                // 턴으로 넘어간다. lastPlayed/roundEndBanner를 한 번에 같이 지운다.
+                if (awaitingAck) {
                     Spacer(Modifier.height(Spacing.sm))
-                    Button(onClick = { viewModel.acknowledgeRoundEnd() }) {
+                    Button(onClick = { viewModel.acknowledgeAndContinue() }) {
                         Text("확인")
+                    }
+                }
+
+                // 손패에서 카드를 선택하면(아직 내지는 않은 상태) 여기 크게 미리보기 + 전체
+                // 설명이 뜬다. "이 카드 사용"을 눌러야 실제로 발동한다.
+                if (!awaitingAck) {
+                    selectedCard?.let { card ->
+                        Spacer(Modifier.height(Spacing.md))
+                        HorizontalDivider(color = SpaceBlue)
+                        Spacer(Modifier.height(Spacing.md))
+                        OrbitCardTile(card = card, enabled = true, selected = true, large = true, onClick = {})
+                        Spacer(Modifier.height(Spacing.sm))
+                        Text(
+                            cardFullDescription(card.type),
+                            color = TextSecondary,
+                            style = BodyReading,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(Modifier.height(Spacing.md))
+                        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                            OutlinedButton(onClick = { selectedCard = null }) { Text("선택 취소") }
+                            Button(onClick = { confirmPlay(card) }) { Text("이 카드 사용") }
+                        }
                     }
                 }
             }
@@ -142,14 +194,10 @@ fun OrbitGameScreen(
             current.playerHand.forEach { card ->
                 OrbitCardTile(
                     card = card,
-                    enabled = current.currentTurn == PlayerSide.PLAYER &&
-                        lastPlayed == null && roundEndBanner == null,
+                    enabled = canAct,
+                    selected = card == selectedCard,
                     onClick = {
-                        when (card.type) {
-                            OrbitCardType.SCOUT_DRONE -> pendingScoutCard = card
-                            OrbitCardType.EMP -> pendingEmpCard = card
-                            else -> viewModel.playCard(card)
-                        }
+                        selectedCard = if (selectedCard == card) null else card
                     }
                 )
             }
@@ -161,6 +209,7 @@ fun OrbitGameScreen(
             onGuess = { power ->
                 viewModel.playCard(card, OrbitCardEffectInput.ScoutGuess(power))
                 pendingScoutCard = null
+                selectedCard = null
             },
             onDismiss = { pendingScoutCard = null }
         )
@@ -170,6 +219,7 @@ fun OrbitGameScreen(
             onTarget = { target ->
                 viewModel.playCard(card, OrbitCardEffectInput.EmpTarget(target))
                 pendingEmpCard = null
+                selectedCard = null
             },
             onDismiss = { pendingEmpCard = null }
         )
@@ -197,11 +247,19 @@ private fun SidePanel(name: String, handCount: Int, signal: Int, shielded: Boole
 }
 
 @Composable
-private fun OrbitCardTile(card: OrbitCard, enabled: Boolean, onClick: () -> Unit) {
+private fun OrbitCardTile(
+    card: OrbitCard,
+    enabled: Boolean,
+    selected: Boolean = false,
+    large: Boolean = false,
+    onClick: () -> Unit
+) {
+    val size = if (large) 140.dp to 180.dp else 96.dp to 128.dp
     Card(
-        modifier = Modifier.width(96.dp).height(128.dp),
+        modifier = Modifier.width(size.first).height(size.second),
         colors = CardDefaults.cardColors(containerColor = if (enabled) SpaceNavy else SpaceMid),
         shape = RoundedCornerShape(10.dp),
+        border = if (selected) BorderStroke(2.dp, GoldAccent) else null,
         onClick = onClick,
         enabled = enabled
     ) {
@@ -210,18 +268,23 @@ private fun OrbitCardTile(card: OrbitCard, enabled: Boolean, onClick: () -> Unit
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Text("${card.power}", color = GoldAccent, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                "${card.power}",
+                color = GoldAccent,
+                style = if (large) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
             Text(
                 cardLabel(card.type),
                 color = TextPrimary,
                 style = MaterialTheme.typography.labelSmall,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                textAlign = TextAlign.Center
             )
             Text(
                 cardEffectShort(card.type),
                 color = TextSecondary,
                 style = MaterialTheme.typography.labelSmall,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                textAlign = TextAlign.Center
             )
         }
     }
@@ -258,15 +321,15 @@ private fun EmpTargetDialog(onTarget: (PlayerSide) -> Unit, onDismiss: () -> Uni
     )
 }
 
-private fun roundEndBannerText(info: com.doge.simulator.presentation.viewmodel.OrbitRoundEndInfo): String =
-    when (info.reason) {
-        RoundEndReason.DRAW -> "덱 소진 — 무승부! 새 라운드를 시작해요."
-        RoundEndReason.DECK_EXHAUSTED -> {
-            val who = if (info.winner == PlayerSide.PLAYER) "내가" else "B-01이"
-            "덱 소진 — $who 라운드를 가져갔어요!"
-        }
-        RoundEndReason.OUT -> "" // 이 배너는 OUT일 때는 쓰지 않는다
+private fun roundEndBannerText(info: OrbitRoundEndInfo): String {
+    val outcome = when (info.winner) {
+        PlayerSide.PLAYER -> "내가 승리!"
+        PlayerSide.B01 -> "B-01 승리"
+        null -> "무승부"
     }
+    val cause = if (info.reason == RoundEndReason.OUT) "라운드 종료" else "덱 소진 — 라운드 종료"
+    return "$cause — $outcome  (SIGNAL ${info.playerSignal}-${info.b01Signal})"
+}
 
 private fun cardLabel(type: OrbitCardType): String = when (type) {
     OrbitCardType.SCOUT_DRONE -> "SCOUT DRONE"
@@ -288,4 +351,23 @@ private fun cardEffectShort(type: OrbitCardType): String = when (type) {
     OrbitCardType.WARP_GATE -> "카드 교환"
     OrbitCardType.AI_CORE -> "효과 없음"
     OrbitCardType.CAPTAIN -> "사용 시 OUT"
+}
+
+private fun cardFullDescription(type: OrbitCardType): String = when (type) {
+    OrbitCardType.SCOUT_DRONE ->
+        "상대가 가진 카드의 Power를 하나 추측해요. 맞히면 상대는 즉시 OUT! Power 1(SCOUT DRONE 자신)은 지목할 수 없어요."
+    OrbitCardType.SENSOR ->
+        "상대가 지금 들고 있는 카드를 확인해요."
+    OrbitCardType.PROBE ->
+        "서로의 카드 Power를 비교해서 낮은 쪽이 즉시 OUT돼요. 같으면 아무 일도 없어요."
+    OrbitCardType.SHIELD ->
+        "다음 내 턴이 시작될 때까지 상대의 카드 효과를 전부 막아줘요."
+    OrbitCardType.EMP ->
+        "나 또는 상대 중 한 명을 골라, 그 사람이 지금 든 카드를 버리고 새 카드를 받게 해요. 덱에 카드가 없으면 쓸 수 없어요."
+    OrbitCardType.WARP_GATE ->
+        "나와 상대가 가진 카드를 서로 맞바꿔요."
+    OrbitCardType.AI_CORE ->
+        "따로 효과는 없어요. 하지만 EMP나 WARP GATE와 함께 손에 있으면 반드시 이 카드를 내야 해요."
+    OrbitCardType.CAPTAIN ->
+        "ORBIT에서 가장 강한 카드예요. 하지만 직접 내거나 EMP로 버려지면 즉시 OUT돼요."
 }
