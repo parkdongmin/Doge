@@ -12,6 +12,14 @@ class OrbitRoundState internal constructor(
     var currentTurn: PlayerSide = firstPlayerOfRound
         private set
 
+    // 이번 턴에 이미 드로우했는지 여부. PlayOrbitCardUseCase가 InvalidMove를 반환하면(예:
+    // 덱이 비어 EMP를 쓸 수 없는 상황) 턴이 넘어가지 않는데, 이때 호출자가 "아직 이 사람
+    // 턴이네" 하고 drawForCurrentPlayer()를 또 부르면 한 턴에 카드를 여러 장 뽑아 손패가
+    // 2장이라는 불변식이 깨진다(B01OrbitAi.decide()의 check(hand.size==2)가 터져 앱이
+    // 죽는 원인이었음). 이 플래그로 같은 턴에서의 중복 드로우를 막는다.
+    var hasDrawnThisTurn: Boolean = false
+        private set
+
     var endReason: RoundEndReason? = null
         private set
 
@@ -24,18 +32,21 @@ class OrbitRoundState internal constructor(
 
     // 자기 턴에 드로우한다. SHIELD는 "자신의 다음 턴이 시작될 때까지" 유지되므로, 이 시점에
     // 만료시킨다. 덱이 비어 있으면 false를 반환하고 호출자는 즉시 덱 소진 판정으로 넘어가야
-    // 한다(FR-008).
+    // 한다(FR-008). 이미 이번 턴에 드로우했다면 다시 뽑지 않고 true를 반환한다.
     fun drawForCurrentPlayer(): Boolean {
+        if (hasDrawnThisTurn) return true
         val actor = player(currentTurn)
         actor.shieldActive = false
         val card = deck.draw() ?: return false
         actor.hand.add(card)
+        hasDrawnThisTurn = true
         return true
     }
 
     fun endTurnAndSwitchIfNotOver() {
         if (isOver) return
         currentTurn = currentTurn.opponent()
+        hasDrawnThisTurn = false
     }
 
     fun finishWithOut(loser: PlayerSide) {

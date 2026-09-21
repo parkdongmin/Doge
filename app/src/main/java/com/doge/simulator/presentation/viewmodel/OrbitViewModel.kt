@@ -211,6 +211,7 @@ class OrbitViewModel @Inject constructor(
     // B-01 턴을 필요한 만큼 자동으로 진행한다. 사람 턴이 되거나 매치가 끝나면 멈춘다.
     private suspend fun runTurnLoop() {
         var match = activeMatch ?: return
+        var invalidMoveStreak = 0
         while (!match.isOver && !match.currentRound.isOver && match.currentRound.currentTurn == PlayerSide.B01) {
             val canPlay = advanceOrbitTurnUseCase(match.currentRound)
             if (!canPlay) {
@@ -228,7 +229,14 @@ class OrbitViewModel @Inject constructor(
                 match.currentRound, PlayerSide.B01, decision.card, decision.input, b01Memory
             )
             if (result is PlayOrbitCardUseCase.Result.Applied) {
+                invalidMoveStreak = 0
                 emitPlayedCard(result.summary)
+            } else {
+                // 안전장치: 정상적으로는 B01OrbitAi가 낼 수 없는 카드를 고르지 않아야 하지만,
+                // 혹시라도 계속 실패하면(턴이 안 넘어가 무한 반복될 수 있는 상황) 몇 번 만에
+                // 포기하고 사람 턴 대기로 넘어간다 — 화면이 멈추는 것보다 낫다.
+                invalidMoveStreak += 1
+                if (invalidMoveStreak >= 3) break
             }
             finishRoundIfNeeded(match)
             publishSnapshot()

@@ -93,6 +93,25 @@ class B01OrbitAiTest {
         assertEquals(8, (decision.input as OrbitCardEffectInput.ScoutGuess).guessedPower)
     }
 
+    // 회귀 테스트: 예전에는 덱이 비어 실제로 낼 수 없는 EMP를 "실수"로라도 골라버려서
+    // PlayOrbitCardUseCase가 InvalidMove를 반환 → 턴이 안 넘어가 무한 반복하다 손패가
+    // 늘어나 check(hand.size==2)가 터지는 크래시로 이어졌다. 덱이 비어 있으면 mistakeRate가
+    // 1이어도 EMP를 절대 고르면 안 된다.
+    @Test
+    fun `never chooses emp when the deck is empty even at maximum mistake rate`() {
+        val round = OrbitRoundState.forTest(
+            playerHand = listOf(OrbitCardType.SENSOR),
+            b01Hand = listOf(OrbitCardType.EMP, OrbitCardType.SHIELD),
+            remainingDeck = emptyList(),
+            turn = PlayerSide.B01
+        )
+
+        repeat(20) { seed ->
+            val decision = B01OrbitAi.decide(round, B01Memory(), mistakeRate = 1f, random = Random(seed))
+            assertNotEquals(OrbitCardType.EMP, decision.card.type)
+        }
+    }
+
     @Test
     fun `scout drone never guesses power 1 even without prior information`() {
         val round = OrbitRoundState.forTest(

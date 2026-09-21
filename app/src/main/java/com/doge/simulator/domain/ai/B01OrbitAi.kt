@@ -35,7 +35,12 @@ object B01OrbitAi {
             return B01Decision(core, OrbitCardEffectInput.None)
         }
 
-        val candidates = hand.map { c -> c to scoreCandidate(round, memory, c) }
+        // 실제로 낼 수 없는 카드(예: 덱이 비어 사용 불가능한 EMP)는 "최적"이든 "실수"든
+        // 아예 선택지에서 제외한다 — 그렇지 않으면 PlayOrbitCardUseCase가 InvalidMove를
+        // 반환해 턴이 넘어가지 않고, 호출자가 다시 드로우를 시도하면서 손패 불변식이
+        // 깨질 수 있었다(이전에 앱이 죽던 원인).
+        val playable = hand.filter { isPlayable(round, it) }.ifEmpty { hand }
+        val candidates = playable.map { c -> c to scoreCandidate(round, memory, c) }
         val best = candidates.maxByOrNull { it.second.score }!!
         val chosen = if (candidates.size > 1 && random.nextFloat() < mistakeRate) {
             candidates.first { it.first != best.first }
@@ -44,6 +49,9 @@ object B01OrbitAi {
         }
         return B01Decision(chosen.first, chosen.second.input)
     }
+
+    private fun isPlayable(round: OrbitRoundState, card: OrbitCard): Boolean =
+        card.type != OrbitCardType.EMP || round.deck.remainingCount >= 1
 
     private data class Scored(val score: Int, val input: OrbitCardEffectInput)
 
