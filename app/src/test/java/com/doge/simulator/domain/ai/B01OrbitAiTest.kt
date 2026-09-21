@@ -112,6 +112,24 @@ class B01OrbitAiTest {
         }
     }
 
+    // 회귀 테스트(실기기 크래시): 손에 같은 종류 카드 2장(예: SENSOR 2장)이 있으면 두
+    // candidate가 값으로는 서로 구별되지 않는다("OrbitCard"는 type만으로 동등성을 따지는
+    // data class). mistakeRate가 1이라 "최적이 아닌 카드"를 골라야 하는데, 인덱스가 아니라
+    // 값으로 "다른 카드"를 찾으려 하면 NoSuchElementException이 터졌다.
+    @Test
+    fun `does not crash when choosing the alternative among identical duplicate cards`() {
+        val round = OrbitRoundState.forTest(
+            playerHand = listOf(OrbitCardType.CAPTAIN),
+            b01Hand = listOf(OrbitCardType.SENSOR, OrbitCardType.SENSOR),
+            turn = PlayerSide.B01
+        )
+
+        repeat(20) { seed ->
+            val decision = B01OrbitAi.decide(round, B01Memory(), mistakeRate = 1f, random = Random(seed))
+            assertEquals(OrbitCardType.SENSOR, decision.card.type)
+        }
+    }
+
     @Test
     fun `scout drone never guesses power 1 even without prior information`() {
         val round = OrbitRoundState.forTest(

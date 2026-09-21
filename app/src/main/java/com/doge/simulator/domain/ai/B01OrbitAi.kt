@@ -41,12 +41,17 @@ object B01OrbitAi {
         // 깨질 수 있었다(이전에 앱이 죽던 원인).
         val playable = hand.filter { isPlayable(round, it) }.ifEmpty { hand }
         val candidates = playable.map { c -> c to scoreCandidate(round, memory, c) }
-        val best = candidates.maxByOrNull { it.second.score }!!
-        val chosen = if (candidates.size > 1 && random.nextFloat() < mistakeRate) {
-            candidates.first { it.first != best.first }
+        // 인덱스로 "최적"과 "그 외"를 구분한다 — OrbitCard는 type만으로 동등성을 판단하는
+        // data class라, 손에 같은 종류 카드 2장(SENSOR/SHIELD/EMP/WARP_GATE 등은 2장씩
+        // 존재)이 같이 있으면 값으로 비교해서는 "최적이 아닌 카드"를 구분할 수 없어
+        // NoSuchElementException이 터졌었다(실기기 크래시 원인).
+        val bestIndex = candidates.indices.maxByOrNull { candidates[it].second.score }!!
+        val chosenIndex = if (candidates.size > 1 && random.nextFloat() < mistakeRate) {
+            candidates.indices.first { it != bestIndex }
         } else {
-            best
+            bestIndex
         }
+        val chosen = candidates[chosenIndex]
         return B01Decision(chosen.first, chosen.second.input)
     }
 
