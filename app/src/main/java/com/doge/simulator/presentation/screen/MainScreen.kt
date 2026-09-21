@@ -185,15 +185,23 @@ fun MainScreen(deepLinkFlow: StateFlow<String?>, onSignOut: () -> Unit) {
                 }
 
                 // ── ORBIT 카드게임(휴게실) ─────────────────────────────
-                composable(NavRoutes.Lounge.route) {
+                // Bet/Game/Result 화면은 매치 진행 중 같은 OrbitViewModel(매치 상태)을 공유해야
+                // 하므로, 각 화면의 기본 hiltViewModel()(현재 백스택 엔트리 스코프) 대신 항상
+                // Lounge 엔트리에 스코프된 하나의 인스턴스를 명시적으로 넘겨준다. 이게 없으면
+                // 화면을 옮길 때마다 새 ViewModel이 생겨 진행 중이던 매치 상태가 사라진다.
+                composable(NavRoutes.Lounge.route) { backStackEntry ->
                     LoungeScreen(
                         onBack = { navController.popBackStack() },
                         onEnterOrbit = {
                             navController.navigate(NavRoutes.OrbitBet.route) { launchSingleTop = true }
-                        }
+                        },
+                        viewModel = hiltViewModel(backStackEntry)
                     )
                 }
                 composable(NavRoutes.OrbitBet.route) {
+                    val loungeEntry = remember(navController) {
+                        navController.getBackStackEntry(NavRoutes.Lounge.route)
+                    }
                     OrbitBetScreen(
                         onBack = { navController.popBackStack() },
                         onMatchStarted = {
@@ -201,10 +209,14 @@ fun MainScreen(deepLinkFlow: StateFlow<String?>, onSignOut: () -> Unit) {
                                 popUpTo(NavRoutes.Lounge.route) { inclusive = false }
                                 launchSingleTop = true
                             }
-                        }
+                        },
+                        viewModel = hiltViewModel(loungeEntry)
                     )
                 }
                 composable(NavRoutes.OrbitGame.route) {
+                    val loungeEntry = remember(navController) {
+                        navController.getBackStackEntry(NavRoutes.Lounge.route)
+                    }
                     OrbitGameScreen(
                         onExit = { navController.popBackStack(NavRoutes.Lounge.route, false) },
                         onMatchFinished = {
@@ -212,10 +224,14 @@ fun MainScreen(deepLinkFlow: StateFlow<String?>, onSignOut: () -> Unit) {
                                 popUpTo(NavRoutes.Lounge.route) { inclusive = false }
                                 launchSingleTop = true
                             }
-                        }
+                        },
+                        viewModel = hiltViewModel(loungeEntry)
                     )
                 }
                 composable(NavRoutes.OrbitResult.route) {
+                    val loungeEntry = remember(navController) {
+                        navController.getBackStackEntry(NavRoutes.Lounge.route)
+                    }
                     OrbitResultScreen(
                         onPlayAgain = {
                             navController.navigate(NavRoutes.OrbitBet.route) {
@@ -223,7 +239,8 @@ fun MainScreen(deepLinkFlow: StateFlow<String?>, onSignOut: () -> Unit) {
                                 launchSingleTop = true
                             }
                         },
-                        onReturnToLounge = { navController.popBackStack(NavRoutes.Lounge.route, false) }
+                        onReturnToLounge = { navController.popBackStack(NavRoutes.Lounge.route, false) },
+                        viewModel = hiltViewModel(loungeEntry)
                     )
                 }
         }
