@@ -31,6 +31,10 @@ import com.doge.simulator.presentation.screen.hq.AstronautScreen
 import com.doge.simulator.presentation.screen.hq.HQScreen
 import com.doge.simulator.presentation.screen.hq.HangarScreen
 import com.doge.simulator.presentation.screen.hq.ResearchLabScreen
+import com.doge.simulator.presentation.screen.orbit.LoungeScreen
+import com.doge.simulator.presentation.screen.orbit.OrbitBetScreen
+import com.doge.simulator.presentation.screen.orbit.OrbitGameScreen
+import com.doge.simulator.presentation.screen.orbit.OrbitResultScreen
 import com.doge.simulator.presentation.screen.planet.PlanetDetailScreen
 import com.doge.simulator.presentation.screen.planet.PlanetScreen
 import com.doge.simulator.presentation.screen.rank.RankScreen
@@ -178,6 +182,49 @@ fun MainScreen(deepLinkFlow: StateFlow<String?>, onSignOut: () -> Unit) {
                 // ── 랭킹 (자산 탭에서 진입) ────────────────────────────
                 composable(NavRoutes.Rank.route) {
                     RankScreen(onHomeClick = { navController.popBackStack() })
+                }
+
+                // ── ORBIT 카드게임(휴게실) ─────────────────────────────
+                composable(NavRoutes.Lounge.route) {
+                    LoungeScreen(
+                        onBack = { navController.popBackStack() },
+                        onEnterOrbit = {
+                            navController.navigate(NavRoutes.OrbitBet.route) { launchSingleTop = true }
+                        }
+                    )
+                }
+                composable(NavRoutes.OrbitBet.route) {
+                    OrbitBetScreen(
+                        onBack = { navController.popBackStack() },
+                        onMatchStarted = {
+                            navController.navigate(NavRoutes.OrbitGame.route) {
+                                popUpTo(NavRoutes.Lounge.route) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        }
+                    )
+                }
+                composable(NavRoutes.OrbitGame.route) {
+                    OrbitGameScreen(
+                        onExit = { navController.popBackStack(NavRoutes.Lounge.route, false) },
+                        onMatchFinished = {
+                            navController.navigate(NavRoutes.OrbitResult.route) {
+                                popUpTo(NavRoutes.Lounge.route) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        }
+                    )
+                }
+                composable(NavRoutes.OrbitResult.route) {
+                    OrbitResultScreen(
+                        onPlayAgain = {
+                            navController.navigate(NavRoutes.OrbitBet.route) {
+                                popUpTo(NavRoutes.Lounge.route) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        },
+                        onReturnToLounge = { navController.popBackStack(NavRoutes.Lounge.route, false) }
+                    )
                 }
         }
 

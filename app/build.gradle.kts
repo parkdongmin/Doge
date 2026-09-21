@@ -46,6 +46,7 @@ android {
         buildConfigField("String", "AD_UNIT_REWARD_OFFLINE_X2", "\"ca-app-pub-3940256099942544/5224354917\"")
         buildConfigField("String", "AD_UNIT_REWARD_SKIP_WAIT", "\"ca-app-pub-3940256099942544/5224354917\"")
         buildConfigField("String", "AD_UNIT_REWARD_UPGRADE_REVERT", "\"ca-app-pub-3940256099942544/5224354917\"")
+        buildConfigField("String", "AD_UNIT_REWARD_ORBIT_DAILY", "\"ca-app-pub-3940256099942544/5224354917\"")
         manifestPlaceholders["admobAppId"] = "ca-app-pub-3940256099942544~3347511713"
     }
 

@@ -305,4 +305,13 @@ object GameConstants {
     // 전면광고(탐사 결과 dismiss) 빈도 제한: 첫 N회는 노출 안 함, 이후엔 쿨다운 경과해야 노출
     const val INTERSTITIAL_GRACE_COMPLETIONS = 3
     val INTERSTITIAL_COOLDOWN_MS = TimeUnit.MINUTES.toMillis(3)
+
+    // ── ORBIT 카드게임 (휴게실) ──────────────────────────────────────
+    // 고정 4단계 베팅 금액. 위험도(배율) 티어는 별도 축(OrbitRiskTier)이며 재화 규모와
+    // 무관하게 독립적으로 선택한다.
+    val ORBIT_BET_AMOUNTS: List<Long> = listOf(500L, 1_000L, 2_500L, 5_000L)
+
+    // 휴게실 일일 리워드 광고: 1회당 지급 재화 및 하루 최대 시청 횟수(기기 로컬 자정 리셋)
+    const val ORBIT_DAILY_AD_REWARD_COINS = 500L
+    const val ORBIT_DAILY_AD_MAX_COUNT = 5
 }

@@ -14,7 +14,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 enum class RewardPlacement {
-    POOL_REFRESH, OFFLINE_PROFIT_X2, SKIP_WAIT, UPGRADE_REVERT
+    POOL_REFRESH, OFFLINE_PROFIT_X2, SKIP_WAIT, UPGRADE_REVERT, ORBIT_DAILY
 }
 
 sealed class RewardedAdResult {
@@ -36,6 +36,7 @@ class RewardedAdManager @Inject constructor(
         RewardPlacement.OFFLINE_PROFIT_X2 -> BuildConfig.AD_UNIT_REWARD_OFFLINE_X2
         RewardPlacement.SKIP_WAIT -> BuildConfig.AD_UNIT_REWARD_SKIP_WAIT
         RewardPlacement.UPGRADE_REVERT -> BuildConfig.AD_UNIT_REWARD_UPGRADE_REVERT
+        RewardPlacement.ORBIT_DAILY -> BuildConfig.AD_UNIT_REWARD_ORBIT_DAILY
     }
 
     fun preload(placement: RewardPlacement) {

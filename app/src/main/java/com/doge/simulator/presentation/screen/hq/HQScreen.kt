@@ -126,6 +126,13 @@ fun HQScreen(navController: NavController) {
                 description = "탐사 기술·천체 분석·인사·공학 연구",
                 onClick = { navController.navigate(NavRoutes.ResearchLab.route) { launchSingleTop = true } }
             )
+            Spacer(modifier = Modifier.height(Spacing.md))
+            HQFacilityCard(
+                iconRes = R.drawable.ic_space_station_research,
+                title = "휴게실",
+                description = "B-01과 카드게임 ORBIT 한 판",
+                onClick = { navController.navigate(NavRoutes.Lounge.route) { launchSingleTop = true } }
+            )
         }
     }
 }
