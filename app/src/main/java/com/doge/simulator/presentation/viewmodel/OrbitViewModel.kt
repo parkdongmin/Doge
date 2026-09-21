@@ -14,10 +14,12 @@ import com.doge.simulator.domain.model.orbit.MatchOutcome
 import com.doge.simulator.domain.model.orbit.OrbitBet
 import com.doge.simulator.domain.model.orbit.OrbitBetSettlement
 import com.doge.simulator.domain.model.orbit.OrbitCard
+import com.doge.simulator.domain.model.orbit.OrbitCardType
 import com.doge.simulator.domain.model.orbit.OrbitMatchState
 import com.doge.simulator.domain.model.orbit.OrbitRiskTier
 import com.doge.simulator.domain.model.orbit.PlayerSide
 import com.doge.simulator.domain.model.orbit.RoundEndReason
+import com.doge.simulator.domain.model.orbit.OrbitRoundState
 import com.doge.simulator.domain.repository.UserRepository
 import com.doge.simulator.domain.usecase.orbit.AdvanceOrbitTurnUseCase
 import com.doge.simulator.domain.usecase.orbit.ClaimOrbitDailyAdRewardUseCase
@@ -217,8 +219,25 @@ class OrbitViewModel @Inject constructor(
                 viewModelScope.launch { advanceUntilPlayerTurnOrPause() }
             }
             // 라운드가 끝났다면 배너가 떴으니 acknowledgeAndContinue()가 이어서 진행한다.
+        } else {
+            // InvalidMove면 상태를 전혀 바꾸지 않는다 — 대신 왜 안 되는지 알려준다. 예전엔
+            // 아무 설명 없이 그냥 아무 일도 안 일어나서(예: AI_CORE 강제 사용 규칙에 걸림)
+            // 플레이어가 원인을 알 수 없었다는 피드백을 반영.
+            viewModelScope.launch { showMessage(invalidMoveMessage(round, card)) }
         }
-        // InvalidMove면 상태를 전혀 바꾸지 않고 그대로 반환 — 플레이어가 다른 카드를 고를 수 있다.
+    }
+
+    private fun invalidMoveMessage(round: OrbitRoundState, card: OrbitCard): String {
+        val hand = round.player(PlayerSide.PLAYER).hand
+        val mustPlayAiCore = hand.any { it.type == OrbitCardType.AI_CORE } &&
+            hand.any { it.type == OrbitCardType.EMP || it.type == OrbitCardType.WARP_GATE }
+        return when {
+            mustPlayAiCore && card.type != OrbitCardType.AI_CORE ->
+                "AI CORE와 EMP/WARP GATE를 같이 들고 있으면 AI CORE부터 내야 해요"
+            card.type == OrbitCardType.EMP && round.deck.remainingCount < 1 ->
+                "덱에 카드가 없어서 EMP를 쓸 수 없어요"
+            else -> "지금은 낼 수 없는 카드예요"
+        }
     }
 
     // 라운드 종료 배너를 확인하고 다음 라운드/결과 화면으로 진행한다.

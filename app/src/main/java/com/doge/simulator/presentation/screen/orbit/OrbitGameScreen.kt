@@ -42,6 +42,7 @@ fun OrbitGameScreen(
 ) {
     val snapshot by viewModel.uiSnapshot.collectAsState()
     val roundEndBanner by viewModel.roundEndBanner.collectAsState()
+    val message by viewModel.message.collectAsState()
     var selectedCard by remember { mutableStateOf<OrbitCard?>(null) }
     var pendingScoutCard by remember { mutableStateOf<OrbitCard?>(null) }
     var pendingEmpCard by remember { mutableStateOf<OrbitCard?>(null) }
@@ -100,6 +101,12 @@ fun OrbitGameScreen(
                     Text("나가기", color = StatusRed)
                 }
             }
+        }
+
+        // 카드를 낼 수 없는 이유(예: AI CORE 강제 사용 규칙, EMP인데 덱이 빔) 안내.
+        message?.let {
+            Spacer(Modifier.height(Spacing.sm))
+            Text(it, color = StatusYellow, style = MaterialTheme.typography.bodySmall)
         }
 
         Spacer(Modifier.height(Spacing.md))
