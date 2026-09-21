@@ -67,6 +67,7 @@ class PlayOrbitCardUseCaseTest {
         assertNull(result.summary.outSide)
         assertFalse(round.player(PlayerSide.B01).isOut)
         assertEquals(PlayerSide.B01, round.currentTurn)
+        assertEquals("추측이 빗나갔어요", result.summary.noEffectNote)
     }
 
     @Test
@@ -128,10 +129,13 @@ class PlayOrbitCardUseCaseTest {
             playerHand = listOf(OrbitCardType.PROBE, OrbitCardType.SENSOR),
             b01Hand = listOf(OrbitCardType.SENSOR)
         )
-        useCase(round, PlayerSide.PLAYER, OrbitCard(OrbitCardType.PROBE), b01Memory = B01Memory())
+        val result = useCase(
+            round, PlayerSide.PLAYER, OrbitCard(OrbitCardType.PROBE), b01Memory = B01Memory()
+        ) as PlayOrbitCardUseCase.Result.Applied
 
         assertFalse(round.player(PlayerSide.PLAYER).isOut)
         assertFalse(round.player(PlayerSide.B01).isOut)
+        assertEquals("동점이라 아무 일도 없었어요", result.summary.noEffectNote)
     }
 
     @Test

@@ -138,6 +138,8 @@ fun OrbitGameScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text("남은 카드 ${current.deckRemaining}장", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+                val firstPlayerLabel = if (current.roundFirstPlayer == PlayerSide.PLAYER) "나" else "B-01"
+                Text("이번 라운드 선공: $firstPlayerLabel", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
 
                 roundEndBanner?.let { info ->
                     Spacer(Modifier.height(Spacing.sm))
@@ -263,6 +265,9 @@ private fun LastPlaySlot(label: String, summary: PlayOrbitCardUseCase.PlayedCard
                 )
                 if (summary.blockedByShield) {
                     Text("→ 상대의 SHIELD에 막혔어요", color = StatusYellow, style = MaterialTheme.typography.labelSmall)
+                }
+                summary.noEffectNote?.let {
+                    Text("→ $it", color = StatusYellow, style = MaterialTheme.typography.labelSmall)
                 }
                 summary.revealedOpponentCard?.let {
                     Text("→ 상대 카드: ${cardLabel(it.type)}", color = StatusYellow, style = MaterialTheme.typography.labelSmall)

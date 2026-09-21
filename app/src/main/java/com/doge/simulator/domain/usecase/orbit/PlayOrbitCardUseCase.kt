@@ -32,7 +32,11 @@ class PlayOrbitCardUseCase @Inject constructor() {
         val revealedOpponentCard: OrbitCard? = null,
         // 대상이 SHIELD로 보호돼 있어 효과가 전혀 적용되지 않았는지(FR-006) — 화면에서
         // "막혔다"는 걸 알려주기 위한 값. 카드 자체는 정상적으로 소모된다.
-        val blockedByShield: Boolean = false
+        val blockedByShield: Boolean = false,
+        // SHIELD로 막힌 것도 아닌데 효과가 그냥 안 일어난 경우(PROBE 동점, SCOUT DRONE
+        // 오답)의 사유. 이게 없으면 "카드는 냈는데 화면상 아무 일도 안 일어나서" 왜 그런지
+        // 알 수 없다는 피드백이 있었음.
+        val noEffectNote: String? = null
     )
 
     operator fun invoke(
@@ -66,6 +70,7 @@ class PlayOrbitCardUseCase @Inject constructor() {
         var outSide: PlayerSide? = null
         var revealedOpponentCard: OrbitCard? = null
         var blockedByShield = false
+        var noEffectNote: String? = null
 
         when (card.type) {
             OrbitCardType.SCOUT_DRONE -> {
@@ -78,6 +83,8 @@ class PlayOrbitCardUseCase @Inject constructor() {
                     ) {
                         opponent.markOut()
                         outSide = opponentSide
+                    } else {
+                        noEffectNote = "추측이 빗나갔어요"
                     }
                 }
             }
@@ -102,7 +109,7 @@ class PlayOrbitCardUseCase @Inject constructor() {
                     when {
                         myPower < oppPower -> { actor.markOut(); outSide = actingSide }
                         oppPower < myPower -> { opponent.markOut(); outSide = opponentSide }
-                        else -> Unit // 동점 — 아무 일도 일어나지 않는다
+                        else -> noEffectNote = "동점이라 아무 일도 없었어요"
                     }
                 }
             }
@@ -166,6 +173,8 @@ class PlayOrbitCardUseCase @Inject constructor() {
             }
         }
 
-        return Result.Applied(PlayedCardSummary(actingSide, card, outSide, revealedOpponentCard, blockedByShield))
+        return Result.Applied(
+            PlayedCardSummary(actingSide, card, outSide, revealedOpponentCard, blockedByShield, noEffectNote)
+        )
     }
 }

@@ -55,6 +55,7 @@ data class OrbitUiSnapshot(
     val b01Shielded: Boolean,
     val deckRemaining: Int,
     val currentTurn: PlayerSide,
+    val roundFirstPlayer: PlayerSide,
     val matchOver: Boolean,
     val matchResult: MatchOutcome?,
     val bet: OrbitBet?,
@@ -83,6 +84,7 @@ private fun OrbitMatchState.toSnapshot(): OrbitUiSnapshot {
         b01Shielded = round.player(PlayerSide.B01).shieldActive,
         deckRemaining = round.deck.remainingCount,
         currentTurn = round.currentTurn,
+        roundFirstPlayer = round.firstPlayerOfRound,
         matchOver = isOver,
         matchResult = matchResult,
         bet = bet
