@@ -69,14 +69,29 @@ class B01OrbitAiTest {
     }
 
     @Test
-    fun `mistake rate of 1 always plays the alternative candidate`() {
+    fun `mistake rate of 1 picks a genuine alternative, never captain`() {
+        val round = OrbitRoundState.forTest(
+            playerHand = listOf(OrbitCardType.SENSOR),
+            b01Hand = listOf(OrbitCardType.SCOUT_DRONE, OrbitCardType.SHIELD),
+            turn = PlayerSide.B01
+        )
+        val decision = B01OrbitAi.decide(round, B01Memory(), mistakeRate = 1f, random = Random(0))
+        assertEquals(OrbitCardType.SCOUT_DRONE, decision.card.type)
+    }
+
+    // CAPTAIN을 내면 즉시 자멸(OUT)이므로, 실수 메커니즘이라 해도 다른 카드가 하나라도
+    // 있으면 CAPTAIN을 골라선 안 된다. "가끔 최적이 아닌 수를 두는" 실수와 "자살"은 다르다.
+    @Test
+    fun `never plays captain as a mistake when another card is available`() {
         val round = OrbitRoundState.forTest(
             playerHand = listOf(OrbitCardType.SENSOR),
             b01Hand = listOf(OrbitCardType.SHIELD, OrbitCardType.CAPTAIN),
             turn = PlayerSide.B01
         )
-        val decision = B01OrbitAi.decide(round, B01Memory(), mistakeRate = 1f, random = Random(0))
-        assertEquals(OrbitCardType.CAPTAIN, decision.card.type)
+        repeat(20) { seed ->
+            val decision = B01OrbitAi.decide(round, B01Memory(), mistakeRate = 1f, random = Random(seed))
+            assertEquals(OrbitCardType.SHIELD, decision.card.type)
+        }
     }
 
     @Test

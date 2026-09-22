@@ -40,7 +40,11 @@ object B01OrbitAi {
         // 반환해 턴이 넘어가지 않고, 호출자가 다시 드로우를 시도하면서 손패 불변식이
         // 깨질 수 있었다(이전에 앱이 죽던 원인).
         val playable = hand.filter { isPlayable(round, it) }.ifEmpty { hand }
-        val candidates = playable.map { c -> c to scoreCandidate(round, memory, c) }
+        // CAPTAIN은 내는 즉시 자멸(OUT)이라 "최적"으로도 "실수"로도 절대 자발적으로
+        // 고르면 안 된다 — 다른 카드가 하나라도 있으면 무조건 그걸 낸다. 손에 CAPTAIN과
+        // 사용 불가능한 EMP(덱 소진)만 남는 극단적 상황에서만 어쩔 수 없이 후보에 남는다.
+        val candidatePool = playable.filterNot { it.type == OrbitCardType.CAPTAIN }.ifEmpty { playable }
+        val candidates = candidatePool.map { c -> c to scoreCandidate(round, memory, c) }
         // 인덱스로 "최적"과 "그 외"를 구분한다 — OrbitCard는 type만으로 동등성을 판단하는
         // data class라, 손에 같은 종류 카드 2장(SENSOR/SHIELD/EMP/WARP_GATE 등은 2장씩
         // 존재)이 같이 있으면 값으로 비교해서는 "최적이 아닌 카드"를 구분할 수 없어
@@ -116,7 +120,8 @@ object B01OrbitAi {
                 Scored(score, OrbitCardEffectInput.None)
             }
             OrbitCardType.AI_CORE -> Scored(50, OrbitCardEffectInput.None)
-            // CAPTAIN을 직접 내면 즉시 OUT되므로 다른 선택지가 있는 한 최후의 수단으로만 취급.
+            // candidatePool 필터링으로 다른 카드가 하나라도 있으면 여기까지 오지 않는다.
+            // 점수는 후보가 CAPTAIN 하나뿐일 때(강제 상황)만 쓰이므로 값 자체는 의미 없음.
             OrbitCardType.CAPTAIN -> Scored(1, OrbitCardEffectInput.None)
         }
     }
