@@ -36,7 +36,10 @@ class PlayOrbitCardUseCase @Inject constructor() {
         // SHIELD로 막힌 것도 아닌데 효과가 그냥 안 일어난 경우(PROBE 동점, SCOUT DRONE
         // 오답)의 사유. 이게 없으면 "카드는 냈는데 화면상 아무 일도 안 일어나서" 왜 그런지
         // 알 수 없다는 피드백이 있었음.
-        val noEffectNote: String? = null
+        val noEffectNote: String? = null,
+        // EMP로 대상이 버린 카드. 특히 CAPTAIN이 버려져 OUT된 경우 라운드 종료 때 "OUT된 쪽이
+        // 무슨 카드를 들고 있었나"를 보여줄 근거가 된다(그 쪽은 새 카드를 받지 않아 손패가 비어 있음).
+        val discardedCard: OrbitCard? = null
     )
 
     operator fun invoke(
@@ -71,6 +74,7 @@ class PlayOrbitCardUseCase @Inject constructor() {
         var revealedOpponentCard: OrbitCard? = null
         var blockedByShield = false
         var noEffectNote: String? = null
+        var discardedCard: OrbitCard? = null
 
         when (card.type) {
             OrbitCardType.SCOUT_DRONE -> {
@@ -127,12 +131,17 @@ class PlayOrbitCardUseCase @Inject constructor() {
                     if (discarded != null) {
                         targetState.hand.remove(discarded)
                         round.deck.markUsed(discarded)
+                        discardedCard = discarded
                         if (discarded.type == OrbitCardType.CAPTAIN) {
+                            // CAPTAIN이 버려지면 즉시 OUT — OUT된 쪽은 새 카드를 받지 않는다. 예전엔
+                            // OUT 후에도 한 장을 새로 뽑아 줘서, 라운드 종료 때 공개되는 "남은 패"가
+                            // CAPTAIN이 아니라 방금 뽑은 엉뚱한 카드로 보였다.
                             targetState.markOut()
                             outSide = target
+                        } else {
+                            val redraw = round.deck.draw()
+                            if (redraw != null) targetState.hand.add(redraw)
                         }
-                        val redraw = round.deck.draw()
-                        if (redraw != null) targetState.hand.add(redraw)
                         // EMP로 교체된 카드는 완전히 새로 뽑힌 카드라 더 이상 확신할 수 없다.
                         if (target == PlayerSide.PLAYER) b01Memory.forget()
                     }
@@ -174,7 +183,7 @@ class PlayOrbitCardUseCase @Inject constructor() {
         }
 
         return Result.Applied(
-            PlayedCardSummary(actingSide, card, outSide, revealedOpponentCard, blockedByShield, noEffectNote)
+            PlayedCardSummary(actingSide, card, outSide, revealedOpponentCard, blockedByShield, noEffectNote, discardedCard)
         )
     }
 }

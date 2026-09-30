@@ -242,6 +242,11 @@ class PlayOrbitCardUseCaseTest {
 
         assertEquals(PlayerSide.B01, result.summary.outSide)
         assertTrue(round.player(PlayerSide.B01).isOut)
+        // OUT된 쪽은 새 카드를 받지 않는다 — 라운드 종료 때 공개되는 패가 방금 뽑은 엉뚱한 카드가
+        // 아니라 버려진 CAPTAIN이어야 한다(요약의 discardedCard로 전달).
+        assertTrue(round.player(PlayerSide.B01).hand.isEmpty())
+        assertEquals(OrbitCardType.CAPTAIN, result.summary.discardedCard?.type)
+        assertEquals(1, round.deck.remainingCount)
     }
 
     @Test
