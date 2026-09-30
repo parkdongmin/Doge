@@ -128,7 +128,7 @@ fun HQScreen(navController: NavController) {
             )
             Spacer(modifier = Modifier.height(Spacing.md))
             HQFacilityCard(
-                iconRes = R.drawable.ic_space_station_research,
+                iconRes = R.drawable.ic_space_station_lounge,
                 title = "휴게실",
                 description = "B-01과 카드게임 ORBIT 한 판",
                 onClick = { navController.navigate(NavRoutes.Lounge.route) { launchSingleTop = true } }
@@ -162,7 +162,9 @@ private fun HQFacilityCard(
             Image(
                 painter = painterResource(iconRes),
                 contentDescription = null,
-                modifier = Modifier.size(44.dp)
+                // 가로 56 × 세로 44 — 가로로 긴 그림(격납고 우주선 약 1.8:1)이 정사각 칸에선 세로 24dp로 납작하게
+                // 줄어 혼자 작아 보였다. 칸을 가로로 넓혀 다른 시설 아이콘과 무게를 맞춘다(세로형은 그대로).
+                modifier = Modifier.size(width = 56.dp, height = 44.dp)
             )
             Spacer(modifier = Modifier.width(Spacing.lg))
             Column(modifier = Modifier.weight(1f)) {

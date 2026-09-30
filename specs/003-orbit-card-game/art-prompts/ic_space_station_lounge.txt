@@ -1,0 +1,44 @@
+[정거장 탭 "휴게실" 시설 아이콘 — GPT 이미지 생성 프롬프트 (v2)]
+
+용도:
+- 정거장 탭 시설 목록 카드 왼쪽에 44dp로 들어가는 아이콘. 지금은 연구소 아이콘을 임시로 같이 쓰는 중.
+- 완성 파일명: app/src/main/res/drawable/ic_space_station_lounge.png
+
+v1에서 바꾼 점:
+- v1은 "연구소 건물과 같은 시리즈의 모듈 건물"로 요청했더니 연구소 그림에서 창문 색만 바뀐 결과가 나왔다.
+- 시설 목록의 다른 아이콘을 보면 건물 시리즈가 아니라 "그 시설을 대표하는 물건 하나"다:
+  우주인 센터 = 우주인 캐릭터(character_1), 격납고 = 우주선(spaceship_2), 연구소 = 연구 모듈 건물.
+  → 휴게실도 건물이 아니라 대표 물건: "카드와 머그컵이 놓인 작은 우주선식 카드 테이블".
+- 연구소 아이콘은 이제 그림체(셰이딩·외곽선·색감) 참고용으로만 붙인다. 구도·형태는 따라 하지 말 것.
+
+같이 붙일 참조 이미지:
+1. app/src/main/res/drawable/ic_space_station_research.png — 그림체만 참고(구도·형태 X)
+2. app/src/main/res/drawable/spaceship_2.png — 같은 목록의 다른 아이콘, 그림체·크기감 참고
+3. app/src/main/res/drawable/ic_orbit_card_back.png — 테이블 위 카드 뒷면 무늬로 사용
+
+----------------------------------------------------------------------
+
+Pixel art icon of a small sci-fi card table set, representing a space station's
+crew lounge. Match ONLY the art style of the attached reference icons (chunky visible
+pixels, stepped / banded pixel shading, thick dark-navy outline, same color family) —
+do NOT copy their shape or composition, and do NOT draw a building or module.
+Landscape, about 400x280, TRANSPARENT background, slight 3/4 top-down view.
+
+SUBJECT (one compact object group):
+- A small round metal pedestal table (steel grey top with a navy rim and a thin gold
+  trim ring, single central leg with a round base).
+- On the table: a small fan of 3 playing cards, backs up, using the attached card-back
+  emblem design (navy card with a silver orbit emblem), and one white mug with a small
+  wisp of steam.
+- Optionally one faint cyan glowing strip on the table rim (like the station's lights).
+
+COLORS: steel grey, navy blue, white; gold ONLY as the thin trim ring; one small
+touch of cyan glow. No large warm/brown areas.
+
+RULES:
+- NO building, NO room, NO walls, NO windows, NO background scene.
+- NO characters (no robot, no dog), NO chairs.
+- NO text, letters, numbers, signs, or logos.
+- Single isolated object group on a transparent background.
+- Must stay readable at 44x44 px: big simple shapes, the cards and mug clearly
+  recognizable.
