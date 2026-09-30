@@ -19,9 +19,9 @@ class SettleOrbitBetUseCase @Inject constructor(
             MatchOutcome.WON -> {
                 val reward = (bet.amount * bet.riskTier.winRewardMultiplier).toLong()
                 userRepository.addCoins(reward)
-                OrbitBetSettlement(MatchOutcome.WON, netChange = reward)
+                OrbitBetSettlement(MatchOutcome.WON, betAmount = bet.amount, netChange = reward)
             }
-            MatchOutcome.LOST -> OrbitBetSettlement(MatchOutcome.LOST, netChange = -bet.amount)
+            MatchOutcome.LOST -> OrbitBetSettlement(MatchOutcome.LOST, betAmount = bet.amount, netChange = -bet.amount)
         }
         matchState.bet = bet.copy(settlement = settlement)
         return settlement
@@ -31,7 +31,7 @@ class SettleOrbitBetUseCase @Inject constructor(
     fun settleAbandoned(matchState: OrbitMatchState): OrbitBetSettlement? {
         val bet = matchState.bet ?: return null
         matchState.abandon()
-        val settlement = OrbitBetSettlement(MatchOutcome.LOST, netChange = -bet.amount)
+        val settlement = OrbitBetSettlement(MatchOutcome.LOST, betAmount = bet.amount, netChange = -bet.amount)
         matchState.bet = bet.copy(settlement = settlement)
         return settlement
     }

@@ -1,19 +1,26 @@
 package com.doge.simulator.presentation.screen.orbit
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.doge.simulator.R
 import com.doge.simulator.domain.model.orbit.MatchOutcome
 import com.doge.simulator.domain.model.orbit.OrbitBetSettlement
 import com.doge.simulator.presentation.viewmodel.OrbitViewModel
 import com.doge.simulator.ui.theme.*
 
+// 결과 화면 — 승/패 마스코트는 전용 일러스트(ch_result_win/ch_result_lose)를 쓴다.
 @Composable
 fun OrbitResultScreen(
     onPlayAgain: () -> Unit,
@@ -21,6 +28,7 @@ fun OrbitResultScreen(
     viewModel: OrbitViewModel = hiltViewModel()
 ) {
     val settlement by viewModel.lastSettlement.collectAsState()
+    val coins by viewModel.coins.collectAsState()
 
     // "다시 하기"/"휴게실로"를 누르면 뷰모델이 lastSettlement를 즉시 null로 지우는데, 이
     // 화면이 사라지기 전에 그 null이 먼저 반영되면 won이 false로 떨어져 승리했는데도 화면을
@@ -54,6 +62,12 @@ fun OrbitResultScreen(
             CircularProgressIndicator(color = GoldAccent)
         } else {
             val won = current.outcome == MatchOutcome.WON
+            Image(
+                painter = painterResource(if (won) R.drawable.ch_result_win else R.drawable.ch_result_lose),
+                contentDescription = null,
+                modifier = Modifier.size(160.dp)
+            )
+            Spacer(Modifier.height(Spacing.md))
             Text(
                 if (won) "YOU WIN!" else "YOU LOSE...",
                 color = if (won) StatusGreen else StatusRed,
@@ -61,8 +75,7 @@ fun OrbitResultScreen(
                 fontWeight = FontWeight.Bold
             )
             Spacer(Modifier.height(Spacing.lg))
-            val label = if (won) "WIN +${current.netChange}" else "RESULT ${current.netChange}"
-            Text(label, color = TextPrimary, style = MaterialTheme.typography.titleMedium)
+            SettlementBreakdown(settlement = current, coins = coins)
         }
         Spacer(Modifier.height(Spacing.xxl))
         Button(
@@ -74,5 +87,41 @@ fun OrbitResultScreen(
             onClick = { viewModel.returnToLounge(); onReturnToLounge() },
             modifier = Modifier.fillMaxWidth()
         ) { Text("휴게실로") }
+    }
+}
+
+// BET(건 돈) / WIN·RESULT(이번 판 순손익) / TOTAL(정산 후 잔여 재화) 세 줄 내역.
+// netChange는 승리 시 배율이 적용된 "지급액 전체"(베팅액 회수분 포함)라, WIN 줄에는
+// 거기서 베팅액을 뺀 순수익만 보여준다 — 그래야 BET+WIN을 더한 값이 실제 지급액과 맞는다.
+@Composable
+private fun SettlementBreakdown(settlement: OrbitBetSettlement, coins: Long) {
+    val won = settlement.outcome == MatchOutcome.WON
+    val profit = settlement.netChange - settlement.betAmount
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = SpaceMid),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(Modifier.padding(Spacing.lg).fillMaxWidth()) {
+            BreakdownRow("BET", "%,d원".format(settlement.betAmount), TextPrimary)
+            Spacer(Modifier.height(Spacing.xs))
+            if (won) {
+                BreakdownRow("WIN", "+%,d원".format(profit), StatusGreen)
+            } else {
+                BreakdownRow("RESULT", "%,d원".format(settlement.netChange), StatusRed)
+            }
+            Spacer(Modifier.height(Spacing.xs))
+            HorizontalDivider(color = SpaceBlue)
+            Spacer(Modifier.height(Spacing.xs))
+            BreakdownRow("TOTAL", "%,d원".format(coins), GoldAccent)
+        }
+    }
+}
+
+@Composable
+private fun BreakdownRow(label: String, value: String, valueColor: Color) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+        Text(value, color = valueColor, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
     }
 }

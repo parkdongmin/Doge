@@ -2,6 +2,7 @@ package com.doge.simulator.presentation.screen.orbit
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -9,10 +10,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.doge.simulator.R
 import com.doge.simulator.domain.model.orbit.OrbitCard
 import com.doge.simulator.domain.model.orbit.OrbitCardType
 import com.doge.simulator.domain.model.orbit.PlayerSide
@@ -117,11 +121,16 @@ fun OrbitGameScreen(
         // 상단 게임 영역: B-01 + B-01이 마지막으로 낸 카드
         SidePanel(
             name = "B-01",
+            iconRes = R.drawable.ch_b_01,
             handCount = current.b01HandSize,
             signal = current.b01Signal,
             shielded = current.b01Shielded,
             isTurn = current.currentTurn == PlayerSide.B01
         )
+        Spacer(Modifier.height(Spacing.xs))
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            repeat(current.b01HandSize) { OrbitCardBackTile() }
+        }
         Spacer(Modifier.height(Spacing.xs))
         LastPlaySlot(label = "B-01의 마지막 카드", summary = current.lastB01Card)
 
@@ -137,7 +146,10 @@ fun OrbitGameScreen(
                 Modifier.padding(Spacing.md).fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("남은 카드 ${current.deckRemaining}장", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    if (current.deckRemaining > 0) OrbitCardBackTile(width = 32.dp, height = 44.dp)
+                    Text("남은 카드 ${current.deckRemaining}장", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+                }
                 val firstPlayerLabel = if (current.roundFirstPlayer == PlayerSide.PLAYER) "나" else "B-01"
                 Text("이번 라운드 선공: $firstPlayerLabel", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
 
@@ -229,9 +241,20 @@ fun OrbitGameScreen(
 }
 
 @Composable
-private fun SidePanel(name: String, handCount: Int, signal: Int, shielded: Boolean, isTurn: Boolean) {
+private fun SidePanel(
+    name: String,
+    handCount: Int,
+    signal: Int,
+    shielded: Boolean,
+    isTurn: Boolean,
+    iconRes: Int? = null
+) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            iconRes?.let {
+                Image(painter = painterResource(it), contentDescription = null, modifier = Modifier.size(28.dp))
+                Spacer(Modifier.width(Spacing.xs))
+            }
             Text(name, color = if (isTurn) GoldAccent else TextPrimary, fontWeight = FontWeight.Bold)
             if (shielded) {
                 Spacer(Modifier.width(Spacing.xs))
@@ -305,17 +328,35 @@ private fun OrbitCardTile(
                 style = if (large) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
+            Image(
+                painter = painterResource(cardIconRes(card.type)),
+                contentDescription = null,
+                modifier = Modifier.size(if (large) 72.dp else 44.dp),
+                alpha = if (enabled) 1f else 0.5f
+            )
             Text(
                 cardLabel(card.type),
                 color = TextPrimary,
                 style = MaterialTheme.typography.labelSmall,
                 textAlign = TextAlign.Center
             )
-            Text(
-                cardEffectShort(card.type),
-                color = TextSecondary,
-                style = MaterialTheme.typography.labelSmall,
-                textAlign = TextAlign.Center
+        }
+    }
+}
+
+// 덱 더미/상대 손패처럼 내용을 알 수 없는 카드를 나타내는 뒷면 타일.
+@Composable
+private fun OrbitCardBackTile(width: Dp = 44.dp, height: Dp = 60.dp) {
+    Card(
+        modifier = Modifier.width(width).height(height),
+        colors = CardDefaults.cardColors(containerColor = SpaceNavy),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Image(
+                painter = painterResource(R.drawable.ic_orbit_card_back),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(0.8f)
             )
         }
     }
@@ -380,15 +421,15 @@ private fun cardLabel(type: OrbitCardType): String = when (type) {
     OrbitCardType.CAPTAIN -> "CAPTAIN"
 }
 
-private fun cardEffectShort(type: OrbitCardType): String = when (type) {
-    OrbitCardType.SCOUT_DRONE -> "Power 추측"
-    OrbitCardType.SENSOR -> "카드 열람"
-    OrbitCardType.PROBE -> "Power 비교"
-    OrbitCardType.SHIELD -> "효과 무효화"
-    OrbitCardType.EMP -> "카드 교체"
-    OrbitCardType.WARP_GATE -> "카드 교환"
-    OrbitCardType.AI_CORE -> "효과 없음"
-    OrbitCardType.CAPTAIN -> "사용 시 OUT"
+private fun cardIconRes(type: OrbitCardType): Int = when (type) {
+    OrbitCardType.SCOUT_DRONE -> R.drawable.ic_orbit_scout_drone
+    OrbitCardType.SENSOR -> R.drawable.ic_orbit_sensor
+    OrbitCardType.PROBE -> R.drawable.ic_orbit_probe
+    OrbitCardType.SHIELD -> R.drawable.ic_orbit_shield
+    OrbitCardType.EMP -> R.drawable.ic_orbit_emp
+    OrbitCardType.WARP_GATE -> R.drawable.ic_orbit_warp_gate
+    OrbitCardType.AI_CORE -> R.drawable.ic_orbit_ai_core
+    OrbitCardType.CAPTAIN -> R.drawable.ic_orbit_captain
 }
 
 private fun cardFullDescription(type: OrbitCardType): String = when (type) {

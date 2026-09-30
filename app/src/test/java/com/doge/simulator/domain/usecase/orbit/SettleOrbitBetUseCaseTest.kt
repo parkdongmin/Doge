@@ -23,6 +23,7 @@ class SettleOrbitBetUseCaseTest {
         val settlement = useCase.settleFinished(match)
 
         assertEquals(MatchOutcome.WON, settlement?.outcome)
+        assertEquals(1_000L, settlement?.betAmount)
         assertEquals((1_000L * OrbitRiskTier.CHALLENGE.winRewardMultiplier).toLong(), settlement?.netChange)
         assertEquals((1_000L * OrbitRiskTier.CHALLENGE.winRewardMultiplier).toLong(), repo.coins)
     }
@@ -37,6 +38,7 @@ class SettleOrbitBetUseCaseTest {
         val settlement = useCase.settleFinished(match)
 
         assertEquals(MatchOutcome.LOST, settlement?.outcome)
+        assertEquals(1_000L, settlement?.betAmount)
         assertEquals(-1_000L, settlement?.netChange)
         assertEquals(500L, repo.coins) // 이미 시작 시 차감됐다는 전제 — 여기서 추가 차감 없음
     }
@@ -51,6 +53,7 @@ class SettleOrbitBetUseCaseTest {
         val settlement = useCase.settleAbandoned(match)
 
         assertEquals(MatchOutcome.LOST, settlement?.outcome)
+        assertEquals(500L, settlement?.betAmount)
         assertEquals(-500L, settlement?.netChange)
         assertEquals(MatchOutcome.LOST, match.matchResult)
         assertEquals(500L, repo.coins)

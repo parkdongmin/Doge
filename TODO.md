@@ -24,9 +24,43 @@ speckit 전체 플로우(specify→clarify→plan→tasks→implement)로 진행
 - [x] SCOUT DRONE 추측 다이얼로그에 카드 이름 병기("2 · SENSOR")
 - [x] PROBE 동점/SCOUT DRONE 오답 시 "동점이라 아무 일도 없었어요" 등 안내 추가
 - [x] 라운드 시작 시 "이번 라운드 선공: 나/B-01" 표시 추가
+- [x] **B-01이 CAPTAIN(내면 즉시 자멸)을 실수로도 절대 안 내도록 수정 (2026-09-22, 커밋 `a5e6aa8`)** —
+      다른 카드가 하나라도 있으면 CAPTAIN을 후보에서 아예 제외. 기존엔 "실수" 선택이 인덱스
+      기반이라 손패가 [X, CAPTAIN] 2장뿐이면 실수의 유일한 대안이 CAPTAIN이라 자멸 플레이가
+      나왔고, 상대 SHIELD 상황에서는 무효 카드 점수(0)보다 CAPTAIN 점수(1)가 높아 최적으로도
+      뽑히는 경우가 있었음. `B01OrbitAiTest` 갱신, `compileDebugKotlin`+테스트 통과
+
+**픽셀아트 파이프라인 착수 (2026-09-22, 미커밋 — 작업트리에 남아있음, 다음 세션에서 커밋 필요):**
+
+GPT로 시안(`sample_orbit.png`, 유저 제작)을 먼저 받아 화면별 레이아웃만 참고하기로 하고,
+그림체는 시안이 아니라 **기존 앱 아이콘 톤**(`ic_research_*`/`ic_ui_*` — 계단식 픽셀 셰이딩,
+다크네이비 아웃라인, 골드는 트림에만 절제해서 사용)에 맞추는 걸로 방향 잡음. B-01은 여러 차례
+반복 끝에(색 과다 → 형태가 성인 휴머노이드 로봇 같음 → 귀/안테나 이상함 등 계속 피드백받아
+수정) 최종본 확정. 자세한 시행착오는 대화 로그 참고.
+
+- [x] **결과 화면(`OrbitResultScreen.kt`) 레이아웃 개선** — BET/WIN(또는 RESULT)/TOTAL 3줄
+      내역 카드 추가. `OrbitBetSettlement`에 `betAmount` 필드 신설(`SettleOrbitBetUseCase`),
+      WIN 줄은 배율 적용 전체 지급액이 아니라 베팅액을 뺀 순수익만 표시하도록 계산 수정(기존엔
+      순수익보다 부풀려 보였음), TOTAL은 정산 후 실제 잔여 재화. `SettleOrbitBetUseCaseTest` 갱신
+- [x] **B-01 캐릭터 아트** (`ch_b_01.png`) — 머리+어깨 흉상, 십자 모양 발광 눈, 화이트/그레이+
+      다크네이비 위주(금색은 어깨끈 포인트만), 안테나/귀 없음, 투명 배경
+- [x] **승리/패배 마스코트** (`ch_result_win.png`/`ch_result_lose.png`) — 기존
+      `ch_planet_*` 시바견 우주인 캐릭터 그대로 재사용해 승리(양손 주먹+함박웃음)/패배(고개
+      숙임+팔 늘어뜨림) 포즈만 새로 생성. 결과 화면에 연동, 크기 96dp→160dp
+- [x] **카드 8종 아이콘 + 카드 뒷면 엠블럼** (`ic_orbit_*.png`) — 프레임/숫자는 기존
+      `OrbitCardTile` Compose 코드가 그리므로 심볼만 투명배경으로 생성(상태별 이미지 중복 방지).
+      `OrbitCardTile`의 텍스트 효과 설명(`cardEffectShort`)을 아이콘으로 대체, `OrbitCardBackTile`
+      신설해 B-01 손패(장수만큼 뒷면 카드 표시)·덱 더미 시각화에 사용
+- [x] **B-01 아바타 코드 연동** — 휴게실 진입 카드(`LoungeScreen`), 인게임 사이드패널
+      (`OrbitGameScreen`)에 `ch_b_01` 배치
+- `compileDebugKotlin` 통과 확인. 파일명은 `ch_result_win`/`ch_result_lose`로 정리 완료.
+  2026-09-30 커밋 완료.
 
 **아직 남은 것:**
-- [ ] 카드 픽셀아트 (휴게실 진입 카드 등 임시로 연구소 아이콘 재사용 중)
+- [x] 위 미커밋 변경사항 커밋 (2026-09-30) — `sample_orbit.png`(GPT 시안)는 레퍼런스용이라 커밋 제외
+- [ ] 카드 뒷면/앞면 배치 실기기 확인 (덱 더미·상대 손패 뒷면 타일이 방금 추가됨)
+- [ ] 라운지·베팅 화면의 "방 전체 배경 일러스트"는 지금 앱 톤(플랫 다크 배경)과 안 맞고 비용도
+      커서 보류하기로 함 — 필요해지면 재논의
 - [ ] 정확한 베팅 배율·위험도 티어별 실수빈도/보상배율 수치 (Doge 전체 경제 시스템 확정 후)
 - [ ] 광고 노출 방식(전면광고 빈도 등)
 - [ ] 계속되는 실기기 QA — 사용자가 플레이하며 리포트하는 대로 계속 대응 중(진행형 작업)
@@ -949,8 +983,7 @@ read+write, users는 read 허용(리더보드)·write 본인만, notifications/p
 - [x] PF Stardust ExtraBold 폰트 파일 — `res/font/pf_stardust_extrabold.ttf` 존재 확인
 - [x] `google-services.json` — `app/`에 존재 확인
 - [x] `local.properties`에 `FIREBASE_STORAGE_BASE_URL` 실값 — 설정 확인됨
-- [ ] Cloud Functions 배포 여부 미확인 (`functions/` → `npm install && firebase deploy --only functions`) — 로컬에 firebase CLI가 없어 배포 이력을 직접 확인 못 함, Firebase 콘솔에서 확인 필요
-- [ ] Play Store 출시용 서명 설정(keystore + `signingConfigs`) — release 빌드에 아직 없음
-- [ ] release `isMinifyEnabled` — 현재 `false`, R8/난독화 적용 여부 결정 필요
-- [ ] 사운드 에셋 확보 및 적용 — 강화/탐사 결과 등 현재 진동으로 대체 중인 곳에 효과음 추가 검토
-      (게임 디테일/연출 작업 중 보류했던 항목, 에셋 준비되는 시점에 맞춰 진행)
+- [x] ~~Cloud Functions 배포 여부~~ — 불필요 확정, 죽은 코드 삭제 (2026-09-04)
+- [x] Play Store 출시용 서명 설정 — 완료 (2026-09-05, `doge-release.jks`)
+- [x] release `isMinifyEnabled` — 끄는 걸로 확정 (2026-09-04)
+- [x] 효과음(SFX) — 출시 후 폴리시로 미루는 걸로 확정 (2026-09-06)

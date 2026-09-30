@@ -1,5 +1,6 @@
 package com.doge.simulator.presentation.screen.orbit
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -9,9 +10,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.doge.simulator.R
 import com.doge.simulator.presentation.viewmodel.OrbitViewModel
 import com.doge.simulator.ui.theme.*
 import com.doge.simulator.util.findActivity
@@ -61,7 +64,15 @@ fun LoungeScreen(
             shape = RoundedCornerShape(16.dp)
         ) {
             Column(Modifier.padding(Spacing.xl)) {
-                Text("B-01", color = GoldAccent, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Image(
+                        painter = painterResource(R.drawable.ch_b_01),
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Spacer(Modifier.width(Spacing.sm))
+                    Text("B-01", color = GoldAccent, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                }
                 Spacer(Modifier.height(Spacing.xs))
                 Text(
                     "\"다음 목적지까지 08:42 남았습니다. 한 판 하시겠습니까?\"",

@@ -2,6 +2,7 @@ package com.doge.simulator.domain.model.orbit
 
 data class OrbitBetSettlement(
     val outcome: MatchOutcome,
+    val betAmount: Long,
     val netChange: Long
 )
 
