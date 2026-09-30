@@ -15,8 +15,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -55,6 +53,7 @@ import com.doge.simulator.util.UpgradeHaptic
 import com.doge.simulator.util.findActivity
 import com.doge.simulator.util.vibrateDiscoveryReveal
 import com.doge.simulator.util.vibrateUpgradeResult
+import com.doge.simulator.presentation.component.PixelIcons
 import java.util.concurrent.TimeUnit
 import kotlin.math.sin
 import kotlin.random.Random
@@ -139,7 +138,7 @@ fun ExploreScreen(
                 fontWeight = FontWeight.SemiBold
             )
             Icon(
-                imageVector = Icons.Outlined.Info,
+                imageVector = PixelIcons.Info,
                 contentDescription = "탐사 정보",
                 tint = TextSecondary,
                 modifier = Modifier
@@ -694,7 +693,7 @@ private fun TeamBuilderContent(
                 style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold
             )
             Icon(
-                imageVector = Icons.Outlined.Info,
+                imageVector = PixelIcons.Info,
                 contentDescription = "우주선·우주인 효과 설명",
                 tint = TextSecondary,
                 modifier = Modifier

@@ -11,8 +11,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,6 +36,7 @@ import com.doge.simulator.presentation.viewmodel.AssetViewModel
 import com.doge.simulator.presentation.viewmodel.AuthViewModel
 import com.doge.simulator.presentation.viewmodel.SettingsViewModel
 import com.doge.simulator.ui.theme.*
+import com.doge.simulator.presentation.component.PixelIcons
 
 @Composable
 fun AssetScreen(
@@ -265,7 +264,7 @@ fun AssetScreen(
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             SectionHeader(title = "보유 자산")
             Icon(
-                imageVector = Icons.Outlined.Info,
+                imageVector = PixelIcons.Info,
                 contentDescription = "자산 항목 설명",
                 tint = TextSecondary,
                 modifier = Modifier

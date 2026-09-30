@@ -7,8 +7,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,6 +28,7 @@ import com.doge.simulator.domain.model.representativeIconRes
 import com.doge.simulator.presentation.viewmodel.ExpeditionHistoryViewModel
 import com.doge.simulator.ui.theme.*
 import com.doge.simulator.util.findActivity
+import com.doge.simulator.presentation.component.DogeTopBar
 import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,7 +46,7 @@ fun ExpeditionHistoryScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            DogeTopBar(
                 title = {
                     Column {
                         Text("탐사 일지", color = GoldAccent, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -61,12 +60,7 @@ fun ExpeditionHistoryScreen(
                         }
                     }
                 },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로", tint = TextPrimary)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = SpaceNavy)
+                onBack = onBack
             )
         },
         containerColor = SpaceDark

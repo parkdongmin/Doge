@@ -16,9 +16,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -55,6 +52,8 @@ import com.doge.simulator.ui.theme.*
 import com.doge.simulator.util.UpgradeHaptic
 import com.doge.simulator.util.findActivity
 import com.doge.simulator.util.vibrateUpgradeResult
+import com.doge.simulator.presentation.component.PixelIcons
+import com.doge.simulator.presentation.component.DogeTopBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,7 +75,7 @@ fun PlanetDetailScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            DogeTopBar(
                 title = {
                     Text(
                         text = planet?.let {
@@ -88,16 +87,7 @@ fun PlanetDetailScreen(
                         style = MaterialTheme.typography.titleMedium
                     )
                 },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "뒤로",
-                            tint = TextPrimary
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = SpaceNavy)
+                onBack = onBack
             )
         },
         containerColor = SpaceDark
@@ -196,7 +186,7 @@ fun PlanetDetailScreen(
                     ) {
                         Text("스탯", color = TextSecondary, style = MaterialTheme.typography.labelMedium)
                         Icon(
-                            imageVector = Icons.Outlined.Info,
+                            imageVector = PixelIcons.Info,
                             contentDescription = "스탯 설명 보기",
                             tint = TextSecondary,
                             modifier = Modifier
