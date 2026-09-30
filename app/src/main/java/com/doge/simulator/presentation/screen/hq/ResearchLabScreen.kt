@@ -7,8 +7,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +24,8 @@ import com.doge.simulator.domain.model.ResearchLab
 import com.doge.simulator.domain.model.Resource
 import com.doge.simulator.presentation.viewmodel.ResearchLabViewModel
 import com.doge.simulator.ui.theme.*
+import com.doge.simulator.presentation.component.DogeTopBar
+import com.doge.simulator.presentation.component.NightSkyBackground
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,54 +37,49 @@ fun ResearchLabScreen(
     val resources by viewModel.resources.collectAsState()
     val coins by viewModel.coins.collectAsState()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("연구소", color = GoldAccent, style = MaterialTheme.typography.titleMedium) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로", tint = TextPrimary)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = SpaceNavy)
-            )
-        },
-        containerColor = SpaceDark
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            // 보유 코인
-            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.md),
-                horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("총 연구 레벨: ${researchLab.totalLevel}", color = TextSecondary,
-                    style = MaterialTheme.typography.bodySmall)
-                Text("%,d 코인".format(coins), color = GoldAccent, style = NumericSmall)
-            }
-
-            HorizontalDivider(color = SpaceMid, modifier = Modifier.padding(horizontal = Spacing.lg))
-            Spacer(modifier = Modifier.height(Spacing.sm))
-
+    // 정거장 시설 안 — 공통 밤하늘 배경(NightSkyBackground) 위에 투명 Scaffold.
+    NightSkyBackground(Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                DogeTopBar(title = "연구소", onBack = onBack)
+            },
+            containerColor = Color.Transparent
+        ) { padding ->
             Column(
                 modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
+                    .fillMaxSize()
+                    .padding(padding)
             ) {
-                ResearchField.entries.forEach { field ->
-                    ResearchFieldCard(
-                        field = field,
-                        currentLevel = researchLab.getLevel(field),
-                        researchLab = researchLab,
-                        coins = coins,
-                        resources = resources,
-                        onUpgrade = { viewModel.upgrade(field) }
-                    )
-                    Spacer(modifier = Modifier.height(Spacing.md))
+                // 보유 코인
+                Row(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.md),
+                    horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("총 연구 레벨: ${researchLab.totalLevel}", color = TextSecondary,
+                        style = MaterialTheme.typography.bodySmall)
+                    Text("%,d 코인".format(coins), color = GoldAccent, style = NumericSmall)
                 }
 
-                Spacer(modifier = Modifier.height(Spacing.lg))
+                HorizontalDivider(color = SpaceMid, modifier = Modifier.padding(horizontal = Spacing.lg))
+                Spacer(modifier = Modifier.height(Spacing.sm))
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    ResearchField.entries.forEach { field ->
+                        ResearchFieldCard(
+                            field = field,
+                            currentLevel = researchLab.getLevel(field),
+                            researchLab = researchLab,
+                            coins = coins,
+                            resources = resources,
+                            onUpgrade = { viewModel.upgrade(field) }
+                        )
+                        Spacer(modifier = Modifier.height(Spacing.md))
+                    }
+
+                    Spacer(modifier = Modifier.height(Spacing.lg))
+                }
             }
         }
     }

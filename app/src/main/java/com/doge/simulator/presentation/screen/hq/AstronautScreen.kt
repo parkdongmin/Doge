@@ -7,9 +7,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,6 +31,8 @@ import com.doge.simulator.presentation.component.InfoDialog
 import com.doge.simulator.presentation.viewmodel.AstronautViewModel
 import com.doge.simulator.ui.theme.*
 import com.doge.simulator.util.findActivity
+import com.doge.simulator.presentation.component.DogeTopBar
+import com.doge.simulator.presentation.component.NightSkyBackground
 import kotlinx.coroutines.delay
 
 private val gradeColor = mapOf(
@@ -58,97 +57,92 @@ fun AstronautScreen(
     val activity = LocalContext.current.findActivity()
     var showInfo by remember { mutableStateOf(false) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("우주인 센터", color = GoldAccent, style = MaterialTheme.typography.titleMedium) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로", tint = TextPrimary)
+    // 정거장 시설 안 — 공통 밤하늘 배경(NightSkyBackground) 위에 투명 Scaffold.
+    NightSkyBackground(Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                DogeTopBar(
+                    title = "우주인 센터",
+                    onBack = onBack,
+                    onInfo = { showInfo = true },
+                    infoDescription = "우주인 안내"
+                )
+            },
+            containerColor = Color.Transparent
+        ) { padding ->
+            if (showInfo) {
+                InfoDialog(title = "우주인 안내", onDismiss = { showInfo = false }) {
+                    CrewInfoContent(showGrades = true)
+                }
+            }
+            Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+                // 상태 메시지
+                message?.let {
+                    Surface(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.xs),
+                        shape = RoundedCornerShape(8.dp), color = SpaceBlue.copy(0.3f)) {
+                        Text(it, color = SpaceAccent, style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm))
                     }
-                },
-                actions = {
-                    IconButton(onClick = { showInfo = true }) {
-                        Icon(Icons.Outlined.Info, "우주인 안내", tint = TextSecondary)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = SpaceNavy)
-            )
-        },
-        containerColor = SpaceDark
-    ) { padding ->
-        if (showInfo) {
-            InfoDialog(title = "우주인 안내", onDismiss = { showInfo = false }) {
-                CrewInfoContent(showGrades = true)
-            }
-        }
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            // 상태 메시지
-            message?.let {
-                Surface(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.xs),
-                    shape = RoundedCornerShape(8.dp), color = SpaceBlue.copy(0.3f)) {
-                    Text(it, color = SpaceAccent, style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm))
                 }
-            }
 
-            // 현황 헤더
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.md),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                InfoChip("보유", "${astronauts.size}/${researchLab.maxAstronauts}명", TextPrimary)
-                InfoChip("훈련 슬롯", "${astronauts.count { it.status == AstronautStatus.TRAINING }}/${researchLab.maxTrainingSlots}", SpaceAccent)
-                InfoChip("보유 코인", "%,d".format(coins), GoldAccent)
-            }
-
-            HorizontalDivider(color = SpaceMid, modifier = Modifier.padding(horizontal = Spacing.lg))
-
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(Spacing.md)
-            ) {
-                // 모집 센터
-                item {
-                    Text("모집 센터", color = GoldAccent, style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(Spacing.sm))
-                    RecruitmentSection(
-                        pool = recruitmentPool,
-                        coins = coins,
-                        canHire = astronauts.size < researchLab.maxAstronauts,
-                        onHire = { viewModel.hireFromPool(it) },
-                        onRefreshAd = { viewModel.refreshPoolWithAd(activity) }
-                    )
+                // 현황 헤더
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.md),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    InfoChip("보유", "${astronauts.size}/${researchLab.maxAstronauts}명", TextPrimary)
+                    InfoChip("훈련 슬롯", "${astronauts.count { it.status == AstronautStatus.TRAINING }}/${researchLab.maxTrainingSlots}", SpaceAccent)
+                    InfoChip("보유 코인", "%,d".format(coins), GoldAccent)
                 }
-                // 구분선
-                item {
-                    Spacer(modifier = Modifier.height(Spacing.xs))
-                    HorizontalDivider(color = SpaceMid)
-                    Spacer(modifier = Modifier.height(Spacing.xs))
-                    Text("보유 우주인 (${astronauts.size}명)", color = GoldAccent,
-                        style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(Spacing.sm))
-                }
-                if (astronauts.isEmpty()) {
+
+                HorizontalDivider(color = SpaceMid, modifier = Modifier.padding(horizontal = Spacing.lg))
+
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.md)
+                ) {
+                    // 모집 센터
                     item {
-                        Box(modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xxl),
-                            contentAlignment = Alignment.Center) {
-                            Text("아직 고용한 우주인이 없습니다", color = TextSecondary,
-                                style = MaterialTheme.typography.bodySmall)
-                        }
-                    }
-                } else {
-                    items(astronauts, key = { it.id }) { astronaut ->
-                        AstronautCard(
-                            astronaut = astronaut,
+                        Text("모집 센터", color = GoldAccent, style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(Spacing.sm))
+                        RecruitmentSection(
+                            pool = recruitmentPool,
                             coins = coins,
-                            trainingSlotAvailable = astronauts.count { it.status == AstronautStatus.TRAINING } < researchLab.maxTrainingSlots,
-                            onTrainBasic = { viewModel.train(astronaut, false) },
-                            onTrainAdvanced = { viewModel.train(astronaut, true) },
-                            onSkipWaitAd = { viewModel.skipTrainingWait(astronaut, activity) }
+                            canHire = astronauts.size < researchLab.maxAstronauts,
+                            onHire = { viewModel.hireFromPool(it) },
+                            onRefreshAd = { viewModel.refreshPoolWithAd(activity) }
                         )
+                    }
+                    // 구분선
+                    item {
+                        Spacer(modifier = Modifier.height(Spacing.xs))
+                        HorizontalDivider(color = SpaceMid)
+                        Spacer(modifier = Modifier.height(Spacing.xs))
+                        Text("보유 우주인 (${astronauts.size}명)", color = GoldAccent,
+                            style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(Spacing.sm))
+                    }
+                    if (astronauts.isEmpty()) {
+                        item {
+                            Box(modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xxl),
+                                contentAlignment = Alignment.Center) {
+                                Text("아직 고용한 우주인이 없습니다", color = TextSecondary,
+                                    style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    } else {
+                        items(astronauts, key = { it.id }) { astronaut ->
+                            AstronautCard(
+                                astronaut = astronaut,
+                                coins = coins,
+                                trainingSlotAvailable = astronauts.count { it.status == AstronautStatus.TRAINING } < researchLab.maxTrainingSlots,
+                                onTrainBasic = { viewModel.train(astronaut, false) },
+                                onTrainAdvanced = { viewModel.train(astronaut, true) },
+                                onSkipWaitAd = { viewModel.skipTrainingWait(astronaut, activity) }
+                            )
+                        }
                     }
                 }
             }
