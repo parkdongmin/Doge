@@ -33,6 +33,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -71,11 +72,22 @@ class AstronautViewModel @Inject constructor(
 
     init {
         viewModelScope.launch { ensureRecruitmentPoolFreshUseCase() }
-        // 1분마다 훈련 완료 및 모집 풀 자동 새로고침 체크
+        // 훈련 완료 체크: 화면에 들어오자마자 한 번, 이후엔 가장 먼저 끝나는 훈련 시각에 맞춰(최대 1분 간격).
+        // 예전엔 "1분 기다린 뒤" 첫 체크를 해서, 백그라운드 워커가 늦게 돌면(기기 절전·앱 재설치 등)
+        // 이미 끝난 훈련이 "훈련 완료까지: 0분"인 채로 최대 1분간 멈춰 보였다.
+        viewModelScope.launch {
+            while (true) {
+                val nextEndTime = checkTrainingCompletions()
+                val waitMs = nextEndTime
+                    ?.let { (it - System.currentTimeMillis()).coerceIn(1_000L, 60_000L) }
+                    ?: 60_000L
+                delay(waitMs)
+            }
+        }
+        // 1분마다 모집 풀 자동 새로고침 체크
         viewModelScope.launch {
             while (true) {
                 delay(60_000L)
-                checkTrainingCompletions()
                 ensureRecruitmentPoolFreshUseCase()
             }
         }
@@ -83,11 +95,16 @@ class AstronautViewModel @Inject constructor(
         rewardedAdManager.preload(RewardPlacement.SKIP_WAIT)
     }
 
-    private suspend fun checkTrainingCompletions() {
+    // 끝난 훈련을 완료 처리하고, 아직 진행 중인 훈련 중 가장 빠른 종료 시각을 돌려준다(없으면 null).
+    // astronauts StateFlow는 화면 진입 직후엔 아직 비어 있을 수 있어 저장소에서 직접 읽는다.
+    private suspend fun checkTrainingCompletions(): Long? {
         val now = System.currentTimeMillis()
-        astronauts.value
-            .filter { it.status == AstronautStatus.TRAINING && (it.trainingEndTime ?: Long.MAX_VALUE) <= now }
+        val training = astronautRepository.getAstronauts().first()
+            .filter { it.status == AstronautStatus.TRAINING }
+        training
+            .filter { (it.trainingEndTime ?: Long.MAX_VALUE) <= now }
             .forEach { completeTrainingUseCase(it) }
+        return training.mapNotNull { it.trainingEndTime }.filter { it > now }.minOrNull()
     }
 
     fun hireFromPool(slotIndex: Int) {
