@@ -1,5 +1,6 @@
 package com.doge.simulator.presentation.component
 
+import androidx.annotation.DrawableRes
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -19,6 +20,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -87,7 +90,9 @@ fun PixelButton(
     contentColor: Color = GoldAccent,
     enabled: Boolean = true,
     contentPadding: PaddingValues = ButtonPadding.ctaInRow,
-    minWidth: Dp = ButtonPadding.minWidth
+    minWidth: Dp = ButtonPadding.minWidth,
+    // 글자 앞에 붙는 픽셀 아이콘(예: 광고 버튼의 ic_ui_ad). 없으면 글자만.
+    @DrawableRes leadingIcon: Int? = null
 ) {
     Button(
         onClick = onClick,
@@ -102,6 +107,10 @@ fun PixelButton(
         ),
         contentPadding = contentPadding
     ) {
+        leadingIcon?.let {
+            Image(painter = painterResource(it), contentDescription = null, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(Spacing.sm))
+        }
         Text(text = text, style = MaterialTheme.typography.bodyMedium)
     }
 }

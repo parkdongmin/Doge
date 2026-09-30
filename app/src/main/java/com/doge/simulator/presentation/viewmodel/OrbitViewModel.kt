@@ -33,8 +33,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
 // Compose/StateFlow에 노출하는 불변 스냅샷. OrbitMatchState/OrbitRoundState는 도메인 계층에서
@@ -60,7 +62,10 @@ data class OrbitUiSnapshot(
     val matchResult: MatchOutcome?,
     val bet: OrbitBet?,
     val lastPlayerCard: PlayOrbitCardUseCase.PlayedCardSummary? = null,
-    val lastB01Card: PlayOrbitCardUseCase.PlayedCardSummary? = null
+    val lastB01Card: PlayOrbitCardUseCase.PlayedCardSummary? = null,
+    // 가장 최근에 놓인 카드(진영 무관)와 놓일 때마다 1씩 느는 번호 — 스포트라이트 연출용.
+    val latestPlay: PlayOrbitCardUseCase.PlayedCardSummary? = null,
+    val playSeq: Int = 0
 )
 
 // 라운드가 끝날 때마다(사유 불문) 채워진다. "방금 이 카드를 썼다"는 알아도 "그래서 라운드가
@@ -70,7 +75,11 @@ data class OrbitRoundEndInfo(
     val reason: RoundEndReason,
     val winner: PlayerSide?,
     val playerSignal: Int,
-    val b01Signal: Int
+    val b01Signal: Int,
+    // 라운드가 끝난 순간 양쪽이 들고 있던 카드 — 라운드 종료 시 서로의 패를 공개한다. PROBE로 졌는데
+    // "상대가 정말 더 높은 카드였나?" 확인할 방법이 없다는 피드백 반영.
+    val playerCard: OrbitCard? = null,
+    val b01Card: OrbitCard? = null
 )
 
 private fun OrbitMatchState.toSnapshot(): OrbitUiSnapshot {
@@ -123,6 +132,14 @@ class OrbitViewModel @Inject constructor(
     private val _betDialogVisible = MutableStateFlow(false)
     val betDialogVisible: StateFlow<Boolean> = _betDialogVisible.asStateFlow()
 
+    // 카드가 놓일 때마다 true — 게임 화면이 그 카드의 스포트라이트 연출을 다 보여주고 나면
+    // onPlayPresented()로 false로 돌려놓는다. B-01은 이게 false가 될 때까지 다음 수를 두지 않는다.
+    private val _presentingPlay = MutableStateFlow(false)
+
+    fun onPlayPresented() {
+        _presentingPlay.value = false
+    }
+
     private val _uiSnapshot = MutableStateFlow<OrbitUiSnapshot?>(null)
     val uiSnapshot: StateFlow<OrbitUiSnapshot?> = _uiSnapshot.asStateFlow()
 
@@ -144,6 +161,12 @@ class OrbitViewModel @Inject constructor(
     // "마지막으로 낸 카드" 슬롯 — 다음 카드가 나오면 덮어써진다(전체 로그 아님, FR-004).
     private var lastPlayerPlay: PlayOrbitCardUseCase.PlayedCardSummary? = null
     private var lastB01Play: PlayOrbitCardUseCase.PlayedCardSummary? = null
+
+    // 가장 최근에 놓인 카드와 그 일련번호 — 화면의 스포트라이트 연출이 "새 카드가 놓였다"를 알아채는
+    // 기준. 같은 결과의 카드를 연달아 내면(SCOUT DRONE 연속 빗나감 등) 요약 값이 똑같아 값 비교로는
+    // 구분이 안 되므로 번호로 구분한다.
+    private var latestPlay: PlayOrbitCardUseCase.PlayedCardSummary? = null
+    private var playSeq = 0
 
     // B-01은 사람처럼 손패를 직접 확인하지 않는다(FR-010) — 이 인스턴스에만 확인/교환 정보가 쌓인다.
     private var b01Memory = B01Memory()
@@ -183,6 +206,7 @@ class OrbitViewModel @Inject constructor(
 
     fun closeBetDialog() {
         _betDialogVisible.value = false
+        _presentingPlay.value = false
     }
 
     fun selectBetAmount(amount: Long) {
@@ -212,10 +236,12 @@ class OrbitViewModel @Inject constructor(
         b01Memory = B01Memory()
         lastPlayerPlay = null
         lastB01Play = null
+        latestPlay = null
         _lastSettlement.value = null
         _roundEndBanner.value = null
         activeMatch = match
         _betDialogVisible.value = false
+        _presentingPlay.value = false
         publishSnapshot()
         viewModelScope.launch { advanceUntilPlayerTurnOrPause() }
     }
@@ -262,6 +288,7 @@ class OrbitViewModel @Inject constructor(
         _roundEndBanner.value = null
         lastPlayerPlay = null
         lastB01Play = null
+        latestPlay = null
         val match = activeMatch ?: return
         if (match.isOver) {
             publishSnapshot() // 결과 화면 이동은 matchOver 관찰로 처리됨(화면 쪽 LaunchedEffect)
@@ -283,6 +310,7 @@ class OrbitViewModel @Inject constructor(
         _roundEndBanner.value = null
         lastPlayerPlay = null
         lastB01Play = null
+        latestPlay = null
     }
 
     fun playAgain() {
@@ -292,6 +320,7 @@ class OrbitViewModel @Inject constructor(
         _roundEndBanner.value = null
         lastPlayerPlay = null
         lastB01Play = null
+        latestPlay = null
         // 휴게실로 돌아가면서 베팅 모달을 바로 연다(예전 "베팅 화면으로 이동"과 같은 흐름).
         _betDialogVisible.value = true
     }
@@ -303,6 +332,7 @@ class OrbitViewModel @Inject constructor(
         _roundEndBanner.value = null
         lastPlayerPlay = null
         lastB01Play = null
+        latestPlay = null
     }
 
     // 내 턴이 될 때까지 B-01의 턴을 연달아 진행한다(매 수마다 uiSnapshot의 lastB01Card가
@@ -313,6 +343,12 @@ class OrbitViewModel @Inject constructor(
         if (match.isOver || _roundEndBanner.value != null) return
 
         while (!match.isOver && !match.currentRound.isOver && match.currentRound.currentTurn == PlayerSide.B01) {
+            // 방금 놓인 카드(주로 내 카드)의 스포트라이트 연출이 끝날 때까지 B-01은 기다린다 — 안 그러면
+            // 내 카드가 아직 가운데 떠 있는데 그 뒤로 B-01이 이미 카드를 내버려 어색했다.
+            // 화면이 신호를 못 주는 경우(화면 이탈 등)에 영영 멈추지 않도록 상한을 둔다.
+            withTimeoutOrNull(PRESENTATION_WAIT_TIMEOUT_MS) { _presentingPlay.first { !it } }
+            if (activeMatch !== match) return // 기다리는 사이 매치를 나갔거나 새 매치가 시작됨
+            if (match.isOver || match.currentRound.isOver) break
             val canPlay = advanceOrbitTurnUseCase(match.currentRound)
             if (!canPlay) {
                 finishRoundIfNeeded(match)
@@ -350,6 +386,9 @@ class OrbitViewModel @Inject constructor(
     }
 
     private fun recordPlay(summary: PlayOrbitCardUseCase.PlayedCardSummary) {
+        _presentingPlay.value = true
+        playSeq++
+        latestPlay = summary
         if (summary.by == PlayerSide.PLAYER) lastPlayerPlay = summary else lastB01Play = summary
     }
 
@@ -362,7 +401,9 @@ class OrbitViewModel @Inject constructor(
             reason = endedRound.endReason!!,
             winner = endedRound.winner,
             playerSignal = match.signals[PlayerSide.PLAYER] ?: 0,
-            b01Signal = match.signals[PlayerSide.B01] ?: 0
+            b01Signal = match.signals[PlayerSide.B01] ?: 0,
+            playerCard = revealedCardAtRoundEnd(endedRound, PlayerSide.PLAYER),
+            b01Card = revealedCardAtRoundEnd(endedRound, PlayerSide.B01)
         )
         if (match.isOver) {
             viewModelScope.launch {
@@ -375,10 +416,18 @@ class OrbitViewModel @Inject constructor(
         }
     }
 
+    // 라운드 종료 때 공개할 한쪽의 카드: 손에 남은 카드, 없으면(EMP로 CAPTAIN이 버려져 OUT된 경우)
+    // 방금 버려진 그 카드.
+    private fun revealedCardAtRoundEnd(round: OrbitRoundState, side: PlayerSide): OrbitCard? =
+        round.player(side).hand.firstOrNull()
+            ?: latestPlay?.takeIf { it.outSide == side }?.discardedCard
+
     private fun publishSnapshot() {
         _uiSnapshot.value = activeMatch?.toSnapshot()?.copy(
             lastPlayerCard = lastPlayerPlay,
-            lastB01Card = lastB01Play
+            lastB01Card = lastB01Play,
+            latestPlay = latestPlay,
+            playSeq = playSeq
         )
     }
 
@@ -390,5 +439,6 @@ class OrbitViewModel @Inject constructor(
 
     private companion object {
         const val B01_THINK_DELAY_MS = 600L
+        private const val PRESENTATION_WAIT_TIMEOUT_MS = 5_000L
     }
 }

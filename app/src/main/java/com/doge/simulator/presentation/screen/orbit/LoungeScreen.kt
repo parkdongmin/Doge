@@ -177,6 +177,7 @@ fun LoungeScreen(
                         onClick = { viewModel.claimDailyAdReward(activity) },
                         enabled = dailyAdRemaining > 0,
                         contentPadding = ButtonPadding.fullWidthCta,
+                        leadingIcon = R.drawable.ic_ui_ad,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }

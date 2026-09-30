@@ -52,6 +52,7 @@ fun OrbitResultScreen(
             .fillMaxSize()
             .background(SpaceDark)
             .statusBarsPadding()
+            .navigationBarsPadding()
             .padding(Spacing.xl),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
