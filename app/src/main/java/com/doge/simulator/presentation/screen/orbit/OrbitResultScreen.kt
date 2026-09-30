@@ -75,6 +75,9 @@ fun OrbitResultScreen(
                 fontWeight = FontWeight.Bold
             )
             Spacer(Modifier.height(Spacing.lg))
+            val line = remember(won) { (if (won) B01Lines.resultWon else B01Lines.resultLost).random() }
+            B01SpeechRow(line = line, avatarSize = 40.dp)
+            Spacer(Modifier.height(Spacing.md))
             SettlementBreakdown(settlement = current, coins = coins)
         }
         Spacer(Modifier.height(Spacing.xxl))

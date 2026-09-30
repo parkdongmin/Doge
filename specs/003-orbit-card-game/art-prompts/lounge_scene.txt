@@ -1,0 +1,33 @@
+[휴게실 입구 장면 일러스트 — GPT 이미지 생성 프롬프트]
+
+같이 붙일 참조 이미지:
+1. app/src/main/res/drawable/ch_b_01.png                     — B-01 디자인 원본(얼굴·색·비율 그대로 유지)
+2. app/src/main/res/drawable/ic_research_explore_skills.png  — 계단식 픽셀 셰이딩 + 남색 외곽선 기법
+3. sample_orbit.png 의 휴게실 패널(위 줄 두 번째)             — "구도만" 참고하라고 명시
+
+----------------------------------------------------------------------
+
+Pixel art scene illustration of a small, cozy crew lounge aboard a spaceship.
+Landscape 3:2 composition.
+
+MAIN SUBJECT (center): the robot "B-01" from the attached reference image, sitting
+behind a small card table, facing the viewer, upper body visible above the table.
+Keep B-01 EXACTLY on-model: round white/light-grey head, dark visor with two glowing
+cyan cross-shaped eyes, small gold trim only on shoulders. No antenna, no ears.
+On the table: a few face-down playing cards in a neat stack and one mug.
+
+BACKGROUND: a large round porthole window behind B-01 showing a blue planet and
+scattered stars; a low sofa on one side, a small plant, soft warm lamp light.
+Overall palette: deep navy / steel blue, dim and calm. Gold/amber ONLY as thin trim
+(lamp, rivets) — never large gold surfaces.
+
+STYLE: match the attached icon reference exactly — chunky visible pixels, stepped /
+banded pixel shading (no smooth gradients or airbrush blur), thick dark-navy outlines
+(not pure black). Same pixel density as the B-01 reference.
+
+RULES:
+- NO text, letters, signs, or logos anywhere in the image.
+- Keep B-01 and the table in the central area; the outer ~10% on left/right
+  may be cropped.
+- Keep the bottom ~15% simple (table front / floor) — UI will overlap there.
+- Fill the whole frame (this is a background scene, not a transparent sprite).

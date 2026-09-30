@@ -118,6 +118,11 @@ class OrbitViewModel @Inject constructor(
     private val _selectedRiskTier = MutableStateFlow(OrbitRiskTier.LOWEST)
     val selectedRiskTier: StateFlow<OrbitRiskTier> = _selectedRiskTier.asStateFlow()
 
+    // 휴게실의 베팅 모달 표시 여부. 결과 화면 "다시 하기"로 휴게실에 돌아왔을 때 모달이 바로
+    // 열려 있어야 해서 화면 로컬 상태가 아니라 여기(휴게실 엔트리 스코프 뷰모델)에 둔다.
+    private val _betDialogVisible = MutableStateFlow(false)
+    val betDialogVisible: StateFlow<Boolean> = _betDialogVisible.asStateFlow()
+
     private val _uiSnapshot = MutableStateFlow<OrbitUiSnapshot?>(null)
     val uiSnapshot: StateFlow<OrbitUiSnapshot?> = _uiSnapshot.asStateFlow()
 
@@ -172,6 +177,14 @@ class OrbitViewModel @Inject constructor(
         }
     }
 
+    fun openBetDialog() {
+        _betDialogVisible.value = true
+    }
+
+    fun closeBetDialog() {
+        _betDialogVisible.value = false
+    }
+
     fun selectBetAmount(amount: Long) {
         _selectedBetAmount.value = amount
     }
@@ -202,6 +215,7 @@ class OrbitViewModel @Inject constructor(
         _lastSettlement.value = null
         _roundEndBanner.value = null
         activeMatch = match
+        _betDialogVisible.value = false
         publishSnapshot()
         viewModelScope.launch { advanceUntilPlayerTurnOrPause() }
     }
@@ -278,6 +292,8 @@ class OrbitViewModel @Inject constructor(
         _roundEndBanner.value = null
         lastPlayerPlay = null
         lastB01Play = null
+        // 휴게실로 돌아가면서 베팅 모달을 바로 연다(예전 "베팅 화면으로 이동"과 같은 흐름).
+        _betDialogVisible.value = true
     }
 
     fun returnToLounge() {

@@ -23,7 +23,6 @@ sealed class NavRoutes(val route: String) {
 
     // ── ORBIT 카드게임(휴게실) ────────────────────────────────────────
     object Lounge : NavRoutes("lounge")
-    object OrbitBet : NavRoutes("orbit_bet")
     object OrbitGame : NavRoutes("orbit_game")
     object OrbitResult : NavRoutes("orbit_result")
 }
