@@ -1,6 +1,8 @@
 package com.doge.simulator.presentation.screen.hq
 
 import androidx.annotation.DrawableRes
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -26,113 +28,117 @@ import com.doge.simulator.ui.theme.*
 
 @Composable
 fun HQScreen(navController: NavController) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(SpaceDark)
-            .statusBarsPadding()
-    ) {
-        // ── 제목 ───────────────────────────────────────────────────
+    // 세로가 짧은 화면(폴드 펼침 등)에선 휴게실 카드가 아래로 잘렸다 — 정거장 그림 높이를 화면 높이에
+    // 맞춰 줄이고(최대 250dp), 그래도 넘치면 스크롤되게 한다.
+    BoxWithConstraints(Modifier.fillMaxSize().background(SpaceDark).statusBarsPadding()) {
+        val heroHeight = (maxHeight * 0.3f).coerceIn(160.dp, 250.dp)
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = Spacing.xl, end = Spacing.xl, top = Spacing.lg, bottom = Spacing.md)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
         ) {
-            Text(
-                text = "정거장",
-                color = TextPrimary,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(Spacing.xxs))
-            Text(
-                text = "시설을 관리하여 탐사 역량을 강화하세요",
-                color = TextSecondary,
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
-
-        // ── 정거장 이미지 ──────────────────────────────────────────
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(250.dp)
-                .drawBehind {
-                    // 중앙 방사형
-                    drawRect(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                Color(0xFF1A3A6B).copy(alpha = 0.7f),
-                                Color(0xFF0D1F3C).copy(alpha = 0.4f),
-                                Color(0xFF00020E)
-                            ),
-                            center = Offset(size.width / 2f, size.height / 2f),
-                            radius = size.width * 0.55f
-                        )
-                    )
-                    // 위 경계 페이드
-                    drawRect(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(Color(0xFF00020E), Color.Transparent),
-                            startY = 0f,
-                            endY = size.height * 0.35f
-                        )
-                    )
-                    // 아래 경계 페이드
-                    drawRect(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, Color(0xFF00020E)),
-                            startY = size.height * 0.65f,
-                            endY = size.height
-                        )
-                    )
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Image(
-                painter = painterResource(R.drawable.bg_space_station),
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
+            // ── 제목 ───────────────────────────────────────────────────
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight()
-                    .padding(horizontal = 32.dp, vertical = Spacing.sm)
-            )
-        }
+                    .padding(start = Spacing.xl, end = Spacing.xl, top = Spacing.lg, bottom = Spacing.md)
+            ) {
+                Text(
+                    text = "정거장",
+                    color = TextPrimary,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(Spacing.xxs))
+                Text(
+                    text = "시설을 관리하여 탐사 역량을 강화하세요",
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
 
-        // ── 시설 목록 ──────────────────────────────────────────────
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = Spacing.xl, vertical = Spacing.lg)
-        ) {
-            HQFacilityCard(
-                iconRes = R.drawable.character_1,
-                title = "우주인 센터",
-                description = "우주인 고용 및 훈련 관리",
-                onClick = { navController.navigate(NavRoutes.Astronaut.route) { launchSingleTop = true } }
-            )
-            Spacer(modifier = Modifier.height(Spacing.md))
-            HQFacilityCard(
-                iconRes = R.drawable.spaceship_2,
-                title = "격납고",
-                description = "우주선 구매 및 강화",
-                onClick = { navController.navigate(NavRoutes.Hangar.route) { launchSingleTop = true } }
-            )
-            Spacer(modifier = Modifier.height(Spacing.md))
-            HQFacilityCard(
-                iconRes = R.drawable.ic_space_station_research,
-                title = "연구소",
-                description = "탐사 기술·천체 분석·인사·공학 연구",
-                onClick = { navController.navigate(NavRoutes.ResearchLab.route) { launchSingleTop = true } }
-            )
-            Spacer(modifier = Modifier.height(Spacing.md))
-            HQFacilityCard(
-                iconRes = R.drawable.ic_space_station_lounge,
-                title = "휴게실",
-                description = "B-01과 카드게임 ORBIT 한 판",
-                onClick = { navController.navigate(NavRoutes.Lounge.route) { launchSingleTop = true } }
-            )
+            // ── 정거장 이미지 ──────────────────────────────────────────
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(heroHeight)
+                    .drawBehind {
+                        // 중앙 방사형
+                        drawRect(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    Color(0xFF1A3A6B).copy(alpha = 0.7f),
+                                    Color(0xFF0D1F3C).copy(alpha = 0.4f),
+                                    Color(0xFF00020E)
+                                ),
+                                center = Offset(size.width / 2f, size.height / 2f),
+                                radius = size.width * 0.55f
+                            )
+                        )
+                        // 위 경계 페이드
+                        drawRect(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(Color(0xFF00020E), Color.Transparent),
+                                startY = 0f,
+                                endY = size.height * 0.35f
+                            )
+                        )
+                        // 아래 경계 페이드
+                        drawRect(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, Color(0xFF00020E)),
+                                startY = size.height * 0.65f,
+                                endY = size.height
+                            )
+                        )
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.bg_space_station),
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight()
+                        .padding(horizontal = 32.dp, vertical = Spacing.sm)
+                )
+            }
+
+            // ── 시설 목록 ──────────────────────────────────────────────
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = Spacing.xl, vertical = Spacing.lg)
+            ) {
+                HQFacilityCard(
+                    iconRes = R.drawable.character_1,
+                    title = "우주인 센터",
+                    description = "우주인 고용 및 훈련 관리",
+                    onClick = { navController.navigate(NavRoutes.Astronaut.route) { launchSingleTop = true } }
+                )
+                Spacer(modifier = Modifier.height(Spacing.md))
+                HQFacilityCard(
+                    iconRes = R.drawable.spaceship_2,
+                    title = "격납고",
+                    description = "우주선 구매 및 강화",
+                    onClick = { navController.navigate(NavRoutes.Hangar.route) { launchSingleTop = true } }
+                )
+                Spacer(modifier = Modifier.height(Spacing.md))
+                HQFacilityCard(
+                    iconRes = R.drawable.ic_space_station_research,
+                    title = "연구소",
+                    description = "탐사 기술·천체 분석·인사·공학 연구",
+                    onClick = { navController.navigate(NavRoutes.ResearchLab.route) { launchSingleTop = true } }
+                )
+                Spacer(modifier = Modifier.height(Spacing.md))
+                HQFacilityCard(
+                    iconRes = R.drawable.ic_space_station_lounge,
+                    title = "휴게실",
+                    description = "B-01과 카드게임 ORBIT 한 판",
+                    onClick = { navController.navigate(NavRoutes.Lounge.route) { launchSingleTop = true } }
+                )
+            }
         }
     }
 }
