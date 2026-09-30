@@ -153,7 +153,7 @@ fun LoungeScreen(
                         shape = cardShape,
                         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
                         border = BorderStroke(1.dp, GoldAccent.copy(0.4f)),
-                        modifier = Modifier.fillMaxWidth().textured(shape = cardShape, baseColor = SpaceNavy.copy(alpha = 0.85f))
+                        modifier = Modifier.fillMaxWidth().textured(shape = cardShape, baseColor = SpaceNavy)
                     ) {
                         Row(Modifier.padding(Spacing.lg), verticalAlignment = Alignment.CenterVertically) {
                             FannedCardBacks()

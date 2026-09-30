@@ -147,7 +147,7 @@ private fun ResearchFieldCard(
 
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg)
-            .textured(shape = RoundedCornerShape(12.dp), baseColor = SpaceNavy.copy(alpha = 0.85f)),
+            .textured(shape = RoundedCornerShape(12.dp), baseColor = SpaceNavy),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         border = BorderStroke(1.dp, SpaceBlue)

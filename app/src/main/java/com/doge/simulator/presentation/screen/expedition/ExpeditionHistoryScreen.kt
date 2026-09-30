@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -29,6 +30,7 @@ import com.doge.simulator.presentation.viewmodel.ExpeditionHistoryViewModel
 import com.doge.simulator.ui.theme.*
 import com.doge.simulator.util.findActivity
 import com.doge.simulator.presentation.component.DogeTopBar
+import com.doge.simulator.presentation.component.NightSkyBackground
 import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -44,138 +46,141 @@ fun ExpeditionHistoryScreen(
     val actionMessage by viewModel.actionMessage.collectAsState()
     val activity = LocalContext.current.findActivity()
 
-    Scaffold(
-        topBar = {
-            DogeTopBar(
-                title = {
-                    Column {
-                        Text("탐사 일지", color = GoldAccent, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        if (unreadReports.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(Spacing.xxs))
-                            Text(
-                                "보고서 ${unreadReports.size}건 대기 중",
-                                color = StatusRed,
-                                style = MaterialTheme.typography.labelSmall
-                            )
+    // 하위 화면 공통 밤하늘 배경(NightSkyBackground) 위에 투명 Scaffold.
+    NightSkyBackground(Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                DogeTopBar(
+                    title = {
+                        Column {
+                            Text("탐사 일지", color = GoldAccent, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            if (unreadReports.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(Spacing.xxs))
+                                Text(
+                                    "보고서 ${unreadReports.size}건 대기 중",
+                                    color = StatusRed,
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
                         }
-                    }
-                },
-                onBack = onBack
-            )
-        },
-        containerColor = SpaceDark
-    ) { padding ->
-        val hasContent = activeExpeditions.isNotEmpty() || allReports.isNotEmpty()
+                    },
+                    onBack = onBack
+                )
+            },
+            containerColor = Color.Transparent
+        ) { padding ->
+            val hasContent = activeExpeditions.isNotEmpty() || allReports.isNotEmpty()
 
-        if (!hasContent) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Image(
-                        painter = painterResource(R.drawable.ic_ui_no_signal),
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp)
-                    )
-                    Spacer(modifier = Modifier.height(Spacing.md))
-                    Text("탐사 기록이 없습니다", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
-                    Text("탐사를 완료하면 이야기가 쌓입니다", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
-                }
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(Spacing.md)
-            ) {
-                actionMessage?.let { msg ->
-                    item {
-                        Surface(shape = RoundedCornerShape(8.dp), color = SpaceBlue.copy(alpha = 0.3f)) {
-                            Text(msg, color = SpaceAccent, style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm))
-                        }
-                    }
-                }
-                // ── 진행 중인 탐사 ────────────────────────────────────
-                if (activeExpeditions.isNotEmpty()) {
-                    item {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Image(
-                                painter = painterResource(R.drawable.ic_ui_rocket),
-                                contentDescription = null,
-                                modifier = Modifier.size(IconGlyphSize.large.value.dp)
-                            )
-                            Spacer(modifier = Modifier.width(Spacing.xs))
-                            Text(
-                                "진행 중인 탐사",
-                                color = SpaceAccent,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                    items(activeExpeditions, key = { "active_${it.id}" }) { expedition ->
-                        ActiveExpeditionCard(
-                            expedition = expedition,
-                            astronauts = astronauts,
-                            onSkipWaitAd = { viewModel.skipExpeditionWait(expedition, activity) }
+            if (!hasContent) {
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Image(
+                            painter = painterResource(R.drawable.ic_ui_no_signal),
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp)
                         )
+                        Spacer(modifier = Modifier.height(Spacing.md))
+                        Text("탐사 기록이 없습니다", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+                        Text("탐사를 완료하면 이야기가 쌓입니다", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
                     }
-                    item { HorizontalDivider(color = SpaceMid, modifier = Modifier.padding(vertical = Spacing.xs)) }
                 }
-
-                // ── 미확인 보고서 ─────────────────────────────────────
-                val pending = allReports.filter { !it.isRead || it.hasPendingChoices }
-                if (pending.isNotEmpty()) {
-                    item {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Image(
-                                painter = painterResource(R.drawable.ic_ui_mailbox),
-                                contentDescription = null,
-                                modifier = Modifier.size(IconGlyphSize.large.value.dp)
-                            )
-                            Spacer(modifier = Modifier.width(Spacing.xs))
-                            Text(
-                                "미확인 보고서",
-                                color = GoldAccent,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold
-                            )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.md)
+                ) {
+                    actionMessage?.let { msg ->
+                        item {
+                            Surface(shape = RoundedCornerShape(8.dp), color = SpaceBlue.copy(alpha = 0.3f)) {
+                                Text(msg, color = SpaceAccent, style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm))
+                            }
                         }
                     }
-                    items(pending, key = { "pending_${it.expeditionId}" }) { report ->
-                        ReportCard(
-                            report = report,
-                            isPending = true,
-                            onChoose = { event, idx -> viewModel.choose(event, idx) },
-                            onMarkRead = { viewModel.markAsRead(report.expeditionId) }
-                        )
-                    }
-                    item { HorizontalDivider(color = SpaceMid, modifier = Modifier.padding(vertical = Spacing.xs)) }
-                }
-
-                // ── 완료된 기록 ───────────────────────────────────────
-                val completed = allReports.filter { it.isRead && !it.hasPendingChoices }
-                if (completed.isNotEmpty()) {
-                    item {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Image(
-                                painter = painterResource(R.drawable.ic_ui_logbook),
-                                contentDescription = null,
-                                modifier = Modifier.size(IconGlyphSize.large.value.dp)
-                            )
-                            Spacer(modifier = Modifier.width(Spacing.xs))
-                            Text(
-                                "탐사 기록",
-                                color = TextSecondary,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold
+                    // ── 진행 중인 탐사 ────────────────────────────────────
+                    if (activeExpeditions.isNotEmpty()) {
+                        item {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Image(
+                                    painter = painterResource(R.drawable.ic_ui_rocket),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(IconGlyphSize.large.value.dp)
+                                )
+                                Spacer(modifier = Modifier.width(Spacing.xs))
+                                Text(
+                                    "진행 중인 탐사",
+                                    color = SpaceAccent,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                        items(activeExpeditions, key = { "active_${it.id}" }) { expedition ->
+                            ActiveExpeditionCard(
+                                expedition = expedition,
+                                astronauts = astronauts,
+                                onSkipWaitAd = { viewModel.skipExpeditionWait(expedition, activity) }
                             )
                         }
+                        item { HorizontalDivider(color = SpaceMid, modifier = Modifier.padding(vertical = Spacing.xs)) }
                     }
-                    items(completed, key = { "done_${it.expeditionId}" }) { report ->
-                        ReportCard(report = report, isPending = false)
+
+                    // ── 미확인 보고서 ─────────────────────────────────────
+                    val pending = allReports.filter { !it.isRead || it.hasPendingChoices }
+                    if (pending.isNotEmpty()) {
+                        item {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Image(
+                                    painter = painterResource(R.drawable.ic_ui_mailbox),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(IconGlyphSize.large.value.dp)
+                                )
+                                Spacer(modifier = Modifier.width(Spacing.xs))
+                                Text(
+                                    "미확인 보고서",
+                                    color = GoldAccent,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                        items(pending, key = { "pending_${it.expeditionId}" }) { report ->
+                            ReportCard(
+                                report = report,
+                                isPending = true,
+                                onChoose = { event, idx -> viewModel.choose(event, idx) },
+                                onMarkRead = { viewModel.markAsRead(report.expeditionId) }
+                            )
+                        }
+                        item { HorizontalDivider(color = SpaceMid, modifier = Modifier.padding(vertical = Spacing.xs)) }
+                    }
+
+                    // ── 완료된 기록 ───────────────────────────────────────
+                    val completed = allReports.filter { it.isRead && !it.hasPendingChoices }
+                    if (completed.isNotEmpty()) {
+                        item {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Image(
+                                    painter = painterResource(R.drawable.ic_ui_logbook),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(IconGlyphSize.large.value.dp)
+                                )
+                                Spacer(modifier = Modifier.width(Spacing.xs))
+                                Text(
+                                    "탐사 기록",
+                                    color = TextSecondary,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                        items(completed, key = { "done_${it.expeditionId}" }) { report ->
+                            ReportCard(report = report, isPending = false)
+                        }
                     }
                 }
             }
@@ -213,7 +218,7 @@ private fun ActiveExpeditionCard(
     val teamNames = astronauts.filter { it.id in expedition.astronautIds }.map { it.name }
 
     Surface(
-        modifier = Modifier.textured(shape = RoundedCornerShape(12.dp), baseColor = SpaceNavy.copy(alpha = 0.85f)),
+        modifier = Modifier.textured(shape = RoundedCornerShape(12.dp), baseColor = SpaceNavy),
         shape = RoundedCornerShape(12.dp),
         color = Color.Transparent,
         border = BorderStroke(1.dp, if (isComplete) StatusGreen.copy(alpha = 0.7f) else SpaceBlue.copy(alpha = 0.5f))
@@ -332,7 +337,8 @@ private fun ReportCard(
 
     Surface(
         shape = RoundedCornerShape(14.dp),
-        color = SpaceNavy.copy(alpha = if (isPending) 0.95f else 0.7f),
+        // 읽은 기록은 한 톤 어둡게 — 투명도로 낮추면 뒤 밤하늘 별이 카드 안에 비쳐 보여 불투명 색으로.
+        color = if (isPending) SpaceNavy else lerp(SpaceDark, SpaceNavy, 0.7f),
         border = BorderStroke(1.dp, borderColor)
     ) {
         Column(modifier = Modifier.padding(Spacing.lg)) {

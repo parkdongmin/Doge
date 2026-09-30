@@ -96,7 +96,7 @@ fun HangarScreen(
                             shape = RoundedCornerShape(12.dp),
                             colors = CardDefaults.cardColors(containerColor = Color.Transparent),
                             border = BorderStroke(1.dp, GoldAccent.copy(0.4f)),
-                            modifier = Modifier.textured(shape = RoundedCornerShape(12.dp), baseColor = SpaceNavy.copy(alpha = 0.85f))
+                            modifier = Modifier.textured(shape = RoundedCornerShape(12.dp), baseColor = SpaceNavy)
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth().padding(Spacing.lg),
@@ -170,7 +170,7 @@ private fun SpaceshipCard(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         border = BorderStroke(1.dp, SpaceMid),
-        modifier = Modifier.textured(shape = RoundedCornerShape(12.dp), baseColor = SpaceNavy.copy(alpha = 0.85f))
+        modifier = Modifier.textured(shape = RoundedCornerShape(12.dp), baseColor = SpaceNavy)
     ) {
         Column(modifier = Modifier.padding(Spacing.lg)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

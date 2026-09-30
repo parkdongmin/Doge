@@ -54,6 +54,7 @@ import com.doge.simulator.util.findActivity
 import com.doge.simulator.util.vibrateUpgradeResult
 import com.doge.simulator.presentation.component.PixelIcons
 import com.doge.simulator.presentation.component.DogeTopBar
+import com.doge.simulator.presentation.component.NightSkyBackground
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,167 +74,105 @@ fun PlanetDetailScreen(
     var showUpgradeSheet by remember { mutableStateOf(false) }
     var showStatsInfo by remember { mutableStateOf(false) }
 
-    Scaffold(
-        topBar = {
-            DogeTopBar(
-                title = {
+    // 하위 화면 공통 밤하늘 배경(NightSkyBackground) 위에 투명 Scaffold.
+    NightSkyBackground(Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                DogeTopBar(
+                    title = {
+                        Text(
+                            text = planet?.let {
+                                val code = it.variantId.substringAfterLast("-")
+                                val name = PlanetMetaDataTable.data[it.type]?.displayName ?: it.type.name
+                                "$name  #$code"
+                            } ?: "행성 상세",
+                            color = GoldAccent,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    },
+                    onBack = onBack
+                )
+            },
+            containerColor = Color.Transparent
+        ) { padding ->
+            if (planet == null) {
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("행성을 찾을 수 없습니다.", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+                }
+                return@Scaffold
+            }
+
+            val meta = PlanetMetaDataTable.data[planet.type]
+            val investedAmount = planet.buyPrice + planet.upgradeInvestment
+            val baseValue = planet.marketValue // 0 이상 (악재가 겹쳐도 시세는 0에서 바닥)
+            val estimatedProceeds = baseValue - (baseValue * GameConstants.SELL_FEE_RATE).toLong()
+            // 표시용 시세 변동 — 매입가+강화액을 다 깎는 "전액 손실"(-100%)까지만
+            val displayAdjustment = planet.marketAdjustment.coerceAtLeast(-investedAmount)
+            val adjustmentPct = if (investedAmount > 0L) (displayAdjustment * 100 / investedAmount).toInt() else 0 // 대략치
+            val coins by viewModel.coins.collectAsState()
+
+            val liveProfit = rememberLiveCoinDisplay(
+                baseCoins = planet.totalProfit,
+                netPerMin = planet.effectiveProduction
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = Spacing.xl, vertical = Spacing.lg)
+            ) {
+                val imageUrl = meta?.variants?.firstOrNull { it.variantId == planet.variantId }?.imageUrl
+                if (imageUrl != null) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(imageUrl)
+                            .memoryCacheKey(imageUrl)
+                            .diskCacheKey(imageUrl)
+                            .build(),
+                        contentDescription = meta?.displayName,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(220.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(SpaceMid),
+                        contentScale = ContentScale.Fit,
+                        filterQuality = FilterQuality.None
+                    )
+                    Spacer(modifier = Modifier.height(Spacing.lg))
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
+                ) {
+                    val planetCode = planet.variantId.substringAfterLast("-")
+                    Image(
+                        painter = painterResource(R.drawable.ic_ui_planet),
+                        contentDescription = null,
+                        modifier = Modifier.size(IconGlyphSize.medium.value.dp)
+                    )
                     Text(
-                        text = planet?.let {
-                            val code = it.variantId.substringAfterLast("-")
-                            val name = PlanetMetaDataTable.data[it.type]?.displayName ?: it.type.name
-                            "$name  #$code"
-                        } ?: "행성 상세",
+                        text = "${meta?.displayName ?: planet.type.name}  #$planetCode",
                         color = GoldAccent,
                         style = MaterialTheme.typography.titleMedium
                     )
-                },
-                onBack = onBack
-            )
-        },
-        containerColor = SpaceDark
-    ) { padding ->
-        if (planet == null) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("행성을 찾을 수 없습니다.", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
-            }
-            return@Scaffold
-        }
-
-        val meta = PlanetMetaDataTable.data[planet.type]
-        val investedAmount = planet.buyPrice + planet.upgradeInvestment
-        val baseValue = planet.marketValue // 0 이상 (악재가 겹쳐도 시세는 0에서 바닥)
-        val estimatedProceeds = baseValue - (baseValue * GameConstants.SELL_FEE_RATE).toLong()
-        // 표시용 시세 변동 — 매입가+강화액을 다 깎는 "전액 손실"(-100%)까지만
-        val displayAdjustment = planet.marketAdjustment.coerceAtLeast(-investedAmount)
-        val adjustmentPct = if (investedAmount > 0L) (displayAdjustment * 100 / investedAmount).toInt() else 0 // 대략치
-        val coins by viewModel.coins.collectAsState()
-
-        val liveProfit = rememberLiveCoinDisplay(
-            baseCoins = planet.totalProfit,
-            netPerMin = planet.effectiveProduction
-        )
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = Spacing.xl, vertical = Spacing.lg)
-        ) {
-            val imageUrl = meta?.variants?.firstOrNull { it.variantId == planet.variantId }?.imageUrl
-            if (imageUrl != null) {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(imageUrl)
-                        .memoryCacheKey(imageUrl)
-                        .diskCacheKey(imageUrl)
-                        .build(),
-                    contentDescription = meta?.displayName,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(220.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(SpaceMid),
-                    contentScale = ContentScale.Fit,
-                    filterQuality = FilterQuality.None
-                )
-                Spacer(modifier = Modifier.height(Spacing.lg))
-            }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
-            ) {
-                val planetCode = planet.variantId.substringAfterLast("-")
-                Image(
-                    painter = painterResource(R.drawable.ic_ui_planet),
-                    contentDescription = null,
-                    modifier = Modifier.size(IconGlyphSize.medium.value.dp)
-                )
-                Text(
-                    text = "${meta?.displayName ?: planet.type.name}  #$planetCode",
-                    color = GoldAccent,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                PlanetLevelBadge(level = planet.level)
-            }
-            meta?.let {
-                Text(
-                    text = it.description,
-                    color = TextSecondary,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(top = Spacing.xs, bottom = Spacing.lg)
-                )
-            }
-
-            // 스탯 카드
-            Card(
-                shape = RoundedCornerShape(6.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                border = androidx.compose.foundation.BorderStroke(1.dp, SpaceBlue),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .textured(shape = RoundedCornerShape(6.dp), baseColor = SpaceNavy)
-            ) {
-                Column(modifier = Modifier.padding(Spacing.lg)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("스탯", color = TextSecondary, style = MaterialTheme.typography.labelMedium)
-                        Icon(
-                            imageVector = PixelIcons.Info,
-                            contentDescription = "스탯 설명 보기",
-                            tint = TextSecondary,
-                            modifier = Modifier
-                                .size(16.dp)
-                                .clickable { showStatsInfo = true }
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(Spacing.md))
-                    val hourlyEarnings = planet.effectiveProduction * 60L
-                    DetailRow(
-                        "생산량",
-                        "${planet.effectiveProduction}/분",
-                        if (planet.effectiveProduction >= 0) StatusGreen else StatusRed
-                    )
-                    DetailRow(
-                        label = if (hourlyEarnings >= 0) "생산 진행" else "생산 중단",
-                        value = "${if (hourlyEarnings >= 0) "+" else ""}${"%,d".format(hourlyEarnings)} 코인/시",
-                        color = if (hourlyEarnings >= 0) GoldAccent else StatusRed
-                    )
-                    if (displayAdjustment != 0L) {
-                        val marketColor = if (displayAdjustment > 0L) StatusGreen else StatusRed
-                        val sign = if (displayAdjustment > 0L) "+" else ""
-                        val pctSign = if (adjustmentPct > 0) "+" else ""
-                        DetailRow(
-                            "시세 변동",
-                            "$sign${"%,d".format(displayAdjustment)} 코인 (${pctSign}$adjustmentPct%)",
-                            marketColor
-                        )
-                    }
-                    val eventIntervalHours = GameConstants.planetEventIntervalHours(planet.risk)
-                    val intervalText = if (eventIntervalHours < 1.0) {
-                        "약 ${(eventIntervalHours * 60).toInt()}분마다"
-                    } else {
-                        "약 ${eventIntervalHours.toInt()}시간마다"
-                    }
-                    DetailRow("이벤트 간격", intervalText, StatusYellow)
-                    DetailRow("악재 확률", "${planet.eventRate}%", SpaceAccent)
-                    DetailRow("희귀도", meta?.rarity?.name ?: "", GoldAccent)
+                    PlanetLevelBadge(level = planet.level)
                 }
-            }
+                meta?.let {
+                    Text(
+                        text = it.description,
+                        color = TextSecondary,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = Spacing.xs, bottom = Spacing.lg)
+                    )
+                }
 
-            Spacer(modifier = Modifier.height(Spacing.md))
-
-            // 자원 드롭 카드 — 현재 등급·강화 레벨이 반영된 실제 드롭 확률
-            if (meta != null && meta.resourceDrops.isNotEmpty()) {
-                val rarityMultiplier = GameConstants.RARITY_RESOURCE_MULTIPLIER[meta.rarity] ?: 1.0
-                val levelMultiplier = GameConstants.planetLevelMultiplier(planet.level)
+                // 스탯 카드
                 Card(
                     shape = RoundedCornerShape(6.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.Transparent),
@@ -243,183 +182,248 @@ fun PlanetDetailScreen(
                         .textured(shape = RoundedCornerShape(6.dp), baseColor = SpaceNavy)
                 ) {
                     Column(modifier = Modifier.padding(Spacing.lg)) {
-                        Text("분당 드롭 자원", color = TextSecondary, style = MaterialTheme.typography.labelMedium)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("스탯", color = TextSecondary, style = MaterialTheme.typography.labelMedium)
+                            Icon(
+                                imageVector = PixelIcons.Info,
+                                contentDescription = "스탯 설명 보기",
+                                tint = TextSecondary,
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clickable { showStatsInfo = true }
+                            )
+                        }
                         Spacer(modifier = Modifier.height(Spacing.md))
-                        meta.resourceDrops.entries.forEachIndexed { index, (type, baseChance) ->
-                            if (index > 0) Spacer(modifier = Modifier.height(Spacing.sm))
-                            val effectiveChance = baseChance * rarityMultiplier * levelMultiplier
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    androidx.compose.foundation.Image(
-                                        painter = androidx.compose.ui.res.painterResource(type.iconRes),
-                                        contentDescription = type.displayName,
-                                        modifier = Modifier.size(18.dp)
+                        val hourlyEarnings = planet.effectiveProduction * 60L
+                        DetailRow(
+                            "생산량",
+                            "${planet.effectiveProduction}/분",
+                            if (planet.effectiveProduction >= 0) StatusGreen else StatusRed
+                        )
+                        DetailRow(
+                            label = if (hourlyEarnings >= 0) "생산 진행" else "생산 중단",
+                            value = "${if (hourlyEarnings >= 0) "+" else ""}${"%,d".format(hourlyEarnings)} 코인/시",
+                            color = if (hourlyEarnings >= 0) GoldAccent else StatusRed
+                        )
+                        if (displayAdjustment != 0L) {
+                            val marketColor = if (displayAdjustment > 0L) StatusGreen else StatusRed
+                            val sign = if (displayAdjustment > 0L) "+" else ""
+                            val pctSign = if (adjustmentPct > 0) "+" else ""
+                            DetailRow(
+                                "시세 변동",
+                                "$sign${"%,d".format(displayAdjustment)} 코인 (${pctSign}$adjustmentPct%)",
+                                marketColor
+                            )
+                        }
+                        val eventIntervalHours = GameConstants.planetEventIntervalHours(planet.risk)
+                        val intervalText = if (eventIntervalHours < 1.0) {
+                            "약 ${(eventIntervalHours * 60).toInt()}분마다"
+                        } else {
+                            "약 ${eventIntervalHours.toInt()}시간마다"
+                        }
+                        DetailRow("이벤트 간격", intervalText, StatusYellow)
+                        DetailRow("악재 확률", "${planet.eventRate}%", SpaceAccent)
+                        DetailRow("희귀도", meta?.rarity?.name ?: "", GoldAccent)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(Spacing.md))
+
+                // 자원 드롭 카드 — 현재 등급·강화 레벨이 반영된 실제 드롭 확률
+                if (meta != null && meta.resourceDrops.isNotEmpty()) {
+                    val rarityMultiplier = GameConstants.RARITY_RESOURCE_MULTIPLIER[meta.rarity] ?: 1.0
+                    val levelMultiplier = GameConstants.planetLevelMultiplier(planet.level)
+                    Card(
+                        shape = RoundedCornerShape(6.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, SpaceBlue),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .textured(shape = RoundedCornerShape(6.dp), baseColor = SpaceNavy)
+                    ) {
+                        Column(modifier = Modifier.padding(Spacing.lg)) {
+                            Text("분당 드롭 자원", color = TextSecondary, style = MaterialTheme.typography.labelMedium)
+                            Spacer(modifier = Modifier.height(Spacing.md))
+                            meta.resourceDrops.entries.forEachIndexed { index, (type, baseChance) ->
+                                if (index > 0) Spacer(modifier = Modifier.height(Spacing.sm))
+                                val effectiveChance = baseChance * rarityMultiplier * levelMultiplier
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        androidx.compose.foundation.Image(
+                                            painter = androidx.compose.ui.res.painterResource(type.iconRes),
+                                            contentDescription = type.displayName,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(Spacing.sm))
+                                        Text(type.displayName, color = TextPrimary, style = MaterialTheme.typography.bodySmall)
+                                    }
+                                    Text(
+                                        "%.1f%%/분".format(effectiveChance),
+                                        color = SpaceAccent,
+                                        style = NumericSmall
                                     )
-                                    Spacer(modifier = Modifier.width(Spacing.sm))
-                                    Text(type.displayName, color = TextPrimary, style = MaterialTheme.typography.bodySmall)
                                 }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(Spacing.md))
+                }
+
+                // 투자 현황 카드
+                Card(
+                    shape = RoundedCornerShape(6.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, SpaceBlue),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .textured(shape = RoundedCornerShape(6.dp), baseColor = SpaceNavy)
+                ) {
+                    Column(modifier = Modifier.padding(Spacing.lg)) {
+                        Text("투자 현황", color = TextSecondary, style = MaterialTheme.typography.labelMedium)
+                        Spacer(modifier = Modifier.height(Spacing.md))
+                        DetailRow("투자액", "%,d 코인".format(investedAmount), TextPrimary)
+                        DetailRow(
+                            "현재 매도가",
+                            "%,d 코인".format(estimatedProceeds),
+                            when {
+                                planet.marketValue > investedAmount -> StatusGreen
+                                planet.marketValue < investedAmount -> StatusRed
+                                else -> GoldAccent
+                            }
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xs),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = "누적 수익", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+                            val profitSign = if (liveProfit > 0) "+" else ""
+                            val profitColor = if (liveProfit >= 0) StatusGreen else StatusRed
+                            Text(text = "$profitSign${"%,d".format(liveProfit)} 코인", color = profitColor, style = NumericSmall)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(Spacing.lg))
+
+                // ── 강화·매도 액션 바 ─────────────────────────────────
+                // 페이지의 다른 모든 블록이 풀폭이라, 매도 버튼만 따로 작게 가운데 두면 그것대로
+                // 붕 떠 보인다. 대신 강화(주 액션)와 한 줄에 나란히 두고 비율로 위계를 준다
+                if (planet.level < GameConstants.PLANET_MAX_LEVEL) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Min),
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
+                    ) {
+                        // 보조 액션은 왼쪽, 주 액션은 오른쪽 — 강화 다이얼로그의 닫기/강화 시도
+                        // 배치와 같은 규칙(안드로이드/머티리얼 관례)
+                        OutlinedButton(
+                            onClick = { showSellDialog = true },
+                            modifier = Modifier.weight(0.32f).fillMaxHeight(),
+                            shape = RoundedCornerShape(6.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = StatusRed),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, StatusRed.copy(alpha = 0.6f)),
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Text(text = "매도", style = MaterialTheme.typography.bodySmall)
+                        }
+                        Button(
+                            onClick = { showUpgradeSheet = true },
+                            modifier = Modifier.weight(0.68f).fillMaxHeight(),
+                            shape = RoundedCornerShape(6.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = GoldAccent, contentColor = SpaceDark),
+                            border = ButtonDepth.highlightBorder,
+                            elevation = ButtonDepth.elevation(),
+                            contentPadding = ButtonPadding.fullWidthCta
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("강화하기", style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
                                 Text(
-                                    "%.1f%%/분".format(effectiveChance),
-                                    color = SpaceAccent,
-                                    style = NumericSmall
+                                    "Lv.${planet.level} → Lv.${planet.level + 1}",
+                                    style = NumericXSmall,
+                                    color = SpaceDark.copy(alpha = 0.7f)
                                 )
                             }
                         }
                     }
-                }
-                Spacer(modifier = Modifier.height(Spacing.md))
-            }
-
-            // 투자 현황 카드
-            Card(
-                shape = RoundedCornerShape(6.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                border = androidx.compose.foundation.BorderStroke(1.dp, SpaceBlue),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .textured(shape = RoundedCornerShape(6.dp), baseColor = SpaceNavy)
-            ) {
-                Column(modifier = Modifier.padding(Spacing.lg)) {
-                    Text("투자 현황", color = TextSecondary, style = MaterialTheme.typography.labelMedium)
-                    Spacer(modifier = Modifier.height(Spacing.md))
-                    DetailRow("투자액", "%,d 코인".format(investedAmount), TextPrimary)
-                    DetailRow(
-                        "현재 매도가",
-                        "%,d 코인".format(estimatedProceeds),
-                        when {
-                            planet.marketValue > investedAmount -> StatusGreen
-                            planet.marketValue < investedAmount -> StatusRed
-                            else -> GoldAccent
+                } else {
+                    Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(6.dp),
+                        color = GoldAccent.copy(0.15f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, GoldAccent.copy(0.4f))) {
+                        Row(
+                            modifier = Modifier.padding(Spacing.lg),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
+                        ) {
+                            Image(
+                                painter = painterResource(R.drawable.ic_ui_trophy),
+                                contentDescription = null,
+                                modifier = Modifier.size(IconGlyphSize.medium.value.dp)
+                            )
+                            Text("최대 레벨 달성!", color = GoldAccent, style = MaterialTheme.typography.bodyMedium)
                         }
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xs),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(text = "누적 수익", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
-                        val profitSign = if (liveProfit > 0) "+" else ""
-                        val profitColor = if (liveProfit >= 0) StatusGreen else StatusRed
-                        Text(text = "$profitSign${"%,d".format(liveProfit)} 코인", color = profitColor, style = NumericSmall)
                     }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(Spacing.lg))
-
-            // ── 강화·매도 액션 바 ─────────────────────────────────
-            // 페이지의 다른 모든 블록이 풀폭이라, 매도 버튼만 따로 작게 가운데 두면 그것대로
-            // 붕 떠 보인다. 대신 강화(주 액션)와 한 줄에 나란히 두고 비율로 위계를 준다
-            if (planet.level < GameConstants.PLANET_MAX_LEVEL) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(IntrinsicSize.Min),
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
-                ) {
-                    // 보조 액션은 왼쪽, 주 액션은 오른쪽 — 강화 다이얼로그의 닫기/강화 시도
-                    // 배치와 같은 규칙(안드로이드/머티리얼 관례)
+                    Spacer(modifier = Modifier.height(Spacing.md))
                     OutlinedButton(
                         onClick = { showSellDialog = true },
-                        modifier = Modifier.weight(0.32f).fillMaxHeight(),
+                        modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(6.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = StatusRed),
                         border = androidx.compose.foundation.BorderStroke(1.dp, StatusRed.copy(alpha = 0.6f)),
-                        contentPadding = PaddingValues(0.dp)
+                        contentPadding = ButtonPadding.listItemAction
                     ) {
-                        Text(text = "매도", style = MaterialTheme.typography.bodySmall)
-                    }
-                    Button(
-                        onClick = { showUpgradeSheet = true },
-                        modifier = Modifier.weight(0.68f).fillMaxHeight(),
-                        shape = RoundedCornerShape(6.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = GoldAccent, contentColor = SpaceDark),
-                        border = ButtonDepth.highlightBorder,
-                        elevation = ButtonDepth.elevation(),
-                        contentPadding = ButtonPadding.fullWidthCta
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("강화하기", style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-                            Text(
-                                "Lv.${planet.level} → Lv.${planet.level + 1}",
-                                style = NumericXSmall,
-                                color = SpaceDark.copy(alpha = 0.7f)
-                            )
-                        }
+                        Text(text = "매도하기", style = MaterialTheme.typography.bodySmall)
                     }
                 }
-            } else {
-                Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(6.dp),
-                    color = GoldAccent.copy(0.15f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, GoldAccent.copy(0.4f))) {
-                    Row(
-                        modifier = Modifier.padding(Spacing.lg),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
-                    ) {
-                        Image(
-                            painter = painterResource(R.drawable.ic_ui_trophy),
-                            contentDescription = null,
-                            modifier = Modifier.size(IconGlyphSize.medium.value.dp)
-                        )
-                        Text("최대 레벨 달성!", color = GoldAccent, style = MaterialTheme.typography.bodyMedium)
-                    }
-                }
-                Spacer(modifier = Modifier.height(Spacing.md))
-                OutlinedButton(
-                    onClick = { showSellDialog = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(6.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = StatusRed),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, StatusRed.copy(alpha = 0.6f)),
-                    contentPadding = ButtonPadding.listItemAction
-                ) {
-                    Text(text = "매도하기", style = MaterialTheme.typography.bodySmall)
-                }
+
+                Spacer(modifier = Modifier.height(100.dp))
             }
 
-            Spacer(modifier = Modifier.height(100.dp))
-        }
+            if (showSellDialog) {
+                SellConfirmDialog(
+                    planet = planet,
+                    onConfirm = {
+                        viewModel.sellPlanet(planet)
+                        showSellDialog = false
+                        onBack()
+                    },
+                    onDismiss = { showSellDialog = false }
+                )
+            }
 
-        if (showSellDialog) {
-            SellConfirmDialog(
-                planet = planet,
-                onConfirm = {
-                    viewModel.sellPlanet(planet)
-                    showSellDialog = false
-                    onBack()
-                },
-                onDismiss = { showSellDialog = false }
-            )
-        }
+            if (showUpgradeSheet) {
+                PlanetUpgradeDialog(
+                    planet = planet,
+                    coins = coins,
+                    resources = resources,
+                    upgradeMessage = upgradeMessage,
+                    upgradePhase = upgradePhase,
+                    undoableFailure = undoableFailure,
+                    onUpgrade = { viewModel.upgradePlanet(planet) },
+                    onUndo = { viewModel.undoFailedUpgrade(activity) },
+                    onAcknowledgeResult = { viewModel.dismissUpgradeResult() },
+                    onDismiss = {
+                        // 결과를 확인 안 하고 그냥 닫아도, 다음에 다시 열었을 때 지난 결과가
+                        // 남아있지 않도록 초기화한다
+                        viewModel.dismissUpgradeResult()
+                        showUpgradeSheet = false
+                    }
+                )
+            }
 
-        if (showUpgradeSheet) {
-            PlanetUpgradeDialog(
-                planet = planet,
-                coins = coins,
-                resources = resources,
-                upgradeMessage = upgradeMessage,
-                upgradePhase = upgradePhase,
-                undoableFailure = undoableFailure,
-                onUpgrade = { viewModel.upgradePlanet(planet) },
-                onUndo = { viewModel.undoFailedUpgrade(activity) },
-                onAcknowledgeResult = { viewModel.dismissUpgradeResult() },
-                onDismiss = {
-                    // 결과를 확인 안 하고 그냥 닫아도, 다음에 다시 열었을 때 지난 결과가
-                    // 남아있지 않도록 초기화한다
-                    viewModel.dismissUpgradeResult()
-                    showUpgradeSheet = false
-                }
-            )
-        }
-
-        if (showStatsInfo) {
-            StatsInfoDialog(onDismiss = { showStatsInfo = false })
+            if (showStatsInfo) {
+                StatsInfoDialog(onDismiss = { showStatsInfo = false })
+            }
         }
     }
 }

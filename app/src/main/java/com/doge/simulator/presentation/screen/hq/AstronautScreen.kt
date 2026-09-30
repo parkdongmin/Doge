@@ -209,7 +209,7 @@ private fun RecruitmentCandidateCard(
         shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         border = BorderStroke(1.dp, candidate?.let { gradeColor.getValue(it.grade) }?.copy(alpha = 0.5f) ?: SpaceMid),
-        modifier = Modifier.fillMaxWidth().textured(shape = RoundedCornerShape(10.dp), baseColor = SpaceNavy.copy(alpha = 0.7f))
+        modifier = Modifier.fillMaxWidth().textured(shape = RoundedCornerShape(10.dp), baseColor = SpaceNavy)
     ) {
         if (candidate == null) {
             Box(modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.lg), contentAlignment = Alignment.Center) {
@@ -278,7 +278,7 @@ private fun AstronautCard(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         border = BorderStroke(1.dp, SpaceMid),
-        modifier = Modifier.fillMaxWidth().textured(shape = RoundedCornerShape(12.dp), baseColor = SpaceNavy.copy(alpha = 0.85f))
+        modifier = Modifier.fillMaxWidth().textured(shape = RoundedCornerShape(12.dp), baseColor = SpaceNavy)
     ) {
         Column(modifier = Modifier.padding(Spacing.lg)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
