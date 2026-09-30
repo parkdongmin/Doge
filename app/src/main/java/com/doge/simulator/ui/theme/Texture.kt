@@ -52,13 +52,17 @@ fun Modifier.textured(
     .clip(shape)
     .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
     .drawWithCache {
-        val vignette = Brush.radialGradient(
-            colors = listOf(highlightColor.copy(alpha = 0.08f), baseColor, baseColor),
+        // 바탕색을 먼저 온전히 깔고 그 위에 위쪽 하이라이트만 얹는다. 예전엔 "하이라이트→바탕색"
+        // 그라데이션 하나로 칠해서 위쪽이 거의 투명(하이라이트 알파 0.08)이었고, 하위 화면에
+        // 밤하늘 배경을 깔자 카드·상단 바 위쪽으로 별이 비쳐 보였다.
+        val highlight = Brush.radialGradient(
+            colors = listOf(highlightColor.copy(alpha = 0.08f), Color.Transparent, Color.Transparent),
             center = Offset(size.width / 2f, -size.height * 0.15f),
             radius = maxOf(size.width, size.height) * 1.1f
         )
         onDrawWithContent {
-            drawRect(vignette)
+            drawRect(baseColor)
+            drawRect(highlight)
             drawContent()
             drawRect(brush = grainBrush, blendMode = BlendMode.Overlay, alpha = grainAlpha)
         }
