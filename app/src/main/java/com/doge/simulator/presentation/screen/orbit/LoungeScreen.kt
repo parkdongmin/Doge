@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
@@ -25,7 +26,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.doge.simulator.R
 import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.presentation.component.DogeTopBar
-import com.doge.simulator.presentation.component.PixelButton
 import com.doge.simulator.presentation.component.NightSkyBackground
 import com.doge.simulator.presentation.viewmodel.OrbitViewModel
 import com.doge.simulator.ui.theme.*
@@ -167,19 +167,52 @@ fun LoungeScreen(
                     }
 
                     // ── 일일 지원금(리워드 광고) ────────────────────────
-                    // 따로 카드 섹션을 만들 만큼의 내용이 아니라 버튼 하나로. 남은 횟수는 버튼에 표시.
-                    PixelButton(
-                        text = if (dailyAdRemaining > 0) {
-                            "광고 보고 지원금 받기 (${dailyAdRemaining}/${GameConstants.ORBIT_DAILY_AD_MAX_COUNT})"
-                        } else {
-                            "오늘 지원금 소진"
-                        },
+                    // 단색 버튼은 "샘플 앱" 같다는 피드백으로, 바로 위 ORBIT 입장 카드와 같은 결의
+                    // 한 줄 카드(아이콘 + 제목/설명 + 오른쪽 행동)로. 테두리는 광고 아이콘의 파랑.
+                    val canClaimAd = dailyAdRemaining > 0
+                    Card(
                         onClick = { viewModel.claimDailyAdReward(activity) },
-                        enabled = dailyAdRemaining > 0,
-                        contentPadding = ButtonPadding.fullWidthCta,
-                        leadingIcon = R.drawable.ic_ui_ad,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                        enabled = canClaimAd,
+                        shape = cardShape,
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color.Transparent,
+                            disabledContainerColor = Color.Transparent
+                        ),
+                        border = BorderStroke(1.dp, SpaceLight.copy(alpha = if (canClaimAd) 0.5f else 0.2f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .alpha(if (canClaimAd) 1f else 0.6f)
+                            .textured(shape = cardShape, baseColor = SpaceNavy)
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Image(
+                                painter = painterResource(R.drawable.ic_ui_ad),
+                                contentDescription = null,
+                                modifier = Modifier.size(36.dp)
+                            )
+                            Spacer(Modifier.width(Spacing.md))
+                            Column(Modifier.weight(1f)) {
+                                Text("일일 지원금", color = TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                                Text(
+                                    if (canClaimAd) {
+                                        "광고 보고 ${"%,d".format(GameConstants.ORBIT_DAILY_AD_REWARD_COINS)}코인 · 오늘 ${dailyAdRemaining}/${GameConstants.ORBIT_DAILY_AD_MAX_COUNT}"
+                                    } else {
+                                        "오늘은 모두 받았어요"
+                                    },
+                                    color = TextSecondary,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                            Text(
+                                if (canClaimAd) "받기 ▶" else "내일 다시",
+                                color = if (canClaimAd) SpaceLight else TextSecondary,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
             }
         }

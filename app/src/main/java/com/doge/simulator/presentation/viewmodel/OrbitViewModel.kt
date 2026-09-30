@@ -187,7 +187,7 @@ class OrbitViewModel @Inject constructor(
                     when (claimOrbitDailyAdRewardUseCase()) {
                         ClaimOrbitDailyAdRewardUseCase.Result.Granted -> {
                             refreshDailyAdRemaining()
-                            showMessage("재화 ${GameConstants.ORBIT_DAILY_AD_REWARD_COINS}을 받았어요!")
+                            showMessage("지원금 ${"%,d".format(GameConstants.ORBIT_DAILY_AD_REWARD_COINS)}코인을 받았어요!")
                         }
                         ClaimOrbitDailyAdRewardUseCase.Result.LimitReached -> {
                             refreshDailyAdRemaining()
@@ -222,7 +222,7 @@ class OrbitViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = startOrbitMatchUseCase(amount, _selectedRiskTier.value)) {
                 is StartOrbitMatchUseCase.Result.Success -> beginMatch(result.matchState)
-                StartOrbitMatchUseCase.Result.InsufficientCoins -> showMessage("재화가 부족해요")
+                StartOrbitMatchUseCase.Result.InsufficientCoins -> showMessage("코인이 부족해요")
             }
         }
     }
@@ -243,7 +243,7 @@ class OrbitViewModel @Inject constructor(
         _betDialogVisible.value = false
         _presentingPlay.value = false
         publishSnapshot()
-        viewModelScope.launch { advanceUntilPlayerTurnOrPause() }
+        viewModelScope.launch { advanceUntilPlayerTurnOrPause(roundJustStarted = true) }
     }
 
     fun playCard(card: OrbitCard, input: OrbitCardEffectInput = OrbitCardEffectInput.None) {
@@ -299,7 +299,7 @@ class OrbitViewModel @Inject constructor(
         // 라운드의 새 덱 장수·새 손패가 섞여 보이는 문제가 있었다(실기기 리포트).
         match.startNextRoundIfNotOver()
         publishSnapshot()
-        viewModelScope.launch { advanceUntilPlayerTurnOrPause() }
+        viewModelScope.launch { advanceUntilPlayerTurnOrPause(roundJustStarted = true) }
     }
 
     fun leaveMatch() {
@@ -338,9 +338,16 @@ class OrbitViewModel @Inject constructor(
     // 내 턴이 될 때까지 B-01의 턴을 연달아 진행한다(매 수마다 uiSnapshot의 lastB01Card가
     // 갱신되어 화면에 계속 보임 — 확인 없이도 다음 수로 자연스럽게 넘어감). 라운드가 끝나면
     // 그 즉시 종료 배너를 띄우고 멈춘다 — acknowledgeAndContinue()가 이어서 진행한다.
-    private suspend fun advanceUntilPlayerTurnOrPause() {
+    private suspend fun advanceUntilPlayerTurnOrPause(roundJustStarted: Boolean = false) {
         var match = activeMatch ?: return
         if (match.isOver || _roundEndBanner.value != null) return
+
+        // 라운드가 막 시작됐는데 B-01이 선공이면 잠깐 숨을 돌린다 — 안 그러면 내 패를 확인하기도 전에
+        // B-01이 곧바로 카드를 내고(때로는 그 한 수로 라운드가 끝나기까지) 해서 어색했다.
+        if (roundJustStarted && match.currentRound.currentTurn == PlayerSide.B01) {
+            delay(B01_OPENING_DELAY_MS)
+            if (activeMatch !== match) return
+        }
 
         while (!match.isOver && !match.currentRound.isOver && match.currentRound.currentTurn == PlayerSide.B01) {
             // 방금 놓인 카드(주로 내 카드)의 스포트라이트 연출이 끝날 때까지 B-01은 기다린다 — 안 그러면
@@ -440,5 +447,6 @@ class OrbitViewModel @Inject constructor(
     private companion object {
         const val B01_THINK_DELAY_MS = 600L
         private const val PRESENTATION_WAIT_TIMEOUT_MS = 5_000L
+        private const val B01_OPENING_DELAY_MS = 1_500L
     }
 }

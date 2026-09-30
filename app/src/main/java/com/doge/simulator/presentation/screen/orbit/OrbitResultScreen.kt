@@ -1,6 +1,7 @@
 package com.doge.simulator.presentation.screen.orbit
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -17,6 +18,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.doge.simulator.R
 import com.doge.simulator.domain.model.orbit.MatchOutcome
 import com.doge.simulator.domain.model.orbit.OrbitBetSettlement
+import com.doge.simulator.presentation.component.NightSkyBackground
 import com.doge.simulator.presentation.viewmodel.OrbitViewModel
 import com.doge.simulator.ui.theme.*
 
@@ -47,50 +49,65 @@ fun OrbitResultScreen(
         onReturnToLounge()
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(SpaceDark)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .padding(Spacing.xl),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        val current = displayedSettlement
-        if (current == null) {
-            // 매치 종료 직후 정산이 아직 끝나지 않은 아주 짧은 순간(비동기 처리 중)
-            CircularProgressIndicator(color = GoldAccent)
-        } else {
-            val won = current.outcome == MatchOutcome.WON
-            Image(
-                painter = painterResource(if (won) R.drawable.ch_result_win else R.drawable.ch_result_lose),
-                contentDescription = null,
-                modifier = Modifier.size(160.dp)
-            )
-            Spacer(Modifier.height(Spacing.md))
-            Text(
-                if (won) "YOU WIN!" else "YOU LOSE...",
-                color = if (won) StatusGreen else StatusRed,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(Modifier.height(Spacing.lg))
-            val line = remember(won) { (if (won) B01Lines.resultWon else B01Lines.resultLost).random() }
-            B01SpeechRow(line = line, avatarSize = 40.dp)
-            Spacer(Modifier.height(Spacing.md))
-            SettlementBreakdown(settlement = current, coins = coins)
+    // 휴게실·하위 화면과 같은 밤하늘 배경.
+    NightSkyBackground(Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(Spacing.xl),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            val current = displayedSettlement
+            if (current == null) {
+                // 매치 종료 직후 정산이 아직 끝나지 않은 아주 짧은 순간(비동기 처리 중)
+                CircularProgressIndicator(color = GoldAccent)
+            } else {
+                val won = current.outcome == MatchOutcome.WON
+                Image(
+                    painter = painterResource(if (won) R.drawable.ch_result_win else R.drawable.ch_result_lose),
+                    contentDescription = null,
+                    modifier = Modifier.size(160.dp)
+                )
+                Spacer(Modifier.height(Spacing.md))
+                Text(
+                    if (won) "YOU WIN!" else "YOU LOSE...",
+                    color = if (won) StatusGreen else StatusRed,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(Spacing.lg))
+                val line = remember(won) { (if (won) B01Lines.resultWon else B01Lines.resultLost).random() }
+                B01SpeechRow(line = line, avatarSize = 40.dp)
+                Spacer(Modifier.height(Spacing.md))
+                SettlementBreakdown(settlement = current, coins = coins)
+            }
+            Spacer(Modifier.height(Spacing.xxl))
+            // 머티리얼 기본 버튼 두 개(파란 채움 + 외곽선)가 "샘플 앱" 같아서 바꿨다. 픽셀 금색 버튼을 화면
+            // 폭 가득 늘려 봤더니 줄무늬 노란 막대처럼 보여 어색했고, 위 정산 카드·휴게실 ORBIT 카드와
+            // 같은 결(질감 남색 + 금색 테두리 + 금색 글씨)의 카드형 버튼으로. "휴게실로"는 글자만 둔 보조 행동.
+            val buttonShape = RoundedCornerShape(12.dp)
+            Card(
+                onClick = { viewModel.playAgain(); onPlayAgain() },
+                shape = buttonShape,
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                border = BorderStroke(1.5.dp, GoldAccent.copy(alpha = 0.7f)),
+                modifier = Modifier.fillMaxWidth().textured(shape = buttonShape, baseColor = SpaceNavy)
+            ) {
+                Box(Modifier.fillMaxWidth().padding(vertical = Spacing.lg), contentAlignment = Alignment.Center) {
+                    Text("다시 하기 ▶", color = GoldAccent, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                }
+            }
+            Spacer(Modifier.height(Spacing.sm))
+            TextButton(
+                onClick = { viewModel.returnToLounge(); onReturnToLounge() },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("휴게실로", color = TextSecondary, style = MaterialTheme.typography.labelLarge)
+            }
         }
-        Spacer(Modifier.height(Spacing.xxl))
-        Button(
-            onClick = { viewModel.playAgain(); onPlayAgain() },
-            modifier = Modifier.fillMaxWidth()
-        ) { Text("다시 하기") }
-        Spacer(Modifier.height(Spacing.sm))
-        OutlinedButton(
-            onClick = { viewModel.returnToLounge(); onReturnToLounge() },
-            modifier = Modifier.fillMaxWidth()
-        ) { Text("휴게실로") }
     }
 }
 
@@ -107,17 +124,17 @@ private fun SettlementBreakdown(settlement: OrbitBetSettlement, coins: Long) {
         shape = RoundedCornerShape(12.dp)
     ) {
         Column(Modifier.padding(Spacing.lg).fillMaxWidth()) {
-            BreakdownRow("BET", "%,d원".format(settlement.betAmount), TextPrimary)
+            BreakdownRow("BET", "%,d코인".format(settlement.betAmount), TextPrimary)
             Spacer(Modifier.height(Spacing.xs))
             if (won) {
-                BreakdownRow("WIN", "+%,d원".format(profit), StatusGreen)
+                BreakdownRow("WIN", "+%,d코인".format(profit), StatusGreen)
             } else {
-                BreakdownRow("RESULT", "%,d원".format(settlement.netChange), StatusRed)
+                BreakdownRow("RESULT", "%,d코인".format(settlement.netChange), StatusRed)
             }
             Spacer(Modifier.height(Spacing.xs))
             HorizontalDivider(color = SpaceBlue)
             Spacer(Modifier.height(Spacing.xs))
-            BreakdownRow("TOTAL", "%,d원".format(coins), GoldAccent)
+            BreakdownRow("TOTAL", "%,d코인".format(coins), GoldAccent)
         }
     }
 }

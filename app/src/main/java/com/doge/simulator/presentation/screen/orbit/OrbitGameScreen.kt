@@ -45,6 +45,7 @@ import com.doge.simulator.domain.model.orbit.PlayerSide
 import com.doge.simulator.domain.model.orbit.RoundEndReason
 import com.doge.simulator.domain.usecase.orbit.OrbitCardEffectInput
 import com.doge.simulator.domain.usecase.orbit.PlayOrbitCardUseCase
+import com.doge.simulator.presentation.component.NightSkyBackground
 import com.doge.simulator.presentation.component.PixelActionButton
 import com.doge.simulator.presentation.component.pixelFrame
 import com.doge.simulator.presentation.component.pixelShape
@@ -100,10 +101,19 @@ fun OrbitGameScreen(
     // 정리되지 않은 채 남는다 — 그 상태로 휴게실에서 다시 카드 테이블에 들어가면 베팅 화면이
     // 남아있던 매치 스냅샷을 보고 곧장 게임 화면으로 튀어버리는 버그로 이어졌다. 뒤로가기도
     // 반드시 leaveMatch()를 거치게 한다.
-    BackHandler {
-        viewModel.leaveMatch()
-        onExit()
+    // 도중 이탈은 즉시 패배(베팅 코인 손실)라, 뒤로가기·"나가기" 모두 바로 나가지 않고 확인을 받는다 —
+    // 제스처 내비게이션에선 가장자리를 실수로 쓸기만 해도 뒤로가기가 돼서 한 번에 코인을 잃을 수 있었다.
+    // 매치가 이미 끝났으면(마지막 라운드 배너 대기 중) 잃을 게 없으니 확인 없이 나간다.
+    var showLeaveConfirm by remember { mutableStateOf(false) }
+    fun requestLeave() {
+        if (snapshot?.matchOver == true) {
+            viewModel.leaveMatch()
+            onExit()
+        } else {
+            showLeaveConfirm = true
+        }
     }
+    BackHandler { requestLeave() }
 
     val current = snapshot ?: return
     val canAct = current.currentTurn == PlayerSide.PLAYER && roundEndBanner == null
@@ -162,7 +172,8 @@ fun OrbitGameScreen(
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val compact = maxHeight < COMPACT_HEIGHT
         val handCardSize = if (compact) OrbitCardSize.COMPACT else OrbitCardSize.NORMAL
-        OrbitStarfield()
+        // 휴게실·결과 화면과 같은 밤하늘(반짝이는 별) 배경.
+        NightSkyBackground(Modifier.matchParentSize()) {}
         Column(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -182,7 +193,7 @@ fun OrbitGameScreen(
                         Text("BET ${it.amount}", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
                         Spacer(Modifier.width(Spacing.sm))
                     }
-                    TextButton(onClick = { viewModel.leaveMatch(); onExit() }) {
+                    TextButton(onClick = { requestLeave() }) {
                         Text("나가기", color = StatusRed)
                     }
                 }
@@ -336,6 +347,38 @@ fun OrbitGameScreen(
             },
             onDismiss = { pendingScoutCard = null }
         )
+    }
+    if (showLeaveConfirm) {
+        val betAmount = current.bet?.amount
+        OrbitChoiceDialog(
+            title = "게임 나가기",
+            iconRes = R.drawable.ic_ui_danger,
+            subtitle = if (betAmount != null) {
+                "지금 나가면 이번 판은 패배로 처리되고\n베팅한 ${"%,d".format(betAmount)}코인을 잃어요."
+            } else {
+                "지금 나가면 이번 판은 패배로 처리돼요."
+            },
+            dismissText = "계속하기",
+            onDismiss = { showLeaveConfirm = false }
+        ) {
+            // 빨간 테두리 + 빨간 글씨만(바탕 없음) — 창 패널(둥근 모서리·질감)과 결이 맞게.
+            val shape = RoundedCornerShape(10.dp)
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(shape)
+                    .border(1.5.dp, StatusRed, shape)
+                    .clickable {
+                        showLeaveConfirm = false
+                        viewModel.leaveMatch()
+                        onExit()
+                    }
+                    .padding(vertical = Spacing.md),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("나가기", color = StatusRed, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+            }
+        }
     }
     pendingEmpCard?.let { card ->
         EmpTargetDialog(
@@ -640,6 +683,7 @@ private fun OrbitChoiceDialog(
     iconRes: Int,
     subtitle: String,
     onDismiss: () -> Unit,
+    dismissText: String = "취소",
     content: @Composable ColumnScope.() -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -662,7 +706,7 @@ private fun OrbitChoiceDialog(
                 content()
                 Spacer(Modifier.height(Spacing.md))
                 TextButton(onClick = onDismiss) {
-                    Text("취소", color = TextSecondary, style = MaterialTheme.typography.labelMedium)
+                    Text(dismissText, color = TextSecondary, style = MaterialTheme.typography.labelMedium)
                 }
             }
         }
