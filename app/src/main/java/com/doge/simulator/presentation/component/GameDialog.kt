@@ -8,6 +8,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -41,11 +42,12 @@ fun GameDialog(
 ) {
     Dialog(onDismissRequest = onDismissRequest, properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnClickOutside = dismissOnClickOutside)) {
         val shape = RoundedCornerShape(16.dp)
+        // 폭 = min(화면 폭의 88%, 440dp). 예전엔 fillMaxWidth(0.88f).widthIn(max = 440.dp) 순서라 88%가 먼저
+        // 고정돼 상한이 먹히지 않았고, 폴드를 펼치면 팝업이 화면을 꽉 채웠다(2026-10-02).
+        BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Column(
             modifier
-                // 폭은 화면 비율(폴더블·태블릿 대응) + 너무 넓어지지 않게 상한.
-                .fillMaxWidth(0.88f)
-                .widthIn(max = 440.dp)
+                .width(minOf(maxWidth * 0.88f, DIALOG_MAX_WIDTH))
                 .padding(vertical = Spacing.xxl)
                 .clip(shape)
                 .border(1.dp, borderColor, shape)
@@ -71,5 +73,8 @@ fun GameDialog(
                 Box(Modifier.padding(start = Spacing.xl, end = Spacing.xl, bottom = Spacing.xl)) { buttons() }
             }
         }
+        }
     }
 }
+
+private val DIALOG_MAX_WIDTH = 440.dp
