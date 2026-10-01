@@ -28,15 +28,21 @@ import com.doge.simulator.domain.model.StoryEvent
 import com.doge.simulator.domain.model.representativeIconRes
 import com.doge.simulator.presentation.viewmodel.ExpeditionHistoryViewModel
 import com.doge.simulator.ui.theme.*
+import com.doge.simulator.presentation.component.PixelProgressBar
+import com.doge.simulator.presentation.component.GameButton
+import com.doge.simulator.presentation.component.GameButtonBox
+import com.doge.simulator.presentation.component.GameButtonSize
+import com.doge.simulator.presentation.component.GameButtonStyle
 import com.doge.simulator.util.findActivity
-import com.doge.simulator.presentation.component.DogeTopBar
-import com.doge.simulator.presentation.component.NightSkyBackground
+import com.doge.simulator.presentation.component.FacilityPanel
 import java.util.concurrent.TimeUnit
 
-@OptIn(ExperimentalMaterial3Api::class)
+// 탐사 일지 — 탐험 탭 위에 띄우는 창(FacilityPanel). 기록을 훑어보고 닫는 화면이라 정거장 시설 창과 같은 방식.
+// 명판 아이콘은 뺐다 — 책 아이콘이 SF 세계관에 비해 올드해 보였고, 제목만으로 충분하다.
 @Composable
-fun ExpeditionHistoryScreen(
-    onBack: () -> Unit,
+fun ExpeditionLogPanel(
+    visible: Boolean,
+    onClose: () -> Unit,
     viewModel: ExpeditionHistoryViewModel = hiltViewModel()
 ) {
     val activeExpeditions by viewModel.activeExpeditions.collectAsState()
@@ -46,141 +52,124 @@ fun ExpeditionHistoryScreen(
     val actionMessage by viewModel.actionMessage.collectAsState()
     val activity = LocalContext.current.findActivity()
 
-    // 하위 화면 공통 밤하늘 배경(NightSkyBackground) 위에 투명 Scaffold.
-    NightSkyBackground(Modifier.fillMaxSize()) {
-        Scaffold(
-            topBar = {
-                DogeTopBar(
-                    title = {
-                        Column {
-                            Text("탐사 일지", color = GoldAccent, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            if (unreadReports.isNotEmpty()) {
-                                Spacer(modifier = Modifier.height(Spacing.xxs))
-                                Text(
-                                    "보고서 ${unreadReports.size}건 대기 중",
-                                    color = StatusRed,
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            }
-                        }
-                    },
-                    onBack = onBack
-                )
-            },
-            containerColor = Color.Transparent
-        ) { padding ->
-            val hasContent = activeExpeditions.isNotEmpty() || allReports.isNotEmpty()
+    FacilityPanel(
+        visible = visible,
+        title = "탐사 일지",
+        onClose = onClose,
+        subtitle = if (unreadReports.isNotEmpty()) "보고서 ${unreadReports.size}건 대기 중" else null,
+        subtitleColor = StatusRed
+    ) {
+        val hasContent = activeExpeditions.isNotEmpty() || allReports.isNotEmpty()
 
-            if (!hasContent) {
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(padding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Image(
-                            painter = painterResource(R.drawable.ic_ui_no_signal),
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(modifier = Modifier.height(Spacing.md))
-                        Text("탐사 기록이 없습니다", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
-                        Text("탐사를 완료하면 이야기가 쌓입니다", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+        if (!hasContent) {
+            Box(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Image(
+                        painter = painterResource(R.drawable.ic_ui_no_signal),
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Spacer(modifier = Modifier.height(Spacing.md))
+                    Text("탐사 기록이 없습니다", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+                    Text("탐사를 완료하면 이야기가 쌓입니다", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(Spacing.md)
+            ) {
+                actionMessage?.let { msg ->
+                    item {
+                        Surface(shape = RoundedCornerShape(8.dp), color = SpaceBlue.copy(alpha = 0.3f)) {
+                            Text(msg, color = SpaceAccent, style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm))
+                        }
                     }
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(padding),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.md)
-                ) {
-                    actionMessage?.let { msg ->
-                        item {
-                            Surface(shape = RoundedCornerShape(8.dp), color = SpaceBlue.copy(alpha = 0.3f)) {
-                                Text(msg, color = SpaceAccent, style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm))
-                            }
-                        }
-                    }
-                    // ── 진행 중인 탐사 ────────────────────────────────────
-                    if (activeExpeditions.isNotEmpty()) {
-                        item {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Image(
-                                    painter = painterResource(R.drawable.ic_ui_rocket),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(IconGlyphSize.large.value.dp)
-                                )
-                                Spacer(modifier = Modifier.width(Spacing.xs))
-                                Text(
-                                    "진행 중인 탐사",
-                                    color = SpaceAccent,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                        items(activeExpeditions, key = { "active_${it.id}" }) { expedition ->
-                            ActiveExpeditionCard(
-                                expedition = expedition,
-                                astronauts = astronauts,
-                                onSkipWaitAd = { viewModel.skipExpeditionWait(expedition, activity) }
+                // ── 진행 중인 탐사 ────────────────────────────────────
+                if (activeExpeditions.isNotEmpty()) {
+                    item {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Image(
+                                painter = painterResource(R.drawable.ic_ui_rocket),
+                                contentDescription = null,
+                                modifier = Modifier.size(IconGlyphSize.large.value.dp)
+                            )
+                            Spacer(modifier = Modifier.width(Spacing.xs))
+                            Text(
+                                "진행 중인 탐사",
+                                color = SpaceAccent,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
                             )
                         }
-                        item { HorizontalDivider(color = SpaceMid, modifier = Modifier.padding(vertical = Spacing.xs)) }
                     }
+                    items(activeExpeditions, key = { "active_${it.id}" }) { expedition ->
+                        ActiveExpeditionCard(
+                            expedition = expedition,
+                            astronauts = astronauts,
+                            onSkipWaitAd = { viewModel.skipExpeditionWait(expedition, activity) }
+                        )
+                    }
+                    item { HorizontalDivider(color = SpaceMid, modifier = Modifier.padding(vertical = Spacing.xs)) }
+                }
 
-                    // ── 미확인 보고서 ─────────────────────────────────────
-                    val pending = allReports.filter { !it.isRead || it.hasPendingChoices }
-                    if (pending.isNotEmpty()) {
-                        item {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Image(
-                                    painter = painterResource(R.drawable.ic_ui_mailbox),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(IconGlyphSize.large.value.dp)
-                                )
-                                Spacer(modifier = Modifier.width(Spacing.xs))
-                                Text(
-                                    "미확인 보고서",
-                                    color = GoldAccent,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                        items(pending, key = { "pending_${it.expeditionId}" }) { report ->
-                            ReportCard(
-                                report = report,
-                                isPending = true,
-                                onChoose = { event, idx -> viewModel.choose(event, idx) },
-                                onMarkRead = { viewModel.markAsRead(report.expeditionId) }
+                // ── 미확인 보고서 ─────────────────────────────────────
+                val pending = allReports.filter { !it.isRead || it.hasPendingChoices }
+                if (pending.isNotEmpty()) {
+                    item {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Image(
+                                painter = painterResource(R.drawable.ic_ui_mailbox),
+                                contentDescription = null,
+                                modifier = Modifier.size(IconGlyphSize.large.value.dp)
+                            )
+                            Spacer(modifier = Modifier.width(Spacing.xs))
+                            Text(
+                                "미확인 보고서",
+                                color = GoldAccent,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
                             )
                         }
-                        item { HorizontalDivider(color = SpaceMid, modifier = Modifier.padding(vertical = Spacing.xs)) }
                     }
+                    items(pending, key = { "pending_${it.expeditionId}" }) { report ->
+                        ReportCard(
+                            report = report,
+                            isPending = true,
+                            onChoose = { event, idx -> viewModel.choose(event, idx) },
+                            onMarkRead = { viewModel.markAsRead(report.expeditionId) }
+                        )
+                    }
+                    item { HorizontalDivider(color = SpaceMid, modifier = Modifier.padding(vertical = Spacing.xs)) }
+                }
 
-                    // ── 완료된 기록 ───────────────────────────────────────
-                    val completed = allReports.filter { it.isRead && !it.hasPendingChoices }
-                    if (completed.isNotEmpty()) {
-                        item {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Image(
-                                    painter = painterResource(R.drawable.ic_ui_logbook),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(IconGlyphSize.large.value.dp)
-                                )
-                                Spacer(modifier = Modifier.width(Spacing.xs))
-                                Text(
-                                    "탐사 기록",
-                                    color = TextSecondary,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
+                // ── 완료된 기록 ───────────────────────────────────────
+                val completed = allReports.filter { it.isRead && !it.hasPendingChoices }
+                if (completed.isNotEmpty()) {
+                    item {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Image(
+                                painter = painterResource(R.drawable.ic_ui_logbook),
+                                contentDescription = null,
+                                modifier = Modifier.size(IconGlyphSize.large.value.dp)
+                            )
+                            Spacer(modifier = Modifier.width(Spacing.xs))
+                            Text(
+                                "탐사 기록",
+                                color = TextSecondary,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
-                        items(completed, key = { "done_${it.expeditionId}" }) { report ->
-                            ReportCard(report = report, isPending = false)
-                        }
+                    }
+                    items(completed, key = { "done_${it.expeditionId}" }) { report ->
+                        ReportCard(report = report, isPending = false)
                     }
                 }
             }
@@ -221,7 +210,8 @@ private fun ActiveExpeditionCard(
         modifier = Modifier.textured(shape = RoundedCornerShape(12.dp), baseColor = SpaceNavy),
         shape = RoundedCornerShape(12.dp),
         color = Color.Transparent,
-        border = BorderStroke(1.dp, if (isComplete) StatusGreen.copy(alpha = 0.7f) else SpaceBlue.copy(alpha = 0.5f))
+        // 진행 중 = 파랑(미확인 금색과 지난 기록 흐린 남색 사이), 완료 대기 = 초록.
+        border = BorderStroke(1.dp, if (isComplete) StatusGreen.copy(alpha = 0.8f) else SpaceAccent.copy(alpha = 0.8f))
     ) {
         Column(modifier = Modifier.padding(Spacing.lg)) {
             Row(
@@ -261,23 +251,6 @@ private fun ActiveExpeditionCard(
                 )
             }
 
-            if (!isComplete && remaining > 60_000L) {
-                Spacer(modifier = Modifier.height(Spacing.xxs))
-                TextButton(
-                    onClick = onSkipWaitAd,
-                    contentPadding = ButtonPadding.textInline
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                        Image(
-                            painter = painterResource(R.drawable.ic_ui_ad),
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Text("광고로 4시간 당기기", color = SpaceAccent, style = MaterialTheme.typography.labelSmall)
-                    }
-                }
-            }
-
             if (teamNames.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(Spacing.xs))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
@@ -296,11 +269,9 @@ private fun ActiveExpeditionCard(
             }
 
             Spacer(modifier = Modifier.height(Spacing.md))
-            LinearProgressIndicator(
-                progress = { progress },
-                modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
-                color = if (isComplete) StatusGreen else SpaceAccent,
-                trackColor = SpaceMid
+            PixelProgressBar(
+                progress = progress,
+                color = if (isComplete) StatusGreen else SpaceAccent
             )
             Spacer(modifier = Modifier.height(Spacing.xs))
             Text(
@@ -308,6 +279,19 @@ private fun ActiveExpeditionCard(
                 color = TextSecondary,
                 style = MaterialTheme.typography.labelSmall
             )
+
+            // 행동 버튼은 정보(시간·대원·진행률)를 다 본 뒤 카드 맨 아래에 — 예전엔 남은 시간 줄 바로 밑에
+            // 2dp 간격으로 붙어 있어 위아래가 답답했다.
+            if (!isComplete && remaining > 60_000L) {
+                Spacer(modifier = Modifier.height(Spacing.md))
+                GameButton(
+                    text = "광고로 4시간 당기기",
+                    onClick = onSkipWaitAd,
+                    modifier = Modifier.fillMaxWidth(),
+                    style = GameButtonStyle.Primary,
+                    leadingIcon = R.drawable.ic_ui_ad
+                )
+            }
         }
     }
 }
@@ -329,17 +313,19 @@ private fun ReportCard(
 
     // 챕터 전환("완주" 포함)은 같은 골드 강조를 쓴다 — 완주는 그 위에 배지·문구만 다르게
     val isHighlighted = report.isChapterEnding || report.isStoryEnding
+    // 화면 전체가 남색 일색이라 상태가 안 보였다(2026-10-02) — 눈이 가는 순서를
+    // 금색(새로 온 미확인 보고서) > 파랑(진행 중 탐사) > 흐린 남색(지난 기록)으로 나눈다.
     val borderColor = when {
-        isHighlighted -> GoldAccent.copy(alpha = 0.7f)
-        isPending -> SpaceAccent.copy(alpha = 0.6f)
+        isPending -> GoldAccent
+        isHighlighted -> GoldAccent.copy(alpha = 0.4f)
         else -> SpaceMid.copy(alpha = 0.4f)
     }
 
     Surface(
         shape = RoundedCornerShape(14.dp),
         // 읽은 기록은 한 톤 어둡게 — 투명도로 낮추면 뒤 밤하늘 별이 카드 안에 비쳐 보여 불투명 색으로.
-        color = if (isPending) SpaceNavy else lerp(SpaceDark, SpaceNavy, 0.7f),
-        border = BorderStroke(1.dp, borderColor)
+        color = if (isPending) SpaceNavy else lerp(SpaceDark, SpaceNavy, 0.6f),
+        border = BorderStroke(if (isPending) 1.5.dp else 1.dp, borderColor)
     ) {
         Column(modifier = Modifier.padding(Spacing.lg)) {
             // ── 헤더: 기록 번호 + 챕터 ────────────────────────────────
@@ -352,9 +338,24 @@ private fun ReportCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
                 ) {
+                    if (isPending) {
+                        // 새로 온 보고서 표시 — 금색 바탕 작은 배지.
+                        Surface(shape = RoundedCornerShape(4.dp), color = GoldAccent) {
+                            Text(
+                                "NEW",
+                                color = SpaceDark,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = Spacing.xs, vertical = Spacing.xxs)
+                            )
+                        }
+                    }
                     Text(
                         report.recordLabel,
-                        color = if (isHighlighted) GoldAccent else SpaceAccent,
+                        color = when {
+                            isPending || isHighlighted -> GoldAccent
+                            else -> TextSecondary
+                        },
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -384,7 +385,11 @@ private fun ReportCard(
             // ── 기록 제목 ─────────────────────────────────────────────
             Text(
                 report.recordTitle,
-                color = if (isHighlighted) GoldAccent else TextPrimary,
+                color = when {
+                    isHighlighted -> GoldAccent
+                    isPending -> TextPrimary
+                    else -> TextPrimary.copy(alpha = 0.75f) // 지난 기록은 한 단계 뒤로
+                },
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = if (isHighlighted) FontWeight.Bold else FontWeight.Normal
             )
@@ -404,17 +409,13 @@ private fun ReportCard(
             // ── 보고서 확인 버튼 (이벤트 없고 미확인인 경우) ─────────
             if (isPending && report.events.isEmpty() && !report.isRead) {
                 Spacer(modifier = Modifier.height(Spacing.sm))
-                Button(
+                GameButton(
+                    text = "확인",
                     onClick = { onMarkRead?.invoke() },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = SpaceLight, contentColor = TextPrimary),
-                    border = ButtonDepth.highlightBorder,
-                    elevation = ButtonDepth.elevation(),
-                    contentPadding = ButtonPadding.fullWidthCta
-                ) {
-                    Text("보고서 확인", style = MaterialTheme.typography.labelMedium)
-                }
+                    style = GameButtonStyle.Primary,
+                    size = GameButtonSize.Large
+                )
             }
         }
     }
@@ -425,12 +426,15 @@ private fun EventCard(
     event: StoryEvent,
     onChoose: ((Int) -> Unit)?
 ) {
+    // 카드보다 한 톤 밝은 상자 + 카드 안쪽 폭을 꽉 채움 — 예전엔 카드와 거의 같은 색이라 상자가 잘 안 보였고,
+    // 폭도 글 길이에 따라 제각각이라 줄이 안 맞았다. (카드 자체가 불투명이라 여기 투명도는 별이 비치지 않는다)
     Surface(
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp),
-        color = SpaceBlue.copy(alpha = 0.15f),
+        color = SpaceMid.copy(alpha = 0.6f),
         border = BorderStroke(
             1.dp,
-            if (event.isPending) SpaceAccent.copy(alpha = 0.5f) else SpaceMid.copy(alpha = 0.3f)
+            if (event.isPending) SpaceAccent.copy(alpha = 0.7f) else SpaceBlue.copy(alpha = 0.35f)
         )
     ) {
         Column(modifier = Modifier.padding(Spacing.md)) {
@@ -470,19 +474,25 @@ private fun EventCard(
                 }
                 choices.forEach { (idx, label, reward) ->
                     val (resourceType, amount) = reward
-                    OutlinedButton(
+                    // 선택지는 우열 없는 보기들이라 남색(왼쪽 선택지 글자 + 오른쪽 보상).
+                    // 큰 버튼(약 48dp) + 사이 8dp — 작게 붙어 있으면 위 선택지를 누르려다 아래 걸 누르기 쉬웠다.
+                    GameButtonBox(
                         onClick = { onChoose(idx) },
-                        modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xxs),
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, SpaceAccent.copy(alpha = 0.5f)),
-                        contentPadding = ButtonPadding.listItemAction
-                    ) {
+                        modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xs),
+                        style = GameButtonStyle.Neutral,
+                        size = GameButtonSize.Large
+                    ) { textColor, _ ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(label, color = TextPrimary, style = MaterialTheme.typography.labelSmall)
+                            Text(
+                                label,
+                                color = textColor,
+                                style = MaterialTheme.typography.labelMedium,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
                             if (amount > 0) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,

@@ -23,6 +23,9 @@ import com.doge.simulator.domain.model.LeaderboardEntry
 import com.doge.simulator.presentation.component.ContextualBottomBar
 import com.doge.simulator.presentation.viewmodel.RankViewModel
 import com.doge.simulator.ui.theme.*
+import com.doge.simulator.presentation.component.PixelLoading
+import com.doge.simulator.presentation.component.GameButton
+import com.doge.simulator.presentation.component.GameButtonStyle
 
 @Composable
 fun RankScreen(
@@ -88,15 +91,9 @@ private fun RankScreenContent(
                     )
                 }
                 if (!isLoading) {
-                    TextButton(onClick = onRefresh) {
-                        Text("새로고침", color = SpaceAccent, style = MaterialTheme.typography.labelMedium)
-                    }
+                    GameButton(text = "새로고침", onClick = onRefresh, style = GameButtonStyle.Neutral)
                 } else {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = SpaceAccent,
-                        strokeWidth = 2.dp
-                    )
+                    PixelLoading(color = SpaceAccent, dotSize = 5.dp)
                 }
             }
 
@@ -138,7 +135,7 @@ private fun RankScreenContent(
             if (isLoading && entries.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = SpaceAccent)
+                        PixelLoading(color = SpaceAccent)
                         Spacer(modifier = Modifier.height(Spacing.md))
                         Text("랭킹 불러오는 중...", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
                     }

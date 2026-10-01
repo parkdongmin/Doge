@@ -52,6 +52,7 @@ import com.doge.simulator.ui.theme.TextSecondary
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.launch
+import com.doge.simulator.presentation.component.PixelLoading
 
 @Composable
 fun LoginScreen(
@@ -123,7 +124,7 @@ fun LoginScreen(
 
             when (state) {
                 is AuthViewModel.AuthState.Loading -> {
-                    CircularProgressIndicator(color = GoldAccent)
+                    PixelLoading()
                 }
                 is AuthViewModel.AuthState.Error -> {
                     Text(

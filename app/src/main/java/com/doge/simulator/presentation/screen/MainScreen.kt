@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -26,12 +27,8 @@ import com.doge.simulator.presentation.navigation.BottomNavItem
 import com.doge.simulator.presentation.navigation.NavRoutes
 import com.doge.simulator.presentation.screen.asset.AssetScreen
 import com.doge.simulator.presentation.screen.explore.ExploreScreen
-import com.doge.simulator.presentation.screen.expedition.ExpeditionHistoryScreen
-import com.doge.simulator.presentation.screen.hq.AstronautScreen
+import com.doge.simulator.presentation.screen.expedition.ExpeditionLogPanel
 import com.doge.simulator.presentation.screen.hq.HQScreen
-import com.doge.simulator.presentation.screen.hq.HangarScreen
-import com.doge.simulator.presentation.screen.hq.ResearchLabScreen
-import com.doge.simulator.presentation.screen.orbit.LoungeScreen
 import com.doge.simulator.presentation.screen.orbit.OrbitGameScreen
 import com.doge.simulator.presentation.screen.orbit.OrbitResultScreen
 import com.doge.simulator.presentation.screen.planet.PlanetDetailScreen
@@ -130,11 +127,12 @@ fun MainScreen(deepLinkFlow: StateFlow<String?>, onSignOut: () -> Unit) {
             ) {
                 // ── 하단 탭 4개 ───────────────────────────────────────
                 composable(NavRoutes.Explore.route) {
-                    ExploreScreen(
-                        onNavigateToExpeditionHistory = {
-                            navController.navigate(NavRoutes.ExpeditionHistory.route) { launchSingleTop = true }
-                        }
-                    )
+                    // 탐사 일지는 새 화면 대신 탐험 탭 위에 창으로 연다(FacilityPanel 참고).
+                    var expeditionLogOpen by rememberSaveable { mutableStateOf(false) }
+                    Box(Modifier.fillMaxSize()) {
+                        ExploreScreen(onNavigateToExpeditionHistory = { expeditionLogOpen = true })
+                        ExpeditionLogPanel(visible = expeditionLogOpen, onClose = { expeditionLogOpen = false })
+                    }
                 }
                 composable(NavRoutes.Planet.route) {
                     PlanetScreen(
@@ -143,25 +141,17 @@ fun MainScreen(deepLinkFlow: StateFlow<String?>, onSignOut: () -> Unit) {
                         }
                     )
                 }
-                composable(NavRoutes.HQ.route) {
-                    HQScreen(navController = navController)
+                composable(NavRoutes.HQ.route) { backStackEntry ->
+                    HQScreen(
+                        navController = navController,
+                        orbitViewModel = hiltViewModel(backStackEntry)
+                    )
                 }
                 composable(NavRoutes.Asset.route) {
                     AssetScreen(
                         onRankClick = { navController.navigate(NavRoutes.Rank.route) { launchSingleTop = true } },
                         onSignedOut = onSignOut
                     )
-                }
-
-                // ── 정거장 서브 화면 ───────────────────────────────────
-                composable(NavRoutes.Astronaut.route) {
-                    AstronautScreen(onBack = { navController.popBackStack() })
-                }
-                composable(NavRoutes.Hangar.route) {
-                    HangarScreen(onBack = { navController.popBackStack() })
-                }
-                composable(NavRoutes.ResearchLab.route) {
-                    ResearchLabScreen(onBack = { navController.popBackStack() })
                 }
 
                 // ── 행성 상세 ──────────────────────────────────────────
@@ -173,57 +163,42 @@ fun MainScreen(deepLinkFlow: StateFlow<String?>, onSignOut: () -> Unit) {
                     )
                 }
 
-                // ── 탐사 기록 ──────────────────────────────────────────
-                composable(NavRoutes.ExpeditionHistory.route) {
-                    ExpeditionHistoryScreen(onBack = { navController.popBackStack() })
-                }
-
                 // ── 랭킹 (자산 탭에서 진입) ────────────────────────────
                 composable(NavRoutes.Rank.route) {
                     RankScreen(onHomeClick = { navController.popBackStack() })
                 }
 
                 // ── ORBIT 카드게임(휴게실) ─────────────────────────────
-                // Lounge(베팅 모달 포함)/Game/Result 화면은 매치 진행 중 같은 OrbitViewModel(매치
-                // 상태)을 공유해야 하므로, 각 화면의 기본 hiltViewModel()(현재 백스택 엔트리 스코프)
-                // 대신 항상 Lounge 엔트리에 스코프된 하나의 인스턴스를 명시적으로 넘겨준다. 이게
-                // 없으면 화면을 옮길 때마다 새 ViewModel이 생겨 진행 중이던 매치 상태가 사라진다.
-                composable(NavRoutes.Lounge.route) { backStackEntry ->
-                    LoungeScreen(
-                        onBack = { navController.popBackStack() },
-                        onMatchStarted = {
-                            navController.navigate(NavRoutes.OrbitGame.route) {
-                                popUpTo(NavRoutes.Lounge.route) { inclusive = false }
-                                launchSingleTop = true
-                            }
-                        },
-                        viewModel = hiltViewModel(backStackEntry)
-                    )
-                }
+                // 휴게실은 정거장(HQ) 위에 뜨는 창(LoungePanel)이고, 게임/결과는 별도 전체 화면이다.
+                // 셋이 매치 진행 중 같은 OrbitViewModel(매치 상태)을 공유해야 하므로, 각 화면의 기본
+                // hiltViewModel()(현재 백스택 엔트리 스코프) 대신 항상 HQ 엔트리에 스코프된 하나의
+                // 인스턴스를 명시적으로 넘겨준다. 이게 없으면 화면을 옮길 때마다 새 ViewModel이 생겨
+                // 진행 중이던 매치 상태가 사라진다. 게임·결과에서 HQ로 돌아오면 휴게실 창이 열린 채
+                // 그대로 있다(HQScreen의 openFacility는 rememberSaveable).
                 composable(NavRoutes.OrbitGame.route) {
-                    val loungeEntry = remember(navController) {
-                        navController.getBackStackEntry(NavRoutes.Lounge.route)
+                    val hqEntry = remember(navController) {
+                        navController.getBackStackEntry(NavRoutes.HQ.route)
                     }
                     OrbitGameScreen(
-                        onExit = { navController.popBackStack(NavRoutes.Lounge.route, false) },
+                        onExit = { navController.popBackStack(NavRoutes.HQ.route, false) },
                         onMatchFinished = {
                             navController.navigate(NavRoutes.OrbitResult.route) {
-                                popUpTo(NavRoutes.Lounge.route) { inclusive = false }
+                                popUpTo(NavRoutes.HQ.route) { inclusive = false }
                                 launchSingleTop = true
                             }
                         },
-                        viewModel = hiltViewModel(loungeEntry)
+                        viewModel = hiltViewModel(hqEntry)
                     )
                 }
                 composable(NavRoutes.OrbitResult.route) {
-                    val loungeEntry = remember(navController) {
-                        navController.getBackStackEntry(NavRoutes.Lounge.route)
+                    val hqEntry = remember(navController) {
+                        navController.getBackStackEntry(NavRoutes.HQ.route)
                     }
                     OrbitResultScreen(
                         // 휴게실로 돌아가면 베팅 모달이 바로 열려 있다(viewModel.playAgain()이 연다).
-                        onPlayAgain = { navController.popBackStack(NavRoutes.Lounge.route, false) },
-                        onReturnToLounge = { navController.popBackStack(NavRoutes.Lounge.route, false) },
-                        viewModel = hiltViewModel(loungeEntry)
+                        onPlayAgain = { navController.popBackStack(NavRoutes.HQ.route, false) },
+                        onReturnToLounge = { navController.popBackStack(NavRoutes.HQ.route, false) },
+                        viewModel = hiltViewModel(hqEntry)
                     )
                 }
         }

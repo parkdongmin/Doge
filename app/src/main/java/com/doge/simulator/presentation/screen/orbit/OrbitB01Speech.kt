@@ -102,27 +102,27 @@ object B01Lines {
 
     // B-01이 방금 낸 카드에 대한 한마디(이제 함장님 차례일 때).
     fun afterOwnPlay(s: PlayOrbitCardUseCase.PlayedCardSummary): List<String> = when {
-        s.blockedByShield -> listOf("…쉴드에 막혔군요.")
-        s.card.type == OrbitCardType.SCOUT_DRONE -> listOf("빗나갔군요. 다음엔 맞히겠습니다.")
-        s.card.type == OrbitCardType.PROBE -> listOf("호각이군요, 함장님.")
-        s.card.type == OrbitCardType.SENSOR -> listOf("함장님의 카드, 잘 봤습니다.")
-        s.card.type == OrbitCardType.SHIELD -> listOf("방어 태세를 갖추겠습니다.")
-        s.card.type == OrbitCardType.EMP -> listOf("판을 한번 흔들어 보죠.")
-        s.card.type == OrbitCardType.WARP_GATE -> listOf("서로 카드를 바꿔 보죠, 함장님.")
-        s.card.type == OrbitCardType.AI_CORE -> listOf("제 코어는 아무 일도 하지 않습니다. 아직은요.")
+        s.blockedByShield -> listOf("…쉴드에 막혔군요.", "단단히 대비하셨군요, 함장님.")
+        s.card.type == OrbitCardType.SCOUT_DRONE -> listOf("빗나갔군요. 다음엔 맞히겠습니다.", "예측이 어긋났습니다. 재계산하겠습니다.")
+        s.card.type == OrbitCardType.PROBE -> listOf("동점이군요, 함장님.", "비등하군요. 승부는 아직입니다.")
+        s.card.type == OrbitCardType.SENSOR -> listOf("함장님의 카드, 잘 봤습니다.", "데이터 수집 완료입니다.")
+        s.card.type == OrbitCardType.SHIELD -> listOf("방어 태세를 갖추겠습니다.", "한 턴은 안전하게 가겠습니다.")
+        s.card.type == OrbitCardType.EMP -> listOf("판을 한번 흔들어 보죠.", "변수를 하나 만들어 두겠습니다.")
+        s.card.type == OrbitCardType.WARP_GATE -> listOf("서로 카드를 바꿔 보죠, 함장님.", "그 카드, 제가 잘 쓰겠습니다.")
+        s.card.type == OrbitCardType.AI_CORE -> listOf("제 코어는 아무 일도 하지 않습니다. 아직은요.", "코어를 내려놓겠습니다. 별 뜻은 없습니다.")
         else -> listOf("함장님 차례입니다.")
     }
 
     // 함장님이 방금 낸 카드에 대한 반응(B-01 차례, 생각하는 동안).
     fun afterPlayerPlay(s: PlayOrbitCardUseCase.PlayedCardSummary): List<String> = when {
-        s.blockedByShield -> listOf("제 쉴드가 막았습니다.")
-        s.card.type == OrbitCardType.SCOUT_DRONE -> listOf("아쉽군요, 함장님.")
-        s.card.type == OrbitCardType.PROBE -> listOf("호각입니다.")
-        s.card.type == OrbitCardType.SENSOR -> listOf("제 카드를 보셨군요…")
-        s.card.type == OrbitCardType.SHIELD -> listOf("쉴드라… 신중하시군요.")
-        s.card.type == OrbitCardType.EMP -> listOf("EMP라… 흥미롭군요.")
-        s.card.type == OrbitCardType.WARP_GATE -> listOf("제 카드를 가져가셨군요.")
-        s.card.type == OrbitCardType.AI_CORE -> listOf("AI CORE를 버리시다니… 동족으로서 유감입니다.")
+        s.blockedByShield -> listOf("제 쉴드가 막았습니다.", "이번 턴은 통하지 않습니다, 함장님.")
+        s.card.type == OrbitCardType.SCOUT_DRONE -> listOf("아쉽군요, 함장님.", "그 카드는 아닙니다.")
+        s.card.type == OrbitCardType.PROBE -> listOf("동점입니다.", "같은 숫자였군요.")
+        s.card.type == OrbitCardType.SENSOR -> listOf("제 카드를 보셨군요…", "들켰군요. 계획을 수정하겠습니다.")
+        s.card.type == OrbitCardType.SHIELD -> listOf("쉴드라… 신중하시군요.", "한 턴 동안은 손댈 수 없겠군요.")
+        s.card.type == OrbitCardType.EMP -> listOf("EMP라… 흥미롭군요.", "판이 새로 짜이는군요.")
+        s.card.type == OrbitCardType.WARP_GATE -> listOf("제 카드를 가져가셨군요.", "그 카드, 잘 부탁드립니다.")
+        s.card.type == OrbitCardType.AI_CORE -> listOf("AI CORE를 버리시다니… 동족으로서 유감입니다.", "코어를 내려놓으셨군요. 기억해 두겠습니다.")
         else -> thinking
     }
 }

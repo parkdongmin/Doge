@@ -46,8 +46,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.doge.simulator.R
-import com.doge.simulator.ui.theme.ButtonDepth
-import com.doge.simulator.ui.theme.ButtonPadding
 import com.doge.simulator.ui.theme.GoldAccent
 import com.doge.simulator.ui.theme.NumericSmall
 import com.doge.simulator.ui.theme.SpaceBlue
@@ -78,41 +76,6 @@ fun PixelBorderCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         content = { Column(content = content) }
     )
-}
-
-// ─── 픽셀 버튼 ────────────────────────────────────────────────────
-@Composable
-fun PixelButton(
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    containerColor: Color = SpaceBlue,
-    contentColor: Color = GoldAccent,
-    enabled: Boolean = true,
-    contentPadding: PaddingValues = ButtonPadding.ctaInRow,
-    minWidth: Dp = ButtonPadding.minWidth,
-    // 글자 앞에 붙는 픽셀 아이콘(예: 광고 버튼의 ic_ui_ad). 없으면 글자만.
-    @DrawableRes leadingIcon: Int? = null
-) {
-    Button(
-        onClick = onClick,
-        modifier = modifier.widthIn(min = minWidth),
-        enabled = enabled,
-        shape = RoundedCornerShape(4.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = containerColor,
-            contentColor = contentColor,
-            disabledContainerColor = SpaceMid,
-            disabledContentColor = TextSecondary
-        ),
-        contentPadding = contentPadding
-    ) {
-        leadingIcon?.let {
-            Image(painter = painterResource(it), contentDescription = null, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(Spacing.sm))
-        }
-        Text(text = text, style = MaterialTheme.typography.bodyMedium)
-    }
 }
 
 // ─── 픽셀 스탯 칩 ─────────────────────────────────────────────────
@@ -261,41 +224,21 @@ fun ContextualBottomBar(
             horizontalArrangement = if (secondaryLabel != null) Arrangement.SpaceBetween else Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Button(
+            GameButton(
+                text = "홈으로",
                 onClick = onHomeClick,
-                shape = RoundedCornerShape(4.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = SpaceLight,
-                    contentColor = TextPrimary
-                ),
-                border = ButtonDepth.highlightBorder,
-                elevation = ButtonDepth.elevation(),
-                contentPadding = ButtonPadding.ctaInRow
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    Image(
-                        painter = painterResource(R.drawable.ic_ui_home),
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text("홈으로", style = MaterialTheme.typography.bodySmall)
-                }
-            }
+                style = GameButtonStyle.Primary,
+                size = GameButtonSize.Large,
+                leadingIcon = R.drawable.ic_ui_home
+            )
 
             if (secondaryLabel != null && onSecondaryClick != null) {
-                Button(
+                GameButton(
+                    text = secondaryLabel,
                     onClick = onSecondaryClick,
-                    shape = RoundedCornerShape(4.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = GoldAccent,
-                        contentColor = SpaceDark
-                    ),
-                    border = ButtonDepth.highlightBorder,
-                    elevation = ButtonDepth.elevation(),
-                    contentPadding = ButtonPadding.ctaInRow
-                ) {
-                    Text(secondaryLabel, style = MaterialTheme.typography.bodySmall)
-                }
+                    style = GameButtonStyle.Gold,
+                    size = GameButtonSize.Large
+                )
             }
         }
     }

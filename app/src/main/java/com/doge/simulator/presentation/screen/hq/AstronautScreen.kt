@@ -30,9 +30,11 @@ import com.doge.simulator.presentation.component.CrewInfoContent
 import com.doge.simulator.presentation.component.InfoDialog
 import com.doge.simulator.presentation.viewmodel.AstronautViewModel
 import com.doge.simulator.ui.theme.*
+import com.doge.simulator.presentation.component.GameButton
+import com.doge.simulator.presentation.component.GameButtonStyle
 import com.doge.simulator.util.findActivity
-import com.doge.simulator.presentation.component.DogeTopBar
-import com.doge.simulator.presentation.component.NightSkyBackground
+import com.doge.simulator.presentation.component.FacilityPanel
+import com.doge.simulator.presentation.component.PanelSectionHeader
 import kotlinx.coroutines.delay
 
 private val gradeColor = mapOf(
@@ -43,107 +45,100 @@ private val gradeColor = mapOf(
     AstronautGrade.LEGEND to Color(0xFFE8A84C)
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+// 정거장 화면 위에 띄우는 우주인 센터 창(FacilityPanel 참고).
 @Composable
-fun AstronautScreen(
-    onBack: () -> Unit,
+fun AstronautPanel(
+    visible: Boolean,
+    onClose: () -> Unit,
     viewModel: AstronautViewModel = hiltViewModel()
 ) {
+    val coins by viewModel.coins.collectAsState()
+    var showInfo by remember { mutableStateOf(false) }
+
+    if (showInfo) {
+        InfoDialog(title = "우주인 안내", onDismiss = { showInfo = false }) {
+            CrewInfoContent(showGrades = true)
+        }
+    }
+    FacilityPanel(
+        visible = visible,
+        title = "우주인 센터",
+        onClose = onClose,
+        coins = coins,
+        onInfo = { showInfo = true },
+        infoDescription = "우주인 안내"
+    ) {
+        AstronautContent(viewModel, Modifier.fillMaxWidth().weight(1f))
+    }
+}
+
+@Composable
+private fun AstronautContent(viewModel: AstronautViewModel, modifier: Modifier) {
     val astronauts by viewModel.astronauts.collectAsState()
     val researchLab by viewModel.researchLab.collectAsState()
     val recruitmentPool by viewModel.recruitmentPool.collectAsState()
     val coins by viewModel.coins.collectAsState()
     val message by viewModel.message.collectAsState()
     val activity = LocalContext.current.findActivity()
-    var showInfo by remember { mutableStateOf(false) }
 
-    // 정거장 시설 안 — 공통 밤하늘 배경(NightSkyBackground) 위에 투명 Scaffold.
-    NightSkyBackground(Modifier.fillMaxSize()) {
-        Scaffold(
-            topBar = {
-                DogeTopBar(
-                    title = "우주인 센터",
-                    onBack = onBack,
-                    onInfo = { showInfo = true },
-                    infoDescription = "우주인 안내"
-                )
-            },
-            containerColor = Color.Transparent
-        ) { padding ->
-            if (showInfo) {
-                InfoDialog(title = "우주인 안내", onDismiss = { showInfo = false }) {
-                    CrewInfoContent(showGrades = true)
-                }
+    Column(modifier = modifier) {
+        // 상태 메시지
+        message?.let {
+            Surface(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.xs),
+                shape = RoundedCornerShape(8.dp), color = SpaceBlue.copy(0.3f)) {
+                Text(it, color = SpaceAccent, style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm))
             }
-            Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-                // 상태 메시지
-                message?.let {
-                    Surface(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.xs),
-                        shape = RoundedCornerShape(8.dp), color = SpaceBlue.copy(0.3f)) {
-                        Text(it, color = SpaceAccent, style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm))
+        }
+
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md)
+        ) {
+            // 모집 센터
+            item {
+                PanelSectionHeader("모집 센터")
+                Spacer(modifier = Modifier.height(Spacing.sm))
+                RecruitmentSection(
+                    pool = recruitmentPool,
+                    coins = coins,
+                    canHire = astronauts.size < researchLab.maxAstronauts,
+                    onHire = { viewModel.hireFromPool(it) },
+                    onRefreshAd = { viewModel.refreshPoolWithAd(activity) }
+                )
+            }
+            // 구분선
+            item {
+                Spacer(modifier = Modifier.height(Spacing.xs))
+                HorizontalDivider(color = SpaceMid)
+                Spacer(modifier = Modifier.height(Spacing.xs))
+                // 보유·훈련 슬롯 현황은 따로 한 줄을 두지 않고 제목 오른쪽에(격납고와 같은 방식).
+                PanelSectionHeader(
+                    "보유 우주인",
+                    trailing = "${astronauts.size}/${researchLab.maxAstronauts}명 · 훈련 " +
+                        "${astronauts.count { it.status == AstronautStatus.TRAINING }}/${researchLab.maxTrainingSlots}"
+                )
+                Spacer(modifier = Modifier.height(Spacing.sm))
+            }
+            if (astronauts.isEmpty()) {
+                item {
+                    Box(modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xxl),
+                        contentAlignment = Alignment.Center) {
+                        Text("아직 고용한 우주인이 없습니다", color = TextSecondary,
+                            style = MaterialTheme.typography.bodySmall)
                     }
                 }
-
-                // 현황 헤더
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.md),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    InfoChip("보유", "${astronauts.size}/${researchLab.maxAstronauts}명", TextPrimary)
-                    InfoChip("훈련 슬롯", "${astronauts.count { it.status == AstronautStatus.TRAINING }}/${researchLab.maxTrainingSlots}", SpaceAccent)
-                    InfoChip("보유 코인", "%,d".format(coins), GoldAccent)
-                }
-
-                HorizontalDivider(color = SpaceMid, modifier = Modifier.padding(horizontal = Spacing.lg))
-
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.md)
-                ) {
-                    // 모집 센터
-                    item {
-                        Text("모집 센터", color = GoldAccent, style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(Spacing.sm))
-                        RecruitmentSection(
-                            pool = recruitmentPool,
-                            coins = coins,
-                            canHire = astronauts.size < researchLab.maxAstronauts,
-                            onHire = { viewModel.hireFromPool(it) },
-                            onRefreshAd = { viewModel.refreshPoolWithAd(activity) }
-                        )
-                    }
-                    // 구분선
-                    item {
-                        Spacer(modifier = Modifier.height(Spacing.xs))
-                        HorizontalDivider(color = SpaceMid)
-                        Spacer(modifier = Modifier.height(Spacing.xs))
-                        Text("보유 우주인 (${astronauts.size}명)", color = GoldAccent,
-                            style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(Spacing.sm))
-                    }
-                    if (astronauts.isEmpty()) {
-                        item {
-                            Box(modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xxl),
-                                contentAlignment = Alignment.Center) {
-                                Text("아직 고용한 우주인이 없습니다", color = TextSecondary,
-                                    style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-                    } else {
-                        items(astronauts, key = { it.id }) { astronaut ->
-                            AstronautCard(
-                                astronaut = astronaut,
-                                coins = coins,
-                                trainingSlotAvailable = astronauts.count { it.status == AstronautStatus.TRAINING } < researchLab.maxTrainingSlots,
-                                onTrainBasic = { viewModel.train(astronaut, false) },
-                                onTrainAdvanced = { viewModel.train(astronaut, true) },
-                                onSkipWaitAd = { viewModel.skipTrainingWait(astronaut, activity) }
-                            )
-                        }
-                    }
+            } else {
+                items(astronauts, key = { it.id }) { astronaut ->
+                    AstronautCard(
+                        astronaut = astronaut,
+                        coins = coins,
+                        trainingSlotAvailable = astronauts.count { it.status == AstronautStatus.TRAINING } < researchLab.maxTrainingSlots,
+                        onTrainBasic = { viewModel.train(astronaut, false) },
+                        onTrainAdvanced = { viewModel.train(astronaut, true) },
+                        onSkipWaitAd = { viewModel.skipTrainingWait(astronaut, activity) }
+                    )
                 }
             }
         }
@@ -175,16 +170,12 @@ private fun RecruitmentSection(
         ) {
             Text("다음 자동 새로고침: ${formatHours(remaining)}", color = TextSecondary,
                 style = MaterialTheme.typography.labelSmall)
-            TextButton(onClick = onRefreshAd, contentPadding = ButtonPadding.textInline) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    Image(
-                        painter = painterResource(R.drawable.ic_ui_ad),
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Text("광고 보고 새로고침", color = SpaceAccent, style = MaterialTheme.typography.labelSmall)
-                }
-            }
+            GameButton(
+                text = "광고 보고 새로고침",
+                onClick = onRefreshAd,
+                style = GameButtonStyle.Primary,
+                leadingIcon = R.drawable.ic_ui_ad
+            )
         }
         val slots = if (pool.slots.isEmpty()) List(GameConstants.RECRUITMENT_POOL_SIZE) { null } else pool.slots
         slots.forEachIndexed { index, candidate ->
@@ -243,17 +234,14 @@ private fun RecruitmentCandidateCard(
                 Text("${candidate.specialty.displayName} · 숙련도 ${candidate.proficiency}",
                     color = TextSecondary, style = MaterialTheme.typography.labelSmall)
             }
-            Button(
+            // 코인을 쓰는 영입 — 격납고 구매 버튼과 같은 금색, 금액은 코인 아이콘 + 숫자.
+            GameButton(
+                text = "",
+                coinAmount = cost ?: 0L,
                 onClick = onHire,
                 enabled = canHire,
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = StatusGreen, contentColor = SpaceDark),
-                border = ButtonDepth.highlightBorder,
-                elevation = ButtonDepth.elevation(),
-                contentPadding = ButtonPadding.listItemAction
-            ) {
-                Text("%,d".format(cost ?: 0L), style = MaterialTheme.typography.labelSmall)
-            }
+                style = GameButtonStyle.Gold
+            )
         }
     }
 }
@@ -321,16 +309,12 @@ private fun AstronautCard(
                     Text("훈련 완료까지: ${formatHours(remaining)}", color = StatusYellow,
                         style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
                     if (remaining > 60_000L) {
-                        TextButton(onClick = onSkipWaitAd, contentPadding = ButtonPadding.textInline) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                                Image(
-                                    painter = painterResource(R.drawable.ic_ui_ad),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Text("광고로 4시간 당기기", color = SpaceAccent, style = MaterialTheme.typography.labelSmall)
-                            }
-                        }
+                        GameButton(
+                            text = "광고로 4시간 당기기",
+                            onClick = onSkipWaitAd,
+                            style = GameButtonStyle.Primary,
+                            leadingIcon = R.drawable.ic_ui_ad
+                        )
                     }
                 }
             }
@@ -342,48 +326,29 @@ private fun AstronautCard(
                         style = MaterialTheme.typography.labelSmall)
                 } else {
                     Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                        OutlinedButton(
+                        // 카드 한 장에 강조색 버튼은 최대 하나 — 훈련은 두 개라 둘 다 남색, 금액만 금색으로 강조.
+                        GameButton(
+                            text = "기초 훈련 +${GameConstants.BASIC_TRAINING_PROFICIENCY_GAIN}",
                             onClick = onTrainBasic,
                             enabled = trainingSlotAvailable && coins >= GameConstants.BASIC_TRAINING_COST_COINS,
-                            modifier = Modifier.weight(1f), shape = RoundedCornerShape(6.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
-                            border = BorderStroke(1.dp, SpaceMid),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("기초 훈련 (+${GameConstants.BASIC_TRAINING_PROFICIENCY_GAIN})", style = MaterialTheme.typography.labelSmall)
-                                Text("4시간 / ${"%,d".format(GameConstants.BASIC_TRAINING_COST_COINS)}코인",
-                                    style = MaterialTheme.typography.labelSmall, color = TextDisabled)
-                            }
-                        }
-                        Button(
+                            modifier = Modifier.weight(1f),
+                            style = GameButtonStyle.Neutral,
+                            subText = "4시간",
+                            subCoinAmount = GameConstants.BASIC_TRAINING_COST_COINS
+                        )
+                        GameButton(
+                            text = "심화 훈련 +${GameConstants.ADVANCED_TRAINING_PROFICIENCY_GAIN}",
                             onClick = onTrainAdvanced,
                             enabled = trainingSlotAvailable && coins >= GameConstants.ADVANCED_TRAINING_COST_COINS,
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(6.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = StatusGreen, contentColor = SpaceDark),
-                            border = ButtonDepth.highlightBorder,
-                            elevation = ButtonDepth.elevation(),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("심화 훈련 (+${GameConstants.ADVANCED_TRAINING_PROFICIENCY_GAIN})", style = MaterialTheme.typography.labelSmall)
-                                Text("12시간 / ${"%,d".format(GameConstants.ADVANCED_TRAINING_COST_COINS)}코인",
-                                    style = MaterialTheme.typography.labelSmall, color = TextDisabled)
-                            }
-                        }
+                            style = GameButtonStyle.Neutral,
+                            subText = "12시간",
+                            subCoinAmount = GameConstants.ADVANCED_TRAINING_COST_COINS
+                        )
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun InfoChip(label: String, value: String, color: androidx.compose.ui.graphics.Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, color = TextSecondary, style = MaterialTheme.typography.labelSmall)
-        Text(value, color = color, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
     }
 }
 

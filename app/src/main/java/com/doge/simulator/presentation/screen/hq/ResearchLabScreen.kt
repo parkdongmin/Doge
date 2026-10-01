@@ -24,63 +24,51 @@ import com.doge.simulator.domain.model.ResearchLab
 import com.doge.simulator.domain.model.Resource
 import com.doge.simulator.presentation.viewmodel.ResearchLabViewModel
 import com.doge.simulator.ui.theme.*
-import com.doge.simulator.presentation.component.DogeTopBar
-import com.doge.simulator.presentation.component.NightSkyBackground
+import com.doge.simulator.presentation.component.GameButton
+import com.doge.simulator.presentation.component.GameButtonStyle
+import com.doge.simulator.R
+import com.doge.simulator.presentation.component.FacilityPanel
 
-@OptIn(ExperimentalMaterial3Api::class)
+// 정거장 화면 위에 띄우는 연구소 창(FacilityPanel 참고).
 @Composable
-fun ResearchLabScreen(
-    onBack: () -> Unit,
+fun ResearchLabPanel(
+    visible: Boolean,
+    onClose: () -> Unit,
     viewModel: ResearchLabViewModel = hiltViewModel()
 ) {
     val researchLab by viewModel.researchLab.collectAsState()
     val resources by viewModel.resources.collectAsState()
     val coins by viewModel.coins.collectAsState()
 
-    // 정거장 시설 안 — 공통 밤하늘 배경(NightSkyBackground) 위에 투명 Scaffold.
-    NightSkyBackground(Modifier.fillMaxSize()) {
-        Scaffold(
-            topBar = {
-                DogeTopBar(title = "연구소", onBack = onBack)
-            },
-            containerColor = Color.Transparent
-        ) { padding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-            ) {
-                // 보유 코인
-                Row(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.md),
-                    horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text("총 연구 레벨: ${researchLab.totalLevel}", color = TextSecondary,
-                        style = MaterialTheme.typography.bodySmall)
-                    Text("%,d 코인".format(coins), color = GoldAccent, style = NumericSmall)
-                }
+    FacilityPanel(
+        visible = visible,
+        title = "연구소",
+        onClose = onClose,
+        coins = coins,
+        // 총 연구 레벨은 본문에 한 줄을 따로 두지 않고 명판 상태 줄로(다른 창들과 본문 시작 위치를 맞춤).
+        subtitle = "총 연구 레벨 ${researchLab.totalLevel}"
+    ) {
+        // 다른 창 목록(contentPadding 16dp)과 첫 카드 위치를 맞춘다.
+        Spacer(modifier = Modifier.height(Spacing.lg))
 
-                HorizontalDivider(color = SpaceMid, modifier = Modifier.padding(horizontal = Spacing.lg))
-                Spacer(modifier = Modifier.height(Spacing.sm))
-
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    ResearchField.entries.forEach { field ->
-                        ResearchFieldCard(
-                            field = field,
-                            currentLevel = researchLab.getLevel(field),
-                            researchLab = researchLab,
-                            coins = coins,
-                            resources = resources,
-                            onUpgrade = { viewModel.upgrade(field) }
-                        )
-                        Spacer(modifier = Modifier.height(Spacing.md))
-                    }
-
-                    Spacer(modifier = Modifier.height(Spacing.lg))
-                }
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+        ) {
+            ResearchField.entries.forEach { field ->
+                ResearchFieldCard(
+                    field = field,
+                    currentLevel = researchLab.getLevel(field),
+                    researchLab = researchLab,
+                    coins = coins,
+                    resources = resources,
+                    onUpgrade = { viewModel.upgrade(field) }
+                )
+                Spacer(modifier = Modifier.height(Spacing.md))
             }
+
+            Spacer(modifier = Modifier.height(Spacing.lg))
         }
     }
 }
@@ -199,19 +187,13 @@ private fun ResearchFieldCard(
                         }
                     }
                 }
-                Button(
-                    onClick = onUpgrade, enabled = canUpgrade,
-                    modifier = Modifier.widthIn(min = ButtonPadding.minWidth),
-                    shape = RoundedCornerShape(6.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = if (canUpgrade) SpaceAccent else SpaceMid,
-                        contentColor = SpaceDark),
-                    border = ButtonDepth.highlightBorder,
-                    elevation = ButtonDepth.elevation(),
-                    contentPadding = ButtonPadding.ctaInRow
-                ) {
-                    Text(if (isMaxLevel) "MAX" else "연구",
-                        style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                }
+                // 코인·자원을 쓰는 행동이라 금색.
+                GameButton(
+                    text = if (isMaxLevel) "MAX" else "연구",
+                    onClick = onUpgrade,
+                    enabled = canUpgrade,
+                    style = GameButtonStyle.Gold
+                )
             }
         }
     }

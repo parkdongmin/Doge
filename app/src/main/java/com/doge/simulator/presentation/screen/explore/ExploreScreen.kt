@@ -49,6 +49,17 @@ import com.doge.simulator.presentation.tutorial.TutorialTarget
 import com.doge.simulator.presentation.tutorial.tutorialTarget
 import com.doge.simulator.presentation.viewmodel.ExploreViewModel
 import com.doge.simulator.ui.theme.*
+import com.doge.simulator.presentation.component.GameButton
+import com.doge.simulator.presentation.component.GameButtonSize
+import com.doge.simulator.presentation.component.GameButtonStyle
+import com.doge.simulator.presentation.component.FacilityPanel
+import com.doge.simulator.presentation.component.GameDialog
+import com.doge.simulator.presentation.component.PanelSectionHeader
+import com.doge.simulator.presentation.component.GameDialogButtons
+import com.doge.simulator.presentation.component.TabHeader
+import com.doge.simulator.presentation.component.TabHeaderPadding
+import com.doge.simulator.presentation.component.TabSectionHeader
+import com.doge.simulator.presentation.component.TabSideMargin
 import com.doge.simulator.util.UpgradeHaptic
 import com.doge.simulator.util.findActivity
 import com.doge.simulator.util.vibrateDiscoveryReveal
@@ -127,16 +138,12 @@ fun ExploreScreen(
 
         // ── 탐사 카테고리 카드 4개 ────────────────────────────────────
         Row(
-            modifier = Modifier.padding(start = Spacing.lg, end = Spacing.lg, bottom = Spacing.xs),
+            modifier = Modifier.padding(start = TabSideMargin, end = TabSideMargin, bottom = Spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
         ) {
-            Text(
-                "탐험 종류 선택",
-                color = Color.White,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold
-            )
+            // 섹션 제목 — 예전엔 페이지 제목 크기(titleLarge)라 이게 화면 제목처럼 읽혔다.
+            TabSectionHeader("탐험 종류 선택")
             Icon(
                 imageVector = PixelIcons.Info,
                 contentDescription = "탐사 정보",
@@ -157,34 +164,33 @@ fun ExploreScreen(
         )
     }
 
-    // ── 팀 빌더 바텀시트 ─────────────────────────────────────────
-    if (uiState.isTeamBuilderOpen) {
+    // ── 팀 구성(탐사 파견) 창 ─────────────────────────────────────
+    // 머티리얼 바텀시트(손잡이 막대·배경 안 어두워짐·상태바까지 덮음) 대신 시설 창과 같은 FacilityPanel.
+    // ExploreScreen은 MainScreen에서 Box 안에 놓이므로 이 창이 탐험 화면 위에 겹쳐 뜬다.
+    var showTeamInfo by remember { mutableStateOf(false) }
+    if (showTeamInfo) TeamInfoDialog(onDismiss = { showTeamInfo = false })
+    FacilityPanel(
+        visible = uiState.isTeamBuilderOpen,
+        title = "탐사 파견",
+        onClose = { viewModel.closeTeamBuilder() },
+        onInfo = { showTeamInfo = true },
+        infoDescription = "우주선·우주인 효과 설명"
+    ) {
         val busyShipIdsSnapshot by viewModel.busyShipIds.collectAsState()
-        ModalBottomSheet(
-            onDismissRequest = { viewModel.closeTeamBuilder() },
-            containerColor = SpaceNavy,
-            dragHandle = {
-                Surface(
-                    modifier = Modifier.padding(vertical = Spacing.sm).size(40.dp, 4.dp),
-                    shape = CircleShape, color = SpaceMid
-                ) {}
-            }
-        ) {
-            TeamBuilderContent(
-                uiState = uiState,
-                researchLab = researchLab,
-                discoveredVariantIds = discoveredVariantIds,
-                astronauts = astronauts,
-                spaceships = spaceships,
-                busyShipIds = busyShipIdsSnapshot,
-                onSelectCategory = { viewModel.selectCategory(it) },
-                onSelectTier = { viewModel.selectTier(it) },
-                onToggleAstronaut = { viewModel.toggleAstronaut(it) },
-                onSelectShip = { viewModel.selectSpaceship(it) },
-                onDispatch = { viewModel.dispatch() },
-                onDismiss = { viewModel.closeTeamBuilder() }
-            )
-        }
+        TeamBuilderContent(
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            uiState = uiState,
+            researchLab = researchLab,
+            discoveredVariantIds = discoveredVariantIds,
+            astronauts = astronauts,
+            spaceships = spaceships,
+            busyShipIds = busyShipIdsSnapshot,
+            onSelectCategory = { viewModel.selectCategory(it) },
+            onSelectTier = { viewModel.selectTier(it) },
+            onToggleAstronaut = { viewModel.toggleAstronaut(it) },
+            onSelectShip = { viewModel.selectSpaceship(it) },
+            onDispatch = { viewModel.dispatch() },
+        )
     }
 
     // ── 탐사 결과 다이얼로그 ─────────────────────────────────────
@@ -294,22 +300,20 @@ private fun TeamInfoDialog(onDismiss: () -> Unit) {
 private fun TopHeader(coins: Long, resources: List<com.doge.simulator.domain.model.Resource>) {
     val resourceMap = remember(resources) { resources.associateBy { it.type } }
 
+    // 페이지 제목은 다른 탭과 같은 TabHeader(좌우·위·아래 여백 동일), 오른쪽에 보유 코인.
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = Spacing.lg, vertical = Spacing.md)
+            .padding(start = TabSideMargin, end = TabSideMargin, bottom = Spacing.md)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                "우주 탐사",
-                color = TextPrimary,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+        TabHeader(
+            title = "탐험",
+            subtitle = "대원과 우주선을 꾸려 탐사를 보내세요",
+            modifier = Modifier.padding(
+                top = TabHeaderPadding.calculateTopPadding(),
+                bottom = TabHeaderPadding.calculateBottomPadding()
             )
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 Image(
                     painter = painterResource(R.drawable.ic_ui_coin),
@@ -325,7 +329,6 @@ private fun TopHeader(coins: Long, resources: List<com.doge.simulator.domain.mod
             }
         }
 
-        Spacer(modifier = Modifier.height(Spacing.sm))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             ExpeditionCategory.entries.forEachIndexed { catIndex, category ->
                 if (catIndex > 0) {
@@ -381,7 +384,7 @@ private fun SlotAndRecordCard(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = Spacing.lg)
+            .padding(horizontal = TabSideMargin)
             .clickable(onClick = onClick)
             .textured(shape = RoundedCornerShape(12.dp), baseColor = SpaceNavy.copy(alpha = 0.85f)),
         shape = RoundedCornerShape(12.dp),
@@ -436,7 +439,7 @@ private fun SlotAndRecordCard(
                     )
                 }
             }
-            Text("›", color = TextSecondary, fontSize = IconGlyphSize.medium)
+            Icon(PixelIcons.ChevronRight, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(16.dp))
         }
     }
 }
@@ -498,7 +501,7 @@ private fun CategoryGrid(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = Spacing.lg, vertical = Spacing.md)
+            .padding(horizontal = TabSideMargin, vertical = Spacing.md)
             .height(IntrinsicSize.Max),
         horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
@@ -672,38 +675,21 @@ private fun TeamBuilderContent(
     onToggleAstronaut: (String) -> Unit,
     onSelectShip: (String) -> Unit,
     onDispatch: () -> Unit,
-    onDismiss: () -> Unit
+    modifier: Modifier = Modifier
 ) {
     val unlockedCategories = researchLab.unlockedCategories()
     val idleAstronauts = astronauts.filter { it.status == AstronautStatus.IDLE }
     val selectedShip = spaceships.firstOrNull { it.id == uiState.selectedSpaceshipId }
     val maxCrew = selectedShip?.crewCapacity ?: 0
 
+    // 제목·ⓘ·✕는 창 명판(FacilityPanel)이 맡고, 여기는 스크롤 본문 + 아래 고정 파견 버튼.
+    Column(modifier) {
     Column(
         modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
+            .weight(1f)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = Spacing.xl, vertical = Spacing.sm)
+            .padding(horizontal = Spacing.xl, vertical = Spacing.lg)
     ) {
-        var showTeamInfo by remember { mutableStateOf(false) }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            Text(
-                "탐사 파견 설정", color = GoldAccent,
-                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold
-            )
-            Icon(
-                imageVector = PixelIcons.Info,
-                contentDescription = "우주선·우주인 효과 설명",
-                tint = TextSecondary,
-                modifier = Modifier
-                    .size(18.dp)
-                    .clip(CircleShape)
-                    .clickable { showTeamInfo = true }
-            )
-        }
-        if (showTeamInfo) TeamInfoDialog(onDismiss = { showTeamInfo = false })
-        Spacer(modifier = Modifier.height(Spacing.md))
 
         // ── 다음 해제 목표 배너 ────────────────────────────────────────
         // 사다리 순서상 가장 먼저 막힌 티어(GameConstants.firstLockedTier) — 티어 선택
@@ -791,7 +777,7 @@ private fun TeamBuilderContent(
         }
 
         Spacer(modifier = Modifier.height(Spacing.lg))
-        SectionLabel("탐사 카테고리")
+        PanelSectionHeader("탐사 카테고리")
         Spacer(modifier = Modifier.height(Spacing.sm))
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             unlockedCategories.forEach { category ->
@@ -822,7 +808,7 @@ private fun TeamBuilderContent(
         }
 
         Spacer(modifier = Modifier.height(Spacing.lg))
-        SectionLabel("탐사 지역 (티어)")
+        PanelSectionHeader("탐사 지역 (티어)")
         Spacer(modifier = Modifier.height(Spacing.xxs))
         // 낮은 티어만 반복하면 RARE 이상은 확률표에 아예 없어서 영영 못 만난다는 걸
         // 모르고 계속 T1~T2만 돌 수 있어 추가한 안내 (2026-09-04)
@@ -898,7 +884,7 @@ private fun TeamBuilderContent(
         }
 
         Spacer(modifier = Modifier.height(Spacing.lg))
-        SectionLabel("우주선 선택")
+        PanelSectionHeader("우주선 선택")
         Spacer(modifier = Modifier.height(Spacing.sm))
         if (spaceships.isEmpty()) {
             Text(
@@ -906,64 +892,39 @@ private fun TeamBuilderContent(
                 color = StatusRed, style = MaterialTheme.typography.bodySmall
             )
         } else {
-            spaceships.forEach { ship ->
-                val isBusy = ship.id in busyShipIds
-                val selected = uiState.selectedSpaceshipId == ship.id
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = Spacing.xs)
-                        .clickable(enabled = !isBusy) { onSelectShip(ship.id) },
-                    shape = RoundedCornerShape(8.dp),
-                    color = when {
-                        isBusy -> SpaceNavy.copy(alpha = 0.4f)
-                        selected -> SpaceBlue
-                        else -> SpaceNavy.copy(alpha = 0.7f)
-                    },
-                    border = BorderStroke(
-                        1.dp, when {
-                            isBusy -> SpaceMid.copy(alpha = 0.4f)
-                            selected -> SpaceAccent
-                            else -> SpaceMid
-                        }
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier.padding(Spacing.md),
-                        verticalAlignment = Alignment.CenterVertically
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                spaceships.forEach { ship ->
+                    val isBusy = ship.id in busyShipIds
+                    SelectableTile(
+                        selected = uiState.selectedSpaceshipId == ship.id,
+                        enabled = !isBusy,
+                        onClick = { onSelectShip(ship.id) },
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Image(
-                            painter = painterResource(spaceshipImageRes(ship.crewCapacity)),
-                            contentDescription = null,
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier.size(36.dp)
-                        )
-                        Spacer(modifier = Modifier.width(Spacing.md))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                "${ship.name} (등급 ${ship.grade})",
-                                color = if (isBusy) TextDisabled else TextPrimary,
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.Bold
+                        Row(
+                            modifier = Modifier.padding(Spacing.md),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Image(
+                                painter = painterResource(spaceshipImageRes(ship.crewCapacity)),
+                                contentDescription = null,
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier.size(36.dp)
                             )
-                            Spacer(modifier = Modifier.height(Spacing.xxs))
-                            Text(
-                                if (isBusy) "탐사 중 — 복귀 후 사용 가능"
-                                else "탑승 ${ship.crewCapacity}명 · 속도 ${ship.speed} · 적재 ${ship.cargo}",
-                                color = if (isBusy) StatusRed.copy(alpha = 0.7f) else TextSecondary,
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                        }
-                        if (isBusy) {
-                            Surface(
-                                shape = RoundedCornerShape(4.dp),
-                                color = StatusRed.copy(alpha = 0.15f)
-                            ) {
+                            Spacer(modifier = Modifier.width(Spacing.md))
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    "탐사 중",
-                                    color = StatusRed.copy(alpha = 0.7f),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    modifier = Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.xxs)
+                                    "${ship.name} (등급 ${ship.grade})",
+                                    color = TextPrimary,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(Spacing.xxs))
+                                Text(
+                                    if (isBusy) "탐사 중 — 복귀 후 사용 가능"
+                                    else "탑승 ${ship.crewCapacity}명 · 속도 ${ship.speed} · 적재 ${ship.cargo}",
+                                    color = if (isBusy) StatusRed else TextSecondary,
+                                    style = MaterialTheme.typography.labelSmall
                                 )
                             }
                         }
@@ -973,7 +934,12 @@ private fun TeamBuilderContent(
         }
 
         Spacer(modifier = Modifier.height(Spacing.lg))
-        SectionLabel("우주인 선택 (${uiState.selectedAstronautIds.size}/${maxCrew}명)")
+        // 우주선을 고르기 전엔 정원이 0이라 예전엔 "(0/0명)"으로 보였다 — 무엇을 먼저 해야 하는지 알려준다.
+        PanelSectionHeader(
+            "우주인 선택",
+            trailing = if (selectedShip == null) "우주선을 먼저 고르세요"
+            else "${uiState.selectedAstronautIds.size}/${maxCrew}명"
+        )
         Spacer(modifier = Modifier.height(Spacing.sm))
         if (idleAstronauts.isEmpty()) {
             Text(
@@ -981,87 +947,72 @@ private fun TeamBuilderContent(
                 color = StatusRed, style = MaterialTheme.typography.bodySmall
             )
         } else {
-            idleAstronauts.forEach { astronaut ->
-                val selected = astronaut.id in uiState.selectedAstronautIds
-                val canSelect = selected || uiState.selectedAstronautIds.size < maxCrew
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = Spacing.xs)
-                        .clickable(enabled = canSelect) { onToggleAstronaut(astronaut.id) },
-                    shape = RoundedCornerShape(8.dp),
-                    color = if (selected) SpaceBlue else SpaceNavy.copy(alpha = 0.7f),
-                    border = BorderStroke(1.dp, if (selected) SpaceAccent else SpaceMid)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(Spacing.md),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Image(
-                            painter = painterResource(astronaut.specialty.characterImageRes(astronaut.grade)),
-                            contentDescription = null,
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier.size(40.dp)
-                        )
-                        Spacer(modifier = Modifier.width(Spacing.md))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                astronaut.name, color = TextPrimary,
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(Spacing.xxs))
-                            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                                Text(astronaut.specialty.displayName, color = SpaceAccent, style = MaterialTheme.typography.labelSmall)
-                                Text(astronaut.grade.displayName, color = GoldAccent, style = MaterialTheme.typography.labelSmall)
-                                Text("숙련도 ${astronaut.proficiency}", color = GoldAccent, style = MaterialTheme.typography.labelSmall)
+            // 초상화 칸 3열 — 목록 한 줄씩보다 "팀을 꾸린다"는 느낌이 나고 한눈에 더 많이 보인다.
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                idleAstronauts.chunked(3).forEach { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                        row.forEach { astronaut ->
+                            val selected = astronaut.id in uiState.selectedAstronautIds
+                            SelectableTile(
+                                selected = selected,
+                                enabled = selected || uiState.selectedAstronautIds.size < maxCrew,
+                                onClick = { onToggleAstronaut(astronaut.id) },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Column(
+                                    Modifier.fillMaxWidth().padding(vertical = Spacing.sm, horizontal = Spacing.xs),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Image(
+                                        painter = painterResource(astronaut.specialty.characterImageRes(astronaut.grade)),
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Fit,
+                                        modifier = Modifier.size(48.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(Spacing.xs))
+                                    Text(
+                                        astronaut.name, color = TextPrimary,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        astronaut.specialty.displayName, color = SpaceAccent,
+                                        style = MaterialTheme.typography.labelSmall, maxLines = 1
+                                    )
+                                    Text(
+                                        "숙련 ${astronaut.proficiency}", color = GoldAccent,
+                                        style = MaterialTheme.typography.labelSmall, maxLines = 1
+                                    )
+                                }
                             }
                         }
+                        repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
                     }
                 }
             }
         }
+    }
 
+    // 파견 버튼은 창 아래에 고정 — 예전엔 목록 맨 끝이라 끝까지 스크롤해야 보였다.
+    HorizontalDivider(color = SpaceBlue)
+    Column(Modifier.fillMaxWidth().padding(horizontal = Spacing.xl, vertical = Spacing.md)) {
         uiState.dispatchError?.let {
-            Spacer(modifier = Modifier.height(Spacing.sm))
             Text(it, color = StatusRed, style = MaterialTheme.typography.bodySmall)
+            Spacer(modifier = Modifier.height(Spacing.sm))
         }
-
-        Spacer(modifier = Modifier.height(Spacing.lg))
-        Button(
+        GameButton(
+            text = if (uiState.isDispatching) "파견 중..." else "파견",
             onClick = onDispatch,
             enabled = !uiState.isDispatching &&
                     uiState.selectedSpaceshipId != null &&
                     uiState.selectedAstronautIds.isNotEmpty(),
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(8.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = GoldAccent, contentColor = SpaceDark),
-            border = ButtonDepth.highlightBorder,
-            elevation = ButtonDepth.elevation(),
-            contentPadding = ButtonPadding.fullWidthCta
-        ) {
-            if (uiState.isDispatching) {
-                Text(
-                    "파견 중...",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            } else {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    Image(
-                        painter = painterResource(R.drawable.ic_ui_rocket),
-                        contentDescription = null,
-                        modifier = Modifier.size(IconGlyphSize.small.value.dp)
-                    )
-                    Text(
-                        "탐사 파견",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-        Spacer(modifier = Modifier.height(Spacing.sm))
+            style = GameButtonStyle.Primary,
+            size = GameButtonSize.Large,
+            leadingIcon = if (uiState.isDispatching) null else R.drawable.ic_ui_rocket
+        )
+    }
     }
 }
 
@@ -1085,168 +1036,139 @@ private fun ExpeditionResultDialog(
         context.vibrateUpgradeResult(if (result.success) UpgradeHaptic.SUCCESS else UpgradeHaptic.FAIL)
     }
 
-    Dialog(
+    GameDialog(
+        title = if (result.success) "탐사 성공!" else "탐사 실패",
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnClickOutside = false)
+        dismissOnClickOutside = false,
+        buttons = {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                GameButton(
+                    text = if (result.isSlotFull) "코인으로 받기" else "닫기",
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f),
+                    style = GameButtonStyle.Neutral,
+                    size = GameButtonSize.Large
+                )
+                if (planet != null && result.canBuyPlanet && discoveryRevealed) {
+                    GameButton(
+                        text = if (coins >= planet.buyPrice) "구매" else "코인 부족",
+                        coinAmount = if (coins >= planet.buyPrice) planet.buyPrice.toLong() else null,
+                        onClick = { onBuyPlanet(); onDismiss() },
+                        enabled = coins >= planet.buyPrice,
+                        modifier = Modifier.weight(2f),
+                        style = GameButtonStyle.Gold,
+                        size = GameButtonSize.Large
+                    )
+                }
+            }
+        }
     ) {
-        Card(
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = SpaceNavy),
-            border = BorderStroke(1.dp, if (result.success) GoldAccent.copy(0.5f) else SpaceMid),
-            modifier = Modifier.fillMaxWidth(0.92f).wrapContentHeight()
-        ) {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()).padding(Spacing.xxl),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    Image(
-                        painter = painterResource(if (result.success) R.drawable.ic_ui_success else R.drawable.ic_ui_fail),
-                        contentDescription = null,
-                        modifier = Modifier.size(IconGlyphSize.large.value.dp)
-                    )
-                    Text(
-                        if (result.success) "탐사 성공!" else "탐사 실패",
-                        color = if (result.success) GoldAccent else TextSecondary,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                Spacer(modifier = Modifier.height(Spacing.lg))
-
-                if (result.coinsEarned > 0) {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
-                        color = GoldAccent.copy(alpha = 0.12f)
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+            if (result.coinsEarned > 0) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    color = GoldAccent.copy(alpha = 0.12f)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.sm),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                                Image(
-                                    painter = painterResource(R.drawable.ic_ui_coin),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(IconGlyphSize.small.value.dp)
-                                )
-                                Text("탐사 보상", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
-                            }
-                            Text(
-                                "+${"%,d".format(result.coinsEarned)} 코인",
-                                color = GoldAccent,
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.Bold
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                            Image(
+                                painter = painterResource(R.drawable.ic_ui_coin),
+                                contentDescription = null,
+                                modifier = Modifier.size(IconGlyphSize.small.value.dp)
                             )
+                            Text("탐사 보상", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
                         }
+                        Text(
+                            "+${"%,d".format(result.coinsEarned)} 코인",
+                            color = GoldAccent,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
-                    Spacer(modifier = Modifier.height(Spacing.md))
                 }
+                Spacer(modifier = Modifier.height(Spacing.md))
+            }
 
-                if (result.resources.isNotEmpty()) {
-                    Text(
-                        if (result.success) "획득 자원" else "위로 보상 (소량)",
-                        color = TextSecondary,
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                    Spacer(modifier = Modifier.height(Spacing.sm))
-                    result.resources.entries.chunked(2).forEach { row ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
-                        ) {
-                            row.forEach { (type, amount) ->
-                                Surface(
-                                    modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = SpaceBlue.copy(0.3f)
+            if (result.resources.isNotEmpty()) {
+                Text(
+                    if (result.success) "획득 자원" else "위로 보상 (소량)",
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.labelSmall
+                )
+                Spacer(modifier = Modifier.height(Spacing.sm))
+                result.resources.entries.chunked(2).forEach { row ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
+                    ) {
+                        row.forEach { (type, amount) ->
+                            Surface(
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(8.dp),
+                                color = SpaceBlue.copy(0.3f)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Row(
-                                        modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm),
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
+                                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
                                     ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
-                                        ) {
-                                            Image(
-                                                painter = painterResource(type.iconRes),
-                                                contentDescription = type.displayName,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                            Text(type.displayName, color = TextPrimary, style = MaterialTheme.typography.labelSmall)
-                                        }
-                                        Text("×$amount", color = GoldAccent, style = NumericXSmall)
+                                        Image(
+                                            painter = painterResource(type.iconRes),
+                                            contentDescription = type.displayName,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Text(type.displayName, color = TextPrimary, style = MaterialTheme.typography.labelSmall)
                                     }
+                                    Text("×$amount", color = GoldAccent, style = NumericXSmall)
                                 }
                             }
-                            if (row.size == 1) Spacer(modifier = Modifier.weight(1f))
                         }
-                        Spacer(modifier = Modifier.height(Spacing.sm))
-                    }
-                }
-
-                if (planet != null && meta != null) {
-                    Spacer(modifier = Modifier.height(Spacing.md))
-                    HorizontalDivider(color = SpaceMid)
-                    Spacer(modifier = Modifier.height(Spacing.md))
-                    val rarity = meta.rarity
-                    val accentColor = rarityColor[rarity] ?: SpaceAccent
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                        Image(
-                            painter = painterResource(R.drawable.ic_ui_planet),
-                            contentDescription = null,
-                            modifier = Modifier.size(IconGlyphSize.medium.value.dp)
-                        )
-                        Text(
-                            "행성 발견!",
-                            color = SpaceAccent, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold
-                        )
+                        if (row.size == 1) Spacer(modifier = Modifier.weight(1f))
                     }
                     Spacer(modifier = Modifier.height(Spacing.sm))
-
-                    if (!discoveryRevealed) {
-                        // 발견 즉시 보여주지 않고, 희귀도에 비례한 시간만큼 "분석 중"으로 끌어 기대감을 만든다
-                        DiscoveryScanIndicator(color = accentColor)
-                    } else {
-                        DiscoveryRevealContent(
-                            planet = planet,
-                            meta = meta,
-                            rarity = rarity,
-                            accentColor = accentColor,
-                            result = result,
-                            onOpenSwapPicker = onOpenSwapPicker
-                        )
-                    }
                 }
+            }
 
-                Spacer(modifier = Modifier.height(Spacing.lg))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, SpaceMid),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary)
-                    ) { Text(if (result.isSlotFull) "코인으로 받기" else "닫기") }
-                    if (planet != null && result.canBuyPlanet && discoveryRevealed) {
-                        Button(
-                            onClick = { onBuyPlanet(); onDismiss() },
-                            enabled = coins >= planet.buyPrice,
-                            modifier = Modifier.weight(2f).widthIn(min = ButtonPadding.minWidth),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = GoldAccent, contentColor = SpaceDark),
-                            border = ButtonDepth.highlightBorder,
-                            elevation = ButtonDepth.elevation()
-                        ) {
-                            Text(
-                                if (coins >= planet.buyPrice) "구매 ${"%,d".format(planet.buyPrice)}코인" else "코인 부족",
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
+            if (planet != null && meta != null) {
+                Spacer(modifier = Modifier.height(Spacing.md))
+                HorizontalDivider(color = SpaceMid)
+                Spacer(modifier = Modifier.height(Spacing.md))
+                val rarity = meta.rarity
+                val accentColor = rarityColor[rarity] ?: SpaceAccent
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    Image(
+                        painter = painterResource(R.drawable.ic_ui_planet),
+                        contentDescription = null,
+                        modifier = Modifier.size(IconGlyphSize.medium.value.dp)
+                    )
+                    Text(
+                        "행성 발견!",
+                        color = SpaceAccent, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(modifier = Modifier.height(Spacing.sm))
+
+                if (!discoveryRevealed) {
+                    // 발견 즉시 보여주지 않고, 희귀도에 비례한 시간만큼 "분석 중"으로 끌어 기대감을 만든다
+                    DiscoveryScanIndicator(color = accentColor)
+                } else {
+                    DiscoveryRevealContent(
+                        planet = planet,
+                        meta = meta,
+                        rarity = rarity,
+                        accentColor = accentColor,
+                        result = result,
+                        onOpenSwapPicker = onOpenSwapPicker
+                    )
                 }
             }
         }
@@ -1390,13 +1312,12 @@ private fun DiscoveryRevealContent(
                 )
             }
             Spacer(modifier = Modifier.height(Spacing.sm))
-            OutlinedButton(
+            GameButton(
+                text = "보유 행성 팔고 구매",
                 onClick = onOpenSwapPicker,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, SpaceAccent),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = SpaceAccent)
-            ) { Text("보유 행성 팔고 구매하기", fontWeight = FontWeight.Bold) }
+                style = GameButtonStyle.Primary
+            )
         }
     }
 }
@@ -1422,145 +1343,110 @@ private fun SwapPickerDialog(
     // 실수로 잘못 눌러 값비싼 행성을 파는 걸 막기 위한 매도 확인 단계
     var pendingSell by remember { mutableStateOf<Planet?>(null) }
 
-    Dialog(
+    GameDialog(
+        title = "보유 행성 팔고 구매",
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnClickOutside = false)
-    ) {
-        Card(
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = SpaceNavy),
-            border = BorderStroke(1.dp, SpaceMid),
-            modifier = Modifier.fillMaxWidth(0.92f).wrapContentHeight()
-        ) {
-            Column(modifier = Modifier.padding(Spacing.xxl)) {
-                Text(
-                    "$discoveredName 대신 팔 행성을 고르세요",
-                    color = TextPrimary,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
+        dismissOnClickOutside = false,
+        buttons = {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                GameDialogButtons(
+                    confirmText = if (!hasFreeSlot) "슬롯 필요" else if (!canBuyNow) "코인 부족" else "구매",
+                    onConfirm = onBuyDiscovered,
+                    confirmStyle = GameButtonStyle.Gold,
+                    confirmEnabled = canBuyNow,
+                    dismissText = "코인으로 받기",
+                    onDismiss = onConvertToCoin
                 )
-                Text(
-                    "판매가는 투자액 + 시세 변동에서 수수료 5%를 뗀 금액이에요. 여러 개를 팔아 코인을 모은 뒤 구매하기를 눌러도 돼요",
-                    color = TextSecondary,
-                    style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier.padding(top = Spacing.xs, bottom = Spacing.md)
-                )
-                Column(
-                    modifier = Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.sm)
-                ) {
-                    if (sorted.isEmpty()) {
-                        Text("팔 수 있는 보유 행성이 없어요", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
-                    }
-                    sorted.forEach { owned ->
-                        val meta = PlanetMetaDataTable.data[owned.type]
-                        val sellPrice = owned.marketValue -
-                            (owned.marketValue * GameConstants.SELL_FEE_RATE).toLong()
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = SpaceMid.copy(alpha = 0.3f),
-                            border = BorderStroke(1.dp, SpaceMid)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.md),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Text(
-                                        "${meta?.displayName ?: owned.type.name} #${owned.variantId.substringAfterLast("-")} Lv.${owned.level}",
-                                        color = TextPrimary,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Spacer(modifier = Modifier.height(Spacing.xxs))
-                                    Text(
-                                        "판매가 ${"%,d".format(sellPrice)}코인",
-                                        color = TextSecondary,
-                                        style = MaterialTheme.typography.labelSmall
-                                    )
-                                }
-                                Button(
-                                    onClick = { pendingSell = owned },
-                                    shape = RoundedCornerShape(8.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = StatusRed, contentColor = TextPrimary),
-                                    border = ButtonDepth.highlightBorder,
-                                    elevation = ButtonDepth.elevation(),
-                                    contentPadding = ButtonPadding.listItemAction
-                                ) { Text("매도", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold) }
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(Spacing.lg))
-                HorizontalDivider(color = SpaceMid)
-                Spacer(modifier = Modifier.height(Spacing.md))
-
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    OutlinedButton(
-                        onClick = onConvertToCoin,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, SpaceMid),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary)
-                    ) { Text("코인으로 받기", style = MaterialTheme.typography.labelSmall) }
-                    Button(
-                        onClick = onBuyDiscovered,
-                        enabled = canBuyNow,
-                        modifier = Modifier.weight(1f).widthIn(min = ButtonPadding.minWidth),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = GoldAccent, contentColor = SpaceDark),
-                        border = ButtonDepth.highlightBorder,
-                        elevation = ButtonDepth.elevation()
-                    ) {
-                        Text(
-                            if (!hasFreeSlot) "슬롯 필요" else if (!canBuyNow) "코인 부족" else "구매하기",
-                            style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(Spacing.sm))
-                OutlinedButton(
+                GameButton(
+                    text = "취소 (탐사 결과로 돌아가기)",
                     onClick = onDismiss,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, SpaceMid),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary)
-                ) { Text("취소 (탐사 결과로 돌아가기)", style = MaterialTheme.typography.labelSmall) }
+                    style = GameButtonStyle.Neutral
+                )
             }
         }
+    ) {
+        Text(
+            "$discoveredName 대신 팔 행성을 고르세요",
+            color = TextPrimary,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            "매도가는 투자액 + 시세 변동에서 수수료 5%를 뗀 금액이에요. 여러 개를 팔아 코인을 모은 뒤 구매를 눌러도 돼요",
+            color = TextSecondary,
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.padding(top = Spacing.xs, bottom = Spacing.md)
+        )
+        Column(
+            modifier = Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+        ) {
+            if (sorted.isEmpty()) {
+                Text("팔 수 있는 보유 행성이 없어요", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+            }
+            sorted.forEach { owned ->
+                val meta = PlanetMetaDataTable.data[owned.type]
+                val sellPrice = owned.marketValue -
+                    (owned.marketValue * GameConstants.SELL_FEE_RATE).toLong()
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = SpaceMid.copy(alpha = 0.3f),
+                    border = BorderStroke(1.dp, SpaceMid)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.md),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                "${meta?.displayName ?: owned.type.name} #${owned.variantId.substringAfterLast("-")} Lv.${owned.level}",
+                                color = TextPrimary,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(Spacing.xxs))
+                            Text(
+                                // 행성은 "매도"로 통일(자원은 "판매").
+                                "매도가 ${"%,d".format(sellPrice)}코인",
+                                color = TextSecondary,
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                        GameButton(text = "매도", onClick = { pendingSell = owned }, style = GameButtonStyle.Danger)
+                    }
+                }
+            }
+        }
+
     }
 
     pendingSell?.let { target ->
         val meta = PlanetMetaDataTable.data[target.type]
         val sellPrice = target.marketValue -
             (target.marketValue * GameConstants.SELL_FEE_RATE).toLong()
-        AlertDialog(
+        GameDialog(
+            title = "행성 매도",
             onDismissRequest = { pendingSell = null },
-            title = { Text("정말 파시겠어요?") },
-            text = {
-                Text("${meta?.displayName ?: target.type.name} #${target.variantId.substringAfterLast("-")} Lv.${target.level}을 " +
-                    "${"%,d".format(sellPrice)}코인에 매도합니다. 되돌릴 수 없어요.")
-            },
-            confirmButton = {
-                TextButton(onClick = { onSellOwned(target.id); pendingSell = null }) {
-                    Text("매도", color = StatusRed, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingSell = null }) { Text("취소") }
-            },
-            containerColor = SpaceNavy,
-            titleContentColor = TextPrimary,
-            textContentColor = TextSecondary
-        )
+            buttons = {
+                GameDialogButtons(
+                    confirmText = "매도",
+                    onConfirm = { onSellOwned(target.id); pendingSell = null },
+                    confirmStyle = GameButtonStyle.Danger,
+                    dismissText = "취소",
+                    onDismiss = { pendingSell = null }
+                )
+            }
+        ) {
+            Text(
+                "${meta?.displayName ?: target.type.name} #${target.variantId.substringAfterLast("-")} Lv.${target.level}을 " +
+                    "${"%,d".format(sellPrice)}코인에 매도해요. 되돌릴 수 없어요.",
+                color = TextSecondary,
+                style = BodyReading
+            )
+        }
     }
-}
-
-@Composable
-private fun SectionLabel(text: String) {
-    Text(text, color = GoldAccent, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
 }
 
 @Composable
@@ -1595,5 +1481,37 @@ private fun formatDuration(ms: Long): String {
         h > 0 -> "${h}시간 ${m}분"
         m > 0 -> "${m}분 ${s}초"
         else -> "${s}초"
+    }
+}
+
+// 팀 구성에서 고르는 칸(우주선·우주인) — 고르면 금색 테두리 + 오른쪽 위 체크 배지, 못 고르면 흐리게.
+// 예전엔 바탕만 살짝 파래지는 정도라 뭘 골랐는지 잘 안 보였다.
+@Composable
+private fun SelectableTile(
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    val shape = RoundedCornerShape(10.dp)
+    Box(modifier.alpha(if (enabled) 1f else 0.45f)) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .background(if (selected) SpaceBlue.copy(alpha = 0.45f) else SpaceNavy.copy(alpha = 0.7f))
+                .border(if (selected) 2.dp else 1.dp, if (selected) GoldAccent else SpaceMid, shape)
+                .clickable(enabled = enabled, onClick = onClick)
+        ) {
+            content()
+        }
+        if (selected) {
+            Image(
+                painter = painterResource(R.drawable.ic_ui_check),
+                contentDescription = "선택됨",
+                modifier = Modifier.align(Alignment.TopEnd).offset(x = 4.dp, y = (-4).dp).size(20.dp)
+            )
+        }
     }
 }

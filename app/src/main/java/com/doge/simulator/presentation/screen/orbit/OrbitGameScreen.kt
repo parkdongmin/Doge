@@ -46,7 +46,10 @@ import com.doge.simulator.domain.model.orbit.RoundEndReason
 import com.doge.simulator.domain.usecase.orbit.OrbitCardEffectInput
 import com.doge.simulator.domain.usecase.orbit.PlayOrbitCardUseCase
 import com.doge.simulator.presentation.component.NightSkyBackground
-import com.doge.simulator.presentation.component.PixelActionButton
+import com.doge.simulator.presentation.component.GameButton
+import com.doge.simulator.presentation.component.GameButtonSize
+import com.doge.simulator.presentation.component.GameButtonStyle
+import com.doge.simulator.presentation.component.GameDialog
 import com.doge.simulator.presentation.component.pixelFrame
 import com.doge.simulator.presentation.component.pixelShape
 import com.doge.simulator.presentation.viewmodel.OrbitRoundEndInfo
@@ -193,9 +196,7 @@ fun OrbitGameScreen(
                         Text("BET ${it.amount}", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
                         Spacer(Modifier.width(Spacing.sm))
                     }
-                    TextButton(onClick = { requestLeave() }) {
-                        Text("나가기", color = StatusRed)
-                    }
+                    GameButton(text = "나가기", onClick = { requestLeave() }, style = GameButtonStyle.Danger)
                 }
             }
 
@@ -251,7 +252,7 @@ fun OrbitGameScreen(
                         }
                         // 타이머로 자동으로 사라지지 않는다 — 직접 확인을 눌러야 다음 라운드로 넘어간다.
                         Spacer(Modifier.height(Spacing.sm))
-                        PixelActionButton(text = "확인", onClick = { viewModel.acknowledgeAndContinue() })
+                        GameButton(text = "확인", onClick = { viewModel.acknowledgeAndContinue() }, style = GameButtonStyle.Primary)
                     } else {
                         DeckPile(current.deckRemaining)
                         Spacer(Modifier.height(Spacing.xs))
@@ -352,7 +353,6 @@ fun OrbitGameScreen(
         val betAmount = current.bet?.amount
         OrbitChoiceDialog(
             title = "게임 나가기",
-            iconRes = R.drawable.ic_ui_danger,
             subtitle = if (betAmount != null) {
                 "지금 나가면 이번 판은 패배로 처리되고\n베팅한 ${"%,d".format(betAmount)}코인을 잃어요."
             } else {
@@ -361,23 +361,17 @@ fun OrbitGameScreen(
             dismissText = "계속하기",
             onDismiss = { showLeaveConfirm = false }
         ) {
-            // 빨간 테두리 + 빨간 글씨만(바탕 없음) — 창 패널(둥근 모서리·질감)과 결이 맞게.
-            val shape = RoundedCornerShape(10.dp)
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .clip(shape)
-                    .border(1.5.dp, StatusRed, shape)
-                    .clickable {
-                        showLeaveConfirm = false
-                        viewModel.leaveMatch()
-                        onExit()
-                    }
-                    .padding(vertical = Spacing.md),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("나가기", color = StatusRed, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-            }
+            GameButton(
+                text = "나가기",
+                onClick = {
+                    showLeaveConfirm = false
+                    viewModel.leaveMatch()
+                    onExit()
+                },
+                modifier = Modifier.fillMaxWidth(),
+                style = GameButtonStyle.Danger,
+                size = GameButtonSize.Large
+            )
         }
     }
     pendingEmpCard?.let { card ->
@@ -680,35 +674,29 @@ internal fun OrbitCardBackTile(width: Dp = 44.dp, height: Dp = 60.dp) {
 @Composable
 private fun OrbitChoiceDialog(
     title: String,
-    iconRes: Int,
     subtitle: String,
     onDismiss: () -> Unit,
     dismissText: String = "취소",
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        val shape = RoundedCornerShape(16.dp)
-        Surface(
-            modifier = Modifier.fillMaxWidth(0.88f).textured(shape = shape, baseColor = SpaceNavy),
-            shape = shape,
-            color = Color.Transparent,
-            border = BorderStroke(1.dp, GoldAccent.copy(alpha = 0.4f))
-        ) {
-            Column(Modifier.padding(Spacing.xl), horizontalAlignment = Alignment.CenterHorizontally) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Image(painter = painterResource(iconRes), contentDescription = null, modifier = Modifier.size(28.dp))
-                    Spacer(Modifier.width(Spacing.sm))
-                    Text(title, color = GoldAccent, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                }
-                Spacer(Modifier.height(Spacing.xs))
-                Text(subtitle, color = TextSecondary, style = BodyReading, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(Spacing.lg))
-                content()
-                Spacer(Modifier.height(Spacing.md))
-                TextButton(onClick = onDismiss) {
-                    Text(dismissText, color = TextSecondary, style = MaterialTheme.typography.labelMedium)
-                }
-            }
+    // 앱 공용 확인 팝업(GameDialog) 틀 — 명판에 이름, 본문에 설명 + 고를 것, 아래 닫기 버튼.
+    GameDialog(
+        title = title,
+        onDismissRequest = onDismiss,
+        buttons = {
+            GameButton(
+                text = dismissText,
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth(),
+                style = GameButtonStyle.Neutral,
+                size = GameButtonSize.Large
+            )
+        }
+    ) {
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(subtitle, color = TextSecondary, style = BodyReading, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(Spacing.lg))
+            content()
         }
     }
 }
@@ -719,7 +707,6 @@ private fun OrbitChoiceDialog(
 private fun ScoutGuessDialog(onGuess: (Int) -> Unit, onDismiss: () -> Unit) {
     OrbitChoiceDialog(
         title = "SCOUT DRONE",
-        iconRes = R.drawable.ic_orbit_scout_drone,
         subtitle = "B-01이 든 카드를 맞혀 보세요. 맞히면 B-01 OUT!",
         onDismiss = onDismiss
     ) {
@@ -759,7 +746,6 @@ private fun ScoutGuessDialog(onGuess: (Int) -> Unit, onDismiss: () -> Unit) {
 private fun EmpTargetDialog(onTarget: (PlayerSide) -> Unit, onDismiss: () -> Unit) {
     OrbitChoiceDialog(
         title = "EMP",
-        iconRes = R.drawable.ic_orbit_emp,
         subtitle = "누구의 카드를 버리게 할까요? 고른 쪽은 새 카드를 받아요.",
         onDismiss = onDismiss
     ) {
@@ -875,7 +861,7 @@ private fun SelectionBar(selectedCard: OrbitCard?, warning: String?, hint: Strin
                     Text(cardShortDescription(selectedCard.type), color = TextSecondary, style = BodyReading)
                 }
                 Spacer(Modifier.width(Spacing.sm))
-                PixelActionButton(text = "사용", onClick = onPlay)
+                GameButton(text = "사용", onClick = onPlay, style = GameButtonStyle.Primary)
             }
         }
     }

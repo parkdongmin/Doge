@@ -21,6 +21,11 @@ import com.doge.simulator.domain.model.orbit.OrbitBetSettlement
 import com.doge.simulator.presentation.component.NightSkyBackground
 import com.doge.simulator.presentation.viewmodel.OrbitViewModel
 import com.doge.simulator.ui.theme.*
+import com.doge.simulator.presentation.component.PixelLoading
+import com.doge.simulator.presentation.component.GameButton
+import com.doge.simulator.presentation.component.GameButtonSize
+import com.doge.simulator.presentation.component.GameButtonStyle
+import com.doge.simulator.presentation.component.GameDialogButtons
 
 // 결과 화면 — 승/패 마스코트는 전용 일러스트(ch_result_win/ch_result_lose)를 쓴다.
 @Composable
@@ -63,7 +68,7 @@ fun OrbitResultScreen(
             val current = displayedSettlement
             if (current == null) {
                 // 매치 종료 직후 정산이 아직 끝나지 않은 아주 짧은 순간(비동기 처리 중)
-                CircularProgressIndicator(color = GoldAccent)
+                PixelLoading()
             } else {
                 val won = current.outcome == MatchOutcome.WON
                 Image(
@@ -101,12 +106,13 @@ fun OrbitResultScreen(
                 }
             }
             Spacer(Modifier.height(Spacing.sm))
-            TextButton(
+            GameButton(
+                text = "휴게실로",
                 onClick = { viewModel.returnToLounge(); onReturnToLounge() },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("휴게실로", color = TextSecondary, style = MaterialTheme.typography.labelLarge)
-            }
+                modifier = Modifier.fillMaxWidth(),
+                style = GameButtonStyle.Neutral,
+                size = GameButtonSize.Large
+            )
         }
     }
 }

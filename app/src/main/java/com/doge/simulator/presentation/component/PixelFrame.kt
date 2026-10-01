@@ -73,30 +73,3 @@ fun Modifier.pixelFrame(
     }
 }
 
-// 게임 안 주요 행동 버튼(카드 "사용", 라운드 종료 "확인" 등). 머티리얼 기본 버튼(단색 + 흰 글씨)이
-// "샘플 앱" 같다는 피드백으로 도트식 버튼으로 그린다: 한 가지 색으로 채우고 어두운 외곽선 + 위·왼쪽 밝은 선 /
-// 아래·오른쪽 어두운 선만 둔다. 카드처럼 3단 색 띠를 넣었더니 버튼에선 줄무늬로 보여 어색했다.
-@Composable
-fun PixelActionButton(
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    accent: Color = GoldAccent,
-    enabled: Boolean = true
-) {
-    Box(
-        modifier
-            .alpha(if (enabled) 1f else 0.4f)
-            .clip(pixelShape(3.dp))
-            .pixelFrame(
-                accent = accent,
-                bands = listOf(accent),
-                frame = 1.dp
-            )
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 10.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(text, color = SpaceDark, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-    }
-}

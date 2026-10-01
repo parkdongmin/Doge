@@ -31,43 +31,19 @@ import com.doge.simulator.ui.theme.Spacing
 import com.doge.simulator.ui.theme.TextPrimary
 import com.doge.simulator.ui.theme.TextSecondary
 
-// ⓘ 아이콘으로 여는 설명 팝업 공용 껍데기. 폭은 화면의 88%로 잡아(고정 dp 아님) 폴더블·
-// 태블릿 등 넓은 화면에서도 비율이 유지되도록 한다. 세로는 내용에 따라 늘고 넘치면 스크롤.
+// ⓘ 아이콘으로 여는 설명 팝업 — GameDialog 틀에 "확인" 버튼 하나.
 @Composable
 fun InfoDialog(
     title: String,
     onDismiss: () -> Unit,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Dialog(
+    GameDialog(
+        title = title,
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth(0.88f)
-                .padding(vertical = Spacing.xxl),
-            shape = RoundedCornerShape(16.dp),
-            color = SpaceNavy,
-            border = BorderStroke(1.dp, SpaceBlue)
-        ) {
-            Column(
-                modifier = Modifier
-                    .padding(Spacing.xl)
-                    .verticalScroll(rememberScrollState())
-            ) {
-                Text(title, color = GoldAccent, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(Spacing.md))
-                content()
-                Spacer(Modifier.height(Spacing.lg))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = onDismiss) {
-                        Text("확인", color = GoldAccent, style = MaterialTheme.typography.labelMedium)
-                    }
-                }
-            }
-        }
-    }
+        buttons = { GameDialogButtons(confirmText = "확인", onConfirm = onDismiss) },
+        content = content
+    )
 }
 
 @Composable

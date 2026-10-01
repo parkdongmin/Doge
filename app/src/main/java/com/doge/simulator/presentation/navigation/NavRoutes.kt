@@ -15,14 +15,9 @@ sealed class NavRoutes(val route: String) {
     object PlanetDetail : NavRoutes("planet_detail/{planetId}") {
         fun createRoute(planetId: String) = "planet_detail/$planetId"
     }
-    object Astronaut : NavRoutes("astronaut")
-    object Hangar : NavRoutes("hangar")
-    object ResearchLab : NavRoutes("research_lab")
-    object ExpeditionHistory : NavRoutes("expedition_history")
     object Rank : NavRoutes("rank")
 
     // ── ORBIT 카드게임(휴게실) ────────────────────────────────────────
-    object Lounge : NavRoutes("lounge")
     object OrbitGame : NavRoutes("orbit_game")
     object OrbitResult : NavRoutes("orbit_result")
 }

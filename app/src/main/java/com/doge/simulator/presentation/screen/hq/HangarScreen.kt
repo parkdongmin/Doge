@@ -26,125 +26,109 @@ import com.doge.simulator.presentation.component.InfoDialog
 import com.doge.simulator.presentation.component.ShipInfoContent
 import com.doge.simulator.presentation.viewmodel.SpaceshipViewModel
 import com.doge.simulator.ui.theme.*
-import com.doge.simulator.presentation.component.DogeTopBar
-import com.doge.simulator.presentation.component.NightSkyBackground
+import com.doge.simulator.presentation.component.GameButton
+import com.doge.simulator.presentation.component.GameButtonStyle
+import com.doge.simulator.presentation.component.FacilityPanel
+import com.doge.simulator.presentation.component.PanelSectionHeader
 
-@OptIn(ExperimentalMaterial3Api::class)
+// 정거장 화면 위에 띄우는 격납고 창(FacilityPanel 참고).
 @Composable
-fun HangarScreen(
-    onBack: () -> Unit,
+fun HangarPanel(
+    visible: Boolean,
+    onClose: () -> Unit,
     viewModel: SpaceshipViewModel = hiltViewModel()
 ) {
+    val coins by viewModel.coins.collectAsState()
+    var showInfo by remember { mutableStateOf(false) }
+
+    if (showInfo) {
+        InfoDialog(title = "우주선 스탯", onDismiss = { showInfo = false }) { ShipInfoContent() }
+    }
+    FacilityPanel(
+        visible = visible,
+        title = "격납고",
+        onClose = onClose,
+        coins = coins,
+        onInfo = { showInfo = true },
+        infoDescription = "우주선 스탯 설명"
+    ) {
+        HangarContent(viewModel, Modifier.fillMaxWidth().weight(1f))
+    }
+}
+
+// 격납고 본문(구매 + 보유 우주선).
+@Composable
+private fun HangarContent(viewModel: SpaceshipViewModel, modifier: Modifier) {
     val spaceships by viewModel.spaceships.collectAsState()
     val researchLab by viewModel.researchLab.collectAsState()
     val resources by viewModel.resources.collectAsState()
     val coins by viewModel.coins.collectAsState()
     val message by viewModel.message.collectAsState()
-    var showInfo by remember { mutableStateOf(false) }
-
-    // 정거장 시설 안 — 공통 밤하늘 배경(NightSkyBackground) 위에 투명 Scaffold.
-    NightSkyBackground(Modifier.fillMaxSize()) {
-        Scaffold(
-            topBar = {
-                DogeTopBar(
-                    title = "격납고",
-                    onBack = onBack,
-                    onInfo = { showInfo = true },
-                    infoDescription = "우주선 스탯 설명"
-                )
-            },
-            containerColor = Color.Transparent
-        ) { padding ->
-            if (showInfo) {
-                InfoDialog(title = "우주선 스탯", onDismiss = { showInfo = false }) { ShipInfoContent() }
+    Column(modifier = modifier) {
+        message?.let {
+            Surface(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.xs),
+                shape = RoundedCornerShape(8.dp), color = SpaceBlue.copy(0.3f)) {
+                Text(it, color = SpaceAccent, style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm))
             }
-            Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-                message?.let {
-                    Surface(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.xs),
-                        shape = RoundedCornerShape(8.dp), color = SpaceBlue.copy(0.3f)) {
-                        Text(it, color = SpaceAccent, style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm))
-                    }
-                }
+        }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.md),
-                    horizontalArrangement = Arrangement.SpaceBetween
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md)
+        ) {
+            // 구매 — 우주인 센터 "모집 센터"와 같은 구성(섹션 제목 + 카드).
+            item {
+                PanelSectionHeader("우주선 구매")
+                Spacer(modifier = Modifier.height(Spacing.sm))
+                val canBuy = spaceships.size < researchLab.maxSpaceships && coins >= GameConstants.SCOUT_SHIP_BASE_COST
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                    border = BorderStroke(1.dp, GoldAccent.copy(0.4f)),
+                    modifier = Modifier.textured(shape = RoundedCornerShape(12.dp), baseColor = SpaceNavy)
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("보유", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
-                        Text("${spaceships.size}/${researchLab.maxSpaceships}척", color = TextPrimary,
-                            style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
-                    }
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("코인", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
-                        Text("%,d".format(coins), color = GoldAccent, style = NumericXSmall)
-                    }
-                }
-
-                HorizontalDivider(color = SpaceMid, modifier = Modifier.padding(horizontal = Spacing.lg))
-
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.md)
-                ) {
-                    // 구매 버튼
-                    item {
-                        val canBuy = spaceships.size < researchLab.maxSpaceships && coins >= GameConstants.SCOUT_SHIP_BASE_COST
-                        Card(
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                            border = BorderStroke(1.dp, GoldAccent.copy(0.4f)),
-                            modifier = Modifier.textured(shape = RoundedCornerShape(12.dp), baseColor = SpaceNavy)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(Spacing.lg),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Image(
-                                    painter = painterResource(R.drawable.spaceship_2),
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Fit,
-                                    modifier = Modifier.size(48.dp)
-                                )
-                                Spacer(modifier = Modifier.width(Spacing.lg))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text("정찰선", color = TextPrimary, style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Bold)
-                                    Text("탑승 ${GameConstants.SCOUT_CREW_BASE}명 · 속도 ${GameConstants.SCOUT_SPEED_BASE} · 적재 ${GameConstants.SCOUT_CARGO_BASE}",
-                                        color = TextSecondary, style = MaterialTheme.typography.labelSmall)
-                                }
-                                Button(
-                                    onClick = { viewModel.buyShip() },
-                                    enabled = canBuy,
-                                    shape = RoundedCornerShape(6.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = GoldAccent, contentColor = SpaceDark),
-                                    border = ButtonDepth.highlightBorder,
-                                    elevation = ButtonDepth.elevation(),
-                                    contentPadding = ButtonPadding.listItemAction
-                                ) {
-                                    Text("%,d코인".format(GameConstants.SCOUT_SHIP_BASE_COST),
-                                        style = MaterialTheme.typography.labelMedium)
-                                }
-                            }
-                        }
-                    }
-
-                    if (spaceships.isNotEmpty()) {
-                        item {
-                            Spacer(modifier = Modifier.height(Spacing.xs))
-                            HorizontalDivider(color = SpaceMid)
-                            Spacer(modifier = Modifier.height(Spacing.xs))
-                            Text("보유 우주선", color = GoldAccent, style = MaterialTheme.typography.labelMedium,
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(Spacing.lg),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Image(
+                            painter = painterResource(R.drawable.spaceship_2),
+                            contentDescription = null,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.width(Spacing.lg))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("정찰선", color = TextPrimary, style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold)
-                            Spacer(modifier = Modifier.height(Spacing.sm))
+                            Text("탑승 ${GameConstants.SCOUT_CREW_BASE}명 · 속도 ${GameConstants.SCOUT_SPEED_BASE} · 적재 ${GameConstants.SCOUT_CARGO_BASE}",
+                                color = TextSecondary, style = MaterialTheme.typography.labelSmall)
                         }
-                        items(spaceships, key = { it.id }) { ship ->
-                            SpaceshipCard(ship = ship, coins = coins, resources = resources,
-                                onUpgrade = { viewModel.upgrade(ship) })
-                        }
+                        GameButton(
+                            text = "",
+                            coinAmount = GameConstants.SCOUT_SHIP_BASE_COST,
+                            onClick = { viewModel.buyShip() },
+                            style = GameButtonStyle.Gold,
+                            enabled = canBuy
+                        )
                     }
+                }
+            }
+
+            if (spaceships.isNotEmpty()) {
+                item {
+                    Spacer(modifier = Modifier.height(Spacing.xs))
+                    HorizontalDivider(color = SpaceMid)
+                    Spacer(modifier = Modifier.height(Spacing.xs))
+                    // 보유 척수는 따로 한 줄을 두면 칸 하나만 덩그러니 남아서 제목에 붙였다.
+                    PanelSectionHeader("보유 우주선", trailing = "${spaceships.size}/${researchLab.maxSpaceships}척")
+                    Spacer(modifier = Modifier.height(Spacing.sm))
+                }
+                items(spaceships, key = { it.id }) { ship ->
+                    SpaceshipCard(ship = ship, coins = coins, resources = resources,
+                        onUpgrade = { viewModel.upgrade(ship) })
                 }
             }
         }
@@ -211,15 +195,8 @@ private fun SpaceshipCard(
                                 style = MaterialTheme.typography.labelSmall)
                         }
                     }
-                    Button(
-                        onClick = onUpgrade, enabled = canUpgrade,
-                        modifier = Modifier.widthIn(min = ButtonPadding.minWidth),
-                        shape = RoundedCornerShape(6.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = SpaceAccent, contentColor = SpaceDark),
-                        border = ButtonDepth.highlightBorder,
-                        elevation = ButtonDepth.elevation(),
-                        contentPadding = ButtonPadding.listItemAction
-                    ) { Text("강화", style = MaterialTheme.typography.labelMedium) }
+                    // 코인을 쓰는 행동이라 금색(구매 버튼과 같은 색).
+                    GameButton(text = "강화", onClick = onUpgrade, style = GameButtonStyle.Gold, enabled = canUpgrade)
                 }
             }
         }

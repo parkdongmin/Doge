@@ -2,6 +2,8 @@ package com.doge.simulator.presentation.component
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,8 +26,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.doge.simulator.R
-import com.doge.simulator.ui.theme.ButtonDepth
-import com.doge.simulator.ui.theme.ButtonPadding
 import com.doge.simulator.ui.theme.SpaceLight
 import com.doge.simulator.ui.theme.SpaceNavy
 import com.doge.simulator.ui.theme.Spacing
@@ -41,53 +41,26 @@ fun OfflineLossDialog(
     coins: Long,
     onAcknowledge: () -> Unit
 ) {
-    Dialog(
+    GameDialog(
+        title = "자리를 비운 사이",
         onDismissRequest = onAcknowledge,
-        properties = DialogProperties(dismissOnClickOutside = false)
+        dismissOnClickOutside = false,
+        buttons = { GameDialogButtons(confirmText = "확인", onConfirm = onAcknowledge) }
     ) {
-        Surface(
-            shape = RoundedCornerShape(14.dp),
-            color = SpaceNavy,
-            border = BorderStroke(1.dp, StatusRed.copy(alpha = 0.6f))
-        ) {
-            Column(
-                modifier = Modifier.padding(Spacing.xl),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(Spacing.md)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    Image(
-                        painter = painterResource(R.drawable.ic_ui_danger),
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text("자리를 비운 사이", color = TextPrimary, style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold)
-                }
-                Text(
-                    "-%,d 코인".format(coins),
-                    color = StatusRed,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    "생산이 중단된 행성 때문에 손실이 발생했어요",
-                    color = TextSecondary,
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center
-                )
-                Button(
-                    onClick = onAcknowledge,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = SpaceLight, contentColor = TextPrimary),
-                    border = ButtonDepth.highlightBorder,
-                    elevation = ButtonDepth.elevation(),
-                    contentPadding = ButtonPadding.fullWidthCta
-                ) {
-                    Text("확인")
-                }
-            }
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                "-%,d 코인".format(coins),
+                color = StatusRed,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(Spacing.sm))
+            Text(
+                "생산이 중단된 행성 때문에 손실이 발생했어요",
+                color = TextSecondary,
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }

@@ -29,9 +29,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.doge.simulator.domain.model.GameConstants
+import com.doge.simulator.presentation.component.GameButton
+import com.doge.simulator.presentation.component.GameButtonSize
+import com.doge.simulator.presentation.component.GameButtonStyle
 import com.doge.simulator.ui.theme.BodyReading
-import com.doge.simulator.ui.theme.ButtonDepth
-import com.doge.simulator.ui.theme.ButtonPadding
 import com.doge.simulator.ui.theme.GoldAccent
 import com.doge.simulator.ui.theme.SpaceBlue
 import com.doge.simulator.ui.theme.SpaceDark
@@ -193,19 +194,15 @@ private fun DialogueBubble(body: String, buttonLabel: String, onClick: () -> Uni
                 style = BodyReading,
                 modifier = Modifier.padding(top = Spacing.md)
             )
-            Button(
+            GameButton(
+                text = buttonLabel,
                 onClick = onClick,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = Spacing.lg),
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = GoldAccent, contentColor = SpaceDark),
-                border = ButtonDepth.highlightBorder,
-                elevation = ButtonDepth.elevation(),
-                contentPadding = ButtonPadding.fullWidthCta
-            ) {
-                Text(buttonLabel, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-            }
+                style = GameButtonStyle.Primary,
+                size = GameButtonSize.Large
+            )
         }
     }
 }

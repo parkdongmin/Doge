@@ -7,6 +7,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -52,6 +53,17 @@ import com.doge.simulator.presentation.component.rarityLabel
 import com.doge.simulator.presentation.component.rarityOrder
 import com.doge.simulator.presentation.viewmodel.PlanetViewModel
 import com.doge.simulator.ui.theme.*
+import com.doge.simulator.presentation.component.PixelIcons
+import com.doge.simulator.presentation.component.GameButton
+import com.doge.simulator.presentation.component.GameButtonSize
+import com.doge.simulator.presentation.component.GameButtonStyle
+import com.doge.simulator.presentation.component.GameDialog
+import com.doge.simulator.presentation.component.SegmentedTabs
+import com.doge.simulator.presentation.component.GameDialogButtons
+import com.doge.simulator.presentation.component.TabHeader
+import com.doge.simulator.presentation.component.TabHeaderPadding
+import com.doge.simulator.presentation.component.TabSideMargin
+import com.doge.simulator.presentation.component.TabSectionHeader
 import kotlinx.coroutines.delay
 
 @Composable
@@ -73,45 +85,19 @@ fun PlanetScreen(
             .statusBarsPadding()
     ) {
         // ── 헤더 ──────────────────────────────────────────────────────
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = Spacing.xl, vertical = Spacing.lg)
-        ) {
-            Text(
-                text = "행성 관리",
-                color = TextPrimary,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(Spacing.xs))
-            Text(
-                text = "보유 행성을 강화하고, 도감과 소식으로 현황을 확인하세요",
-                color = TextSecondary,
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
+        TabHeader(
+            title = "행성",
+            subtitle = "보유 행성을 강화하고 시세와 소식을 확인하세요",
+            modifier = Modifier.padding(TabHeaderPadding)
+        )
 
         // ── 탭 ───────────────────────────────────────────────────────
-        TabRow(
-            selectedTabIndex = selectedTab,
-            containerColor = SpaceDark,
-            contentColor = SpaceAccent
-        ) {
-            tabs.forEachIndexed { index, title ->
-                Tab(
-                    selected = selectedTab == index,
-                    onClick = { selectedTab = index },
-                    text = {
-                        Text(
-                            text = title,
-                            color = if (selectedTab == index) SpaceAccent else TextSecondary,
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                    }
-                )
-            }
-        }
+        SegmentedTabs(
+            tabs = tabs,
+            selectedIndex = selectedTab,
+            onSelect = { selectedTab = it },
+            modifier = Modifier.padding(start = TabSideMargin, end = TabSideMargin, bottom = Spacing.sm)
+        )
 
         // ── 탭 콘텐츠 ──────────────────────────────────────────────
         when (selectedTab) {
@@ -142,7 +128,7 @@ fun PlanetScreen(
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(
-                            start = 16.dp, end = 16.dp,
+                            start = TabSideMargin, end = TabSideMargin,
                             top = 8.dp, bottom = 16.dp
                         ),
                         verticalArrangement = Arrangement.spacedBy(Spacing.md)
@@ -267,11 +253,13 @@ private fun PlanetListCard(
                     }
                 }
                 Spacer(modifier = Modifier.height(Spacing.xs))
+                // 좁은 화면에서 설명이 잘리면 옆으로 천천히 흘러가게(마키). 칸 안에 다 들어가면 움직이지 않는다.
                 Text(
                     text = meta?.description ?: "",
                     color = TextSecondary,
                     style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1
+                    maxLines = 1,
+                    modifier = Modifier.basicMarquee(initialDelayMillis = 1500, repeatDelayMillis = 2000)
                 )
                 Spacer(modifier = Modifier.height(Spacing.sm))
                 Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
@@ -283,21 +271,26 @@ private fun PlanetListCard(
             }
 
             Spacer(modifier = Modifier.width(Spacing.sm))
-            Text(text = ">", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+            Icon(PixelIcons.ChevronRight, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(16.dp))
         }
 
+        // 아래 줄: 매도가(실수령액) + 매도 버튼. 버튼만 덩그러니 있던 예전 줄은 왼쪽이 비어 휑했고,
+        // 칩 줄에 버튼을 올리니 너무 빽빽해서 — 받을 금액을 버튼 옆에 두는 쪽으로.
+        HorizontalDivider(color = SpaceMid.copy(alpha = 0.6f), modifier = Modifier.padding(horizontal = Spacing.lg))
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(end = Spacing.sm, bottom = Spacing.xs),
-            horizontalArrangement = Arrangement.End
+                .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            TextButton(
-                onClick = onSellClick,
-                colors = ButtonDefaults.textButtonColors(contentColor = StatusRed.copy(alpha = 0.7f))
-            ) {
-                Text("매도", style = MaterialTheme.typography.labelSmall)
-            }
+            val netProceeds = planet.marketValue - (planet.marketValue * GameConstants.SELL_FEE_RATE).toLong()
+            Text("매도가", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+            Spacer(modifier = Modifier.width(Spacing.sm))
+            Image(painter = painterResource(R.drawable.ic_ui_coin), contentDescription = null, modifier = Modifier.size(12.dp))
+            Spacer(modifier = Modifier.width(Spacing.xs))
+            Text("%,d".format(netProceeds), color = GoldAccent, style = NumericXSmall)
+            Spacer(modifier = Modifier.weight(1f))
+            GameButton(text = "매도", onClick = onSellClick, style = GameButtonStyle.Danger)
         }
     }
 }
@@ -334,61 +327,53 @@ fun SellConfirmDialog(
     val displayAdjustment = planet.marketAdjustment.coerceAtLeast(-investedAmount)
     val adjustmentPct = if (investedAmount > 0L) (displayAdjustment * 100 / investedAmount).toInt() else 0 // 대략치
 
-    AlertDialog(
+    GameDialog(
+        title = "행성 매도",
         onDismissRequest = onDismiss,
-        containerColor = SpaceNavy,
-        shape = RoundedCornerShape(16.dp),
-        title = {
-            Text(text = "행성 매도", color = GoldAccent, style = MaterialTheme.typography.titleMedium)
-        },
-        text = {
-            Column {
-                val sellDialogCode = planet.variantId.substringAfterLast("-")
-                Text(
-                    text = "${meta?.displayName ?: planet.type.name}  #$sellDialogCode  (Lv.${planet.level})",
-                    color = TextPrimary,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Spacer(modifier = Modifier.height(Spacing.lg))
-                DialogRow("투자액", "%,d 코인".format(investedAmount), TextPrimary)
-                if (displayAdjustment != 0L) {
-                    val sign = if (displayAdjustment > 0L) "+" else ""
-                    val pctSign = if (adjustmentPct > 0) "+" else ""
-                    DialogRow(
-                        "시세 변동",
-                        "$sign${"%,d".format(displayAdjustment)} 코인 (${pctSign}$adjustmentPct%)",
-                        if (displayAdjustment > 0L) StatusGreen else StatusRed
-                    )
-                }
-                if (fee > 0L) {
-                    DialogRow("수수료 (5%)", "-%,d 코인".format(fee), StatusRed)
-                }
-                HorizontalDivider(color = SpaceMid, modifier = Modifier.padding(vertical = Spacing.sm))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Bottom
-                ) {
-                    Text(text = "실수령액", color = TextPrimary, style = MaterialTheme.typography.bodyMedium)
-                    Text(
-                        text = "%,d 코인".format(netProceeds),
-                        color = GoldAccent,
-                        style = NumericMedium
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text("매도 확인", color = StatusRed, style = MaterialTheme.typography.labelMedium)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("취소", color = TextSecondary, style = MaterialTheme.typography.labelMedium)
-            }
+        buttons = {
+            GameDialogButtons(
+                confirmText = "매도",
+                onConfirm = onConfirm,
+                confirmStyle = GameButtonStyle.Danger,
+                dismissText = "취소",
+                onDismiss = onDismiss
+            )
         }
-    )
+    ) {
+        val sellDialogCode = planet.variantId.substringAfterLast("-")
+        Text(
+            text = "${meta?.displayName ?: planet.type.name}  #$sellDialogCode  (Lv.${planet.level})",
+            color = TextPrimary,
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Spacer(modifier = Modifier.height(Spacing.lg))
+        DialogRow("투자액", "%,d 코인".format(investedAmount), TextPrimary)
+        if (displayAdjustment != 0L) {
+            val sign = if (displayAdjustment > 0L) "+" else ""
+            val pctSign = if (adjustmentPct > 0) "+" else ""
+            DialogRow(
+                "시세 변동",
+                "$sign${"%,d".format(displayAdjustment)} 코인 (${pctSign}$adjustmentPct%)",
+                if (displayAdjustment > 0L) StatusGreen else StatusRed
+            )
+        }
+        if (fee > 0L) {
+            DialogRow("수수료 (5%)", "-%,d 코인".format(fee), StatusRed)
+        }
+        HorizontalDivider(color = SpaceMid, modifier = Modifier.padding(vertical = Spacing.sm))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Bottom
+        ) {
+            Text(text = "실수령액", color = TextPrimary, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = "%,d 코인".format(netProceeds),
+                color = GoldAccent,
+                style = NumericMedium
+            )
+        }
+    }
 }
 
 @Composable
@@ -443,7 +428,7 @@ private fun PlanetCatalogContent(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = Spacing.lg, vertical = Spacing.md)
+            .padding(horizontal = TabSideMargin, vertical = Spacing.md)
     ) {
         rarityOrder.forEach { rarity ->
             val color = rarityColor[rarity] ?: TextSecondary
@@ -656,7 +641,7 @@ private fun PlanetEventLogContent(
 
     LazyColumn(
         modifier = modifier,
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
+        contentPadding = PaddingValues(start = TabSideMargin, end = TabSideMargin, top = 8.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
         items(logs, key = { it.id }) { log ->

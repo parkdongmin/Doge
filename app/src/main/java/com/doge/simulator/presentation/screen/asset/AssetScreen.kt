@@ -36,6 +36,18 @@ import com.doge.simulator.presentation.viewmodel.AssetViewModel
 import com.doge.simulator.presentation.viewmodel.AuthViewModel
 import com.doge.simulator.presentation.viewmodel.SettingsViewModel
 import com.doge.simulator.ui.theme.*
+import com.doge.simulator.presentation.component.PixelLoading
+import com.doge.simulator.presentation.component.GameButton
+import com.doge.simulator.presentation.component.GameButtonSize
+import com.doge.simulator.presentation.component.GameButtonStyle
+import com.doge.simulator.presentation.component.GameDialog
+import com.doge.simulator.presentation.component.PanelSectionHeader
+import com.doge.simulator.presentation.component.QuantityStepper
+import com.doge.simulator.presentation.component.GameDialogButtons
+import com.doge.simulator.presentation.component.TabHeader
+import com.doge.simulator.presentation.component.TabHeaderPadding
+import com.doge.simulator.presentation.component.TabSideMargin
+import com.doge.simulator.presentation.component.TabSectionHeader
 import com.doge.simulator.presentation.component.PixelIcons
 
 @Composable
@@ -77,25 +89,28 @@ fun AssetScreen(
     }
 
     if (showSignOutConfirm) {
-        AlertDialog(
+        GameDialog(
+            title = "로그아웃",
             onDismissRequest = { showSignOutConfirm = false },
-            title = { Text("로그아웃") },
-            text = { Text("로그아웃하면 로그인 화면으로 돌아가요. 다시 로그인하면 이어서 할 수 있어요.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showSignOutConfirm = false
-                    isSigningOut = true
-                    authViewModel.signOut()
-                }) { Text("로그아웃", color = GoldAccent, fontWeight = FontWeight.Bold) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showSignOutConfirm = false }) { Text("취소") }
-            },
-            containerColor = SpaceNavy,
-            shape = RoundedCornerShape(16.dp),
-            titleContentColor = TextPrimary,
-            textContentColor = TextSecondary
-        )
+            buttons = {
+                GameDialogButtons(
+                    confirmText = "로그아웃",
+                    onConfirm = {
+                        showSignOutConfirm = false
+                        isSigningOut = true
+                        authViewModel.signOut()
+                    },
+                    dismissText = "취소",
+                    onDismiss = { showSignOutConfirm = false }
+                )
+            }
+        ) {
+            Text(
+                "로그아웃하면 로그인 화면으로 돌아가요. 다시 로그인하면 이어서 할 수 있어요.",
+                color = TextSecondary,
+                style = BodyReading
+            )
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -105,7 +120,7 @@ fun AssetScreen(
             .background(SpaceDark)
             .verticalScroll(rememberScrollState())
             .statusBarsPadding()
-            .padding(start = Spacing.xl, end = Spacing.xl, top = Spacing.lg, bottom = Spacing.xxl)
+            .padding(start = TabSideMargin, end = TabSideMargin, top = Spacing.lg, bottom = Spacing.xxl)
     ) {
         // ── 상태 메시지 ────────────────────────────────────────────────
         message?.let {
@@ -118,38 +133,19 @@ fun AssetScreen(
         }
 
         // ── 헤더 ──────────────────────────────────────────────────────
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Bottom
+        // 좌우·위 여백은 이 Column이 이미 TabHeaderPadding과 같은 값으로 주고 있어서 아래 여백만.
+        TabHeader(
+            title = "자산",
+            subtitle = "보유 자산과 자원 현황을 확인하세요",
+            modifier = Modifier.padding(bottom = TabHeaderPadding.calculateBottomPadding())
         ) {
-            Column {
-                Text(
-                    text = "나의 자산",
-                    color = TextPrimary,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(Spacing.xs))
-                Text(
-                    text = "보유 자산과 자원 현황을 확인하세요",
-                    color = TextSecondary,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-            OutlinedButton(
-                enabled = !isSigningOut,
+            GameButton(
+                text = "설정",
                 onClick = { showSettings = true },
-                contentPadding = ButtonPadding.listItemAction,
-                shape = RoundedCornerShape(6.dp),
-                border = BorderStroke(1.dp, SpaceMid),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary)
-            ) {
-                Text("설정", style = MaterialTheme.typography.labelSmall)
-            }
+                enabled = !isSigningOut,
+                style = GameButtonStyle.Neutral
+            )
         }
-
-        Spacer(modifier = Modifier.height(Spacing.xl))
 
         // ── 총 자산 히어로 카드 ────────────────────────────────────────
         Card(
@@ -221,7 +217,7 @@ fun AssetScreen(
         Spacer(modifier = Modifier.height(Spacing.xl))
 
         // ── 보유 자원 섹션 ─────────────────────────────────────────────
-        SectionHeader(title = "보유 자원")
+        TabSectionHeader(title = "보유 자원")
         Spacer(modifier = Modifier.height(Spacing.md))
 
         if (resources.isEmpty()) {
@@ -262,7 +258,7 @@ fun AssetScreen(
 
         // ── 보유 자산 섹션 ─────────────────────────────────────────────
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            SectionHeader(title = "보유 자산")
+            TabSectionHeader(title = "보유 자산")
             Icon(
                 imageVector = PixelIcons.Info,
                 contentDescription = "자산 항목 설명",
@@ -345,22 +341,14 @@ fun AssetScreen(
 
         Spacer(modifier = Modifier.height(Spacing.lg))
 
-        OutlinedButton(
+        GameButton(
+            text = "랭킹",
             onClick = onRankClick,
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(10.dp),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = SpaceAccent),
-            border = BorderStroke(1.dp, SpaceAccent.copy(alpha = 0.5f))
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                Image(
-                    painter = painterResource(R.drawable.ic_ui_trophy),
-                    contentDescription = null,
-                    modifier = Modifier.size(IconGlyphSize.small.value.dp)
-                )
-                Text(text = "랭킹 보기", style = MaterialTheme.typography.bodyMedium)
-            }
-        }
+            style = GameButtonStyle.Primary,
+            size = GameButtonSize.Large,
+            leadingIcon = R.drawable.ic_ui_trophy
+        )
     }
 
     if (isSigningOut) {
@@ -370,7 +358,7 @@ fun AssetScreen(
                 .background(Color.Black.copy(alpha = 0.5f)),
             contentAlignment = Alignment.Center
         ) {
-            CircularProgressIndicator(color = GoldAccent)
+            PixelLoading()
         }
     }
     }
@@ -416,122 +404,68 @@ private fun SellResourceDialog(
     onDismiss: () -> Unit
 ) {
     val unitPrice = GameConstants.RESOURCE_SELL_PRICE[resource.type] ?: 10L
-    var quantityText by remember(resource.type) { mutableStateOf(resource.amount.toString()) }
-    val quantity = quantityText.toLongOrNull() ?: 0L
+    // 처음엔 전부 팔도록(예전 입력칸 기본값과 같게). 수량은 QuantityStepper가 0..보유량으로 묶는다.
+    var quantity by remember(resource.type) { mutableStateOf(resource.amount) }
     val isValid = quantity in 1..resource.amount
     val totalCoins = unitPrice * quantity.coerceAtLeast(0L)
 
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Card(
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = SpaceNavy),
-            border = BorderStroke(1.dp, SpaceMid),
-            modifier = Modifier.fillMaxWidth(0.9f).wrapContentHeight()
+    GameDialog(
+        title = resource.type.displayName,
+        onDismissRequest = onDismiss,
+        subtitle = "보유 ${"%,d".format(resource.amount)}개 · 단가 ${"%,d".format(unitPrice)}코인",
+        buttons = {
+            GameDialogButtons(
+                confirmText = "판매",
+                onConfirm = { onConfirm(quantity) },
+                confirmStyle = GameButtonStyle.Danger,
+                confirmEnabled = isValid,
+                dismissText = "취소",
+                onDismiss = onDismiss
+            )
+        }
+    ) {
+        PanelSectionHeader("판매 수량")
+        Spacer(modifier = Modifier.height(Spacing.sm))
+        QuantityStepper(
+            value = quantity,
+            max = resource.amount,
+            onValueChange = { quantity = it },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // 보유량 초과는 스테퍼가 막으니, 비워서 0개가 된 경우만 안내.
+        if (!isValid) {
+            Text(
+                "1개 이상 골라 주세요",
+                color = StatusRed,
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.padding(top = Spacing.xs)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(Spacing.lg))
+
+        Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = GoldAccent.copy(alpha = 0.12f),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(Spacing.xxl)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Image(
-                        painter = painterResource(resource.type.iconRes),
-                        contentDescription = resource.type.displayName,
-                        modifier = Modifier.size(28.dp)
-                    )
-                    Spacer(modifier = Modifier.width(Spacing.md))
-                    Text(
-                        resource.type.displayName,
-                        color = TextPrimary,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                Spacer(modifier = Modifier.height(Spacing.xs))
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.md),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("예상 판매 금액", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
                 Text(
-                    "보유 수량: ${"%,d".format(resource.amount)}개 · 단가 ${"%,d".format(unitPrice)}코인/개",
-                    color = TextSecondary,
-                    style = MaterialTheme.typography.labelSmall
+                    "+${"%,d".format(totalCoins)} 코인",
+                    color = GoldAccent,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
                 )
-
-                Spacer(modifier = Modifier.height(Spacing.lg))
-
-                OutlinedTextField(
-                    value = quantityText,
-                    onValueChange = { input -> if (input.length <= 12 && input.all { it.isDigit() }) quantityText = input },
-                    label = { Text("판매 수량") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth(),
-                    trailingIcon = {
-                        TextButton(onClick = { quantityText = resource.amount.toString() }) {
-                            Text("전체", color = SpaceAccent, style = MaterialTheme.typography.labelSmall)
-                        }
-                    },
-                    isError = quantityText.isNotEmpty() && !isValid
-                )
-
-                if (quantityText.isNotEmpty() && !isValid) {
-                    Text(
-                        if (quantity > resource.amount) "보유 수량을 초과했습니다" else "1개 이상 입력하세요",
-                        color = StatusRed,
-                        style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.padding(top = Spacing.xs)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(Spacing.lg))
-
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = GoldAccent.copy(alpha = 0.12f),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.md),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("예상 판매 금액", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
-                        Text(
-                            "+${"%,d".format(totalCoins)} 코인",
-                            color = GoldAccent,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(Spacing.lg))
-
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, SpaceMid),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary)
-                    ) { Text("취소") }
-                    Button(
-                        onClick = { onConfirm(quantity) },
-                        enabled = isValid,
-                        modifier = Modifier
-                            .weight(1f),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = GoldAccent, contentColor = SpaceDark),
-                        border = ButtonDepth.highlightBorder,
-                        elevation = ButtonDepth.elevation()
-                    ) { Text("판매", fontWeight = FontWeight.Bold) }
-                }
             }
         }
-    }
-}
 
-@Composable
-private fun SectionHeader(title: String) {
-    Text(
-        text = title,
-        color = TextPrimary,
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.Bold
-    )
+    }
 }
 
 @Composable
@@ -579,15 +513,8 @@ private fun ResourceRow(
         }
         if (onSell != null) {
             Spacer(modifier = Modifier.width(Spacing.sm))
-            OutlinedButton(
-                onClick = onSell,
-                contentPadding = ButtonPadding.listItemAction,
-                shape = RoundedCornerShape(6.dp),
-                border = BorderStroke(1.dp, GoldAccent.copy(alpha = 0.5f)),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = GoldAccent)
-            ) {
-                Text("판매", style = MaterialTheme.typography.labelSmall)
-            }
+            // 자원 줄마다 반복되는 버튼이라 빨강으로 다 채우면 시끄럽다 — 목록은 남색, 판매 창의 최종 버튼만 빨강.
+            GameButton(text = "판매", onClick = onSell, style = GameButtonStyle.Neutral)
         }
     }
 }

@@ -19,9 +19,15 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.doge.simulator.R
 import com.doge.simulator.domain.model.orbit.OrbitRiskTier
-import com.doge.simulator.presentation.component.PixelButton
+
 import com.doge.simulator.presentation.viewmodel.OrbitViewModel
 import com.doge.simulator.ui.theme.*
+import com.doge.simulator.presentation.component.GameButton
+import com.doge.simulator.presentation.component.GameButtonSize
+import com.doge.simulator.presentation.component.GameButtonStyle
+import com.doge.simulator.presentation.component.GameDialog
+import com.doge.simulator.presentation.component.GameDialogButtons
+import com.doge.simulator.presentation.component.PanelSectionHeader
 
 // 베팅 모달 — 휴게실에서 ORBIT "입장"을 누르면 뜬다. 금액(4단계 고정) + 위험도 티어(3단계, 최저
 // 티어는 항상 선택 가능)를 고르고 바로 게임 시작. 예전엔 별도 베팅 화면이었는데, 고를 게 두 가지뿐이라
@@ -34,105 +40,67 @@ fun OrbitBetDialog(viewModel: OrbitViewModel, onDismiss: () -> Unit) {
     val selectedTier by viewModel.selectedRiskTier.collectAsState()
     val line = remember { B01Lines.bet.random() }
 
-    Dialog(
+    GameDialog(
+        title = "ORBIT",
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        coins = coins,
+        buttons = {
+            // 코인을 거는 행동이라 금색.
+            GameDialogButtons(
+                confirmText = "시작",
+                onConfirm = viewModel::startMatch,
+                confirmStyle = GameButtonStyle.Gold,
+                confirmEnabled = selectedAmount != null && (selectedAmount ?: 0L) <= coins,
+                dismissText = "닫기",
+                onDismiss = onDismiss
+            )
+        }
     ) {
-        val shape = RoundedCornerShape(16.dp)
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth(0.88f)
-                .textured(shape = shape, baseColor = SpaceNavy),
-            shape = shape,
-            color = Color.Transparent,
-            border = BorderStroke(1.dp, GoldAccent.copy(alpha = 0.4f))
-        ) {
-            Column(Modifier.padding(Spacing.xl)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "ORBIT",
-                        color = GoldAccent,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
+        B01SpeechRow(line = line, avatarSize = 40.dp)
+
+        Spacer(Modifier.height(Spacing.lg))
+        PanelSectionHeader("베팅 금액")
+        Spacer(Modifier.height(Spacing.sm))
+        viewModel.betAmounts.chunked(2).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                row.forEach { amount ->
+                    SelectTile(
+                        selected = selectedAmount == amount,
+                        enabled = amount <= coins,
+                        onClick = { viewModel.selectBetAmount(amount) },
                         modifier = Modifier.weight(1f)
-                    )
-                    Image(
-                        painter = painterResource(R.drawable.ic_ui_coin),
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.width(Spacing.xs))
-                    Text("%,d".format(coins), color = GoldAccent, style = NumericXSmall)
-                }
-
-                Spacer(Modifier.height(Spacing.md))
-                B01SpeechRow(line = line, avatarSize = 40.dp)
-
-                Spacer(Modifier.height(Spacing.lg))
-                SectionLabel("베팅 금액")
-                Spacer(Modifier.height(Spacing.sm))
-                viewModel.betAmounts.chunked(2).forEach { row ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                        row.forEach { amount ->
-                            SelectTile(
-                                selected = selectedAmount == amount,
-                                enabled = amount <= coins,
-                                onClick = { viewModel.selectBetAmount(amount) },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Image(
-                                        painter = painterResource(R.drawable.ic_ui_coin),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Spacer(Modifier.width(Spacing.xs))
-                                    Text("%,d".format(amount), color = TextPrimary, style = NumericXSmall)
-                                }
-                            }
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Image(
+                                painter = painterResource(R.drawable.ic_ui_coin),
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(Modifier.width(Spacing.xs))
+                            Text("%,d".format(amount), color = TextPrimary, style = NumericXSmall)
                         }
                     }
-                    Spacer(Modifier.height(Spacing.sm))
-                }
-
-                Spacer(Modifier.height(Spacing.sm))
-                SectionLabel("위험도")
-                Spacer(Modifier.height(Spacing.sm))
-                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    viewModel.riskTiers.forEach { tier ->
-                        RiskTierTile(
-                            tier = tier,
-                            selected = selectedTier == tier,
-                            onClick = { viewModel.selectRiskTier(tier) },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-                Spacer(Modifier.height(Spacing.xs))
-                Text("위험도가 높을수록 B-01이 실수를 덜 해요.", color = TextSecondary, style = BodyReading)
-
-                Spacer(Modifier.height(Spacing.xl))
-                PixelButton(
-                    text = "게임 시작",
-                    onClick = viewModel::startMatch,
-                    enabled = selectedAmount != null && (selectedAmount ?: 0L) <= coins,
-                    containerColor = GoldAccent,
-                    contentColor = SpaceDark,
-                    contentPadding = ButtonPadding.fullWidthCta,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(Spacing.xs))
-                TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                    Text("닫기", color = TextSecondary, style = MaterialTheme.typography.labelMedium)
                 }
             }
+            Spacer(Modifier.height(Spacing.sm))
         }
-    }
-}
 
-@Composable
-private fun SectionLabel(text: String) {
-    Text(text, color = TextPrimary, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(Spacing.sm))
+        PanelSectionHeader("위험도")
+        Spacer(Modifier.height(Spacing.sm))
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            viewModel.riskTiers.forEach { tier ->
+                RiskTierTile(
+                    tier = tier,
+                    selected = selectedTier == tier,
+                    onClick = { viewModel.selectRiskTier(tier) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+        Spacer(Modifier.height(Spacing.xs))
+        Text("위험도가 높을수록 B-01이 실수를 덜 해요.", color = TextSecondary, style = BodyReading)
+    }
 }
 
 // 금액·위험도 선택 칸. 선택되면 금색 테두리 + 한 톤 밝은 바탕.

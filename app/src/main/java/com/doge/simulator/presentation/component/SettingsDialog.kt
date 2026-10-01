@@ -65,141 +65,105 @@ fun SettingsDialog(
         }
     }
 
-    Dialog(
+    GameDialog(
+        title = "설정",
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        buttons = { GameDialogButtons(confirmText = "닫기", onConfirm = onDismiss) }
     ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth(0.88f)
-                .padding(vertical = Spacing.xxl),
-            shape = RoundedCornerShape(16.dp),
-            color = SpaceNavy,
-            border = BorderStroke(1.dp, SpaceBlue)
+        // 배경 음악
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.padding(Spacing.xl)) {
-                Text(
-                    "설정",
-                    color = GoldAccent,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(Modifier.height(Spacing.lg))
+            Text(
+                "배경 음악",
+                color = TextPrimary,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            PixelToggle(
+                checked = bgmEnabled,
+                onCheckedChange = onBgmChange
+            )
+        }
 
-                // 배경 음악
+        // Pixabay 음원 라이선스 필수 표기 (이미지와 달리 오디오는 크레딧 필요)
+        Spacer(Modifier.height(Spacing.xs))
+        Text(
+            "출처: Music by Maksim Chubrey from Pixabay",
+            color = TextSecondary,
+            style = MaterialTheme.typography.labelSmall
+        )
+
+        Spacer(Modifier.height(Spacing.md))
+        HorizontalDivider(color = SpaceMid)
+        Spacer(Modifier.height(Spacing.md))
+
+        // 내 ID (문의용)
+        Text(
+            "내 ID",
+            color = TextPrimary,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(Modifier.height(Spacing.xxs))
+        Text(
+            "문의할 때 이 ID를 함께 보내주시면 확인이 빨라요.",
+            color = TextSecondary,
+            style = BodyReading
+        )
+        Spacer(Modifier.height(Spacing.sm))
+        if (uid != null) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp),
+                color = SpaceBlue.copy(alpha = 0.2f)
+            ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = Spacing.md, vertical = Spacing.sm),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "배경 음악",
-                        color = TextPrimary,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Switch(
-                        checked = bgmEnabled,
-                        onCheckedChange = onBgmChange,
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = SpaceDark,
-                            checkedTrackColor = GoldAccent,
-                            uncheckedThumbColor = TextSecondary,
-                            uncheckedTrackColor = SpaceNavy,
-                            uncheckedBorderColor = SpaceMid
-                        )
-                    )
-                }
-
-                // Pixabay 음원 라이선스 필수 표기 (이미지와 달리 오디오는 크레딧 필요)
-                Spacer(Modifier.height(Spacing.xs))
-                Text(
-                    "출처: Music by Maksim Chubrey from Pixabay",
-                    color = TextSecondary,
-                    style = MaterialTheme.typography.labelSmall
-                )
-
-                Spacer(Modifier.height(Spacing.md))
-                HorizontalDivider(color = SpaceMid)
-                Spacer(Modifier.height(Spacing.md))
-
-                // 내 ID (문의용)
-                Text(
-                    "내 ID",
-                    color = TextPrimary,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(Modifier.height(Spacing.xxs))
-                Text(
-                    "문의할 때 이 ID를 함께 보내주시면 확인이 빨라요.",
-                    color = TextSecondary,
-                    style = BodyReading
-                )
-                Spacer(Modifier.height(Spacing.sm))
-                if (uid != null) {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
-                        color = SpaceBlue.copy(alpha = 0.2f)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = Spacing.md, vertical = Spacing.sm),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                uid,
-                                color = TextSecondary,
-                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                                modifier = Modifier.weight(1f, fill = false)
-                            )
-                            TextButton(
-                                onClick = {
-                                    val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-                                    cm?.setPrimaryClip(ClipData.newPlainText("Doge ID", uid))
-                                    justCopied = true
-                                }
-                            ) {
-                                Text(
-                                    if (justCopied) "복사됨" else "복사",
-                                    color = GoldAccent,
-                                    style = MaterialTheme.typography.labelMedium
-                                )
-                            }
-                        }
-                    }
-                } else {
-                    Text(
-                        "로그인 정보를 불러올 수 없어요.",
+                        uid,
                         color = TextSecondary,
-                        style = BodyReading
+                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                        modifier = Modifier.weight(1f, fill = false)
                     )
-                }
-
-                Spacer(Modifier.height(Spacing.md))
-                HorizontalDivider(color = SpaceMid)
-                Spacer(Modifier.height(Spacing.md))
-
-                // 로그아웃
-                OutlinedButton(
-                    onClick = onSignOutClick,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, SpaceMid),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary)
-                ) {
-                    Text("로그아웃", style = MaterialTheme.typography.labelMedium)
-                }
-
-                Spacer(Modifier.height(Spacing.sm))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = onDismiss) {
-                        Text("닫기", color = GoldAccent, style = MaterialTheme.typography.labelMedium)
-                    }
+                    GameButton(
+                        text = if (justCopied) "복사됨" else "복사",
+                        onClick = {
+                            val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                            cm?.setPrimaryClip(ClipData.newPlainText("Doge ID", uid))
+                            justCopied = true
+                        },
+                        modifier = Modifier.padding(start = Spacing.sm),
+                        style = GameButtonStyle.Neutral
+                    )
                 }
             }
+        } else {
+            Text(
+                "로그인 정보를 불러올 수 없어요.",
+                color = TextSecondary,
+                style = BodyReading
+            )
         }
+
+        Spacer(Modifier.height(Spacing.md))
+        HorizontalDivider(color = SpaceMid)
+        Spacer(Modifier.height(Spacing.md))
+
+        // 로그아웃 — 보조 행동이라 남색. 아래 닫기와 같은 크기로 위아래 맞춤.
+        GameButton(
+            text = "로그아웃",
+            onClick = onSignOutClick,
+            modifier = Modifier.fillMaxWidth(),
+            style = GameButtonStyle.Neutral,
+            size = GameButtonSize.Large
+        )
+
     }
 }

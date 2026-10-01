@@ -11,6 +11,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -24,10 +28,25 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.doge.simulator.R
 import com.doge.simulator.presentation.navigation.NavRoutes
+import com.doge.simulator.presentation.screen.orbit.LoungePanel
+import com.doge.simulator.presentation.viewmodel.OrbitViewModel
 import com.doge.simulator.ui.theme.*
+import com.doge.simulator.presentation.component.PixelIcons
+import com.doge.simulator.presentation.component.TabHeader
+import com.doge.simulator.presentation.component.TabHeaderPadding
+import com.doge.simulator.presentation.component.TabSideMargin
+import com.doge.simulator.presentation.component.TabSectionHeader
 
 @Composable
-fun HQScreen(navController: NavController) {
+fun HQScreen(
+    navController: NavController,
+    // ORBIT 게임·결과 화면과 같이 쓰는 매치 상태 — 정거장(HQ) 엔트리 스코프(MainScreen에서 넘겨줌).
+    orbitViewModel: OrbitViewModel
+) {
+    // 우주인 센터·격납고·연구소·휴게실은 새 화면으로 넘기지 않고 정거장 위에 창으로 연다(FacilityPanel 참고).
+    // 한 번에 하나만 열리므로 열린 시설 이름 하나로 관리한다.
+    var openFacility by rememberSaveable { mutableStateOf<String?>(null) }
+
     // 세로가 짧은 화면(폴드 펼침 등)에선 휴게실 카드가 아래로 잘렸다 — 정거장 그림 높이를 화면 높이에
     // 맞춰 줄이고(최대 250dp), 그래도 넘치면 스크롤되게 한다.
     BoxWithConstraints(Modifier.fillMaxSize().background(SpaceDark).statusBarsPadding()) {
@@ -38,24 +57,11 @@ fun HQScreen(navController: NavController) {
                 .verticalScroll(rememberScrollState())
         ) {
             // ── 제목 ───────────────────────────────────────────────────
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = Spacing.xl, end = Spacing.xl, top = Spacing.lg, bottom = Spacing.md)
-            ) {
-                Text(
-                    text = "정거장",
-                    color = TextPrimary,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(Spacing.xxs))
-                Text(
-                    text = "시설을 관리하여 탐사 역량을 강화하세요",
-                    color = TextSecondary,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
+            TabHeader(
+                title = "정거장",
+                subtitle = "시설을 운영해 탐사 역량을 키우세요",
+                modifier = Modifier.padding(TabHeaderPadding)
+            )
 
             // ── 정거장 이미지 ──────────────────────────────────────────
             Box(
@@ -109,37 +115,48 @@ fun HQScreen(navController: NavController) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = Spacing.xl, vertical = Spacing.lg)
+                    .padding(horizontal = TabSideMargin, vertical = Spacing.lg)
             ) {
                 HQFacilityCard(
                     iconRes = R.drawable.character_1,
                     title = "우주인 센터",
                     description = "우주인 고용 및 훈련 관리",
-                    onClick = { navController.navigate(NavRoutes.Astronaut.route) { launchSingleTop = true } }
+                    onClick = { openFacility = FACILITY_ASTRONAUT }
                 )
                 Spacer(modifier = Modifier.height(Spacing.md))
                 HQFacilityCard(
                     iconRes = R.drawable.spaceship_2,
                     title = "격납고",
                     description = "우주선 구매 및 강화",
-                    onClick = { navController.navigate(NavRoutes.Hangar.route) { launchSingleTop = true } }
+                    onClick = { openFacility = FACILITY_HANGAR }
                 )
                 Spacer(modifier = Modifier.height(Spacing.md))
                 HQFacilityCard(
                     iconRes = R.drawable.ic_space_station_research,
                     title = "연구소",
                     description = "탐사 기술·천체 분석·인사·공학 연구",
-                    onClick = { navController.navigate(NavRoutes.ResearchLab.route) { launchSingleTop = true } }
+                    onClick = { openFacility = FACILITY_RESEARCH }
                 )
                 Spacer(modifier = Modifier.height(Spacing.md))
                 HQFacilityCard(
                     iconRes = R.drawable.ic_space_station_lounge,
                     title = "휴게실",
                     description = "B-01과 카드게임 ORBIT 한 판",
-                    onClick = { navController.navigate(NavRoutes.Lounge.route) { launchSingleTop = true } }
+                    onClick = { openFacility = FACILITY_LOUNGE }
                 )
             }
         }
+
+        val closeFacility = { openFacility = null }
+        AstronautPanel(visible = openFacility == FACILITY_ASTRONAUT, onClose = closeFacility)
+        HangarPanel(visible = openFacility == FACILITY_HANGAR, onClose = closeFacility)
+        ResearchLabPanel(visible = openFacility == FACILITY_RESEARCH, onClose = closeFacility)
+        LoungePanel(
+            visible = openFacility == FACILITY_LOUNGE,
+            onClose = closeFacility,
+            onMatchStarted = { navController.navigate(NavRoutes.OrbitGame.route) { launchSingleTop = true } },
+            viewModel = orbitViewModel
+        )
     }
 }
 
@@ -187,7 +204,12 @@ private fun HQFacilityCard(
                     style = MaterialTheme.typography.bodySmall
                 )
             }
-            Text(text = ">", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+            Icon(PixelIcons.ChevronRight, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(16.dp))
         }
     }
 }
+
+private const val FACILITY_ASTRONAUT = "astronaut"
+private const val FACILITY_HANGAR = "hangar"
+private const val FACILITY_RESEARCH = "research"
+private const val FACILITY_LOUNGE = "lounge"
