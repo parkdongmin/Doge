@@ -24,8 +24,8 @@ android {
         minSdk = 24
         //noinspection EditedTargetSdkVersion
         targetSdk = 36
-        versionCode = 4
-        versionName = "1.0.3"
+        versionCode = 5
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -91,6 +91,8 @@ android {
                 ?: "ca-app-pub-3940256099942544/5224354917"
             val admobRewardUpgradeRevert = localProps.getProperty("ADMOB_UNIT_REWARD_UPGRADE_REVERT")
                 ?: "ca-app-pub-3940256099942544/5224354917"
+            val admobRewardOrbitDaily = localProps.getProperty("ADMOB_UNIT_REWARD_ORBIT_DAILY")
+                ?: "ca-app-pub-3940256099942544/5224354917"
 
             buildConfigField("String", "ADMOB_APP_ID", "\"$admobAppId\"")
             buildConfigField("String", "AD_UNIT_INTERSTITIAL", "\"$admobInterstitial\"")
@@ -98,6 +100,7 @@ android {
             buildConfigField("String", "AD_UNIT_REWARD_OFFLINE_X2", "\"$admobRewardOfflineX2\"")
             buildConfigField("String", "AD_UNIT_REWARD_SKIP_WAIT", "\"$admobRewardSkipWait\"")
             buildConfigField("String", "AD_UNIT_REWARD_UPGRADE_REVERT", "\"$admobRewardUpgradeRevert\"")
+            buildConfigField("String", "AD_UNIT_REWARD_ORBIT_DAILY", "\"$admobRewardOrbitDaily\"")
             manifestPlaceholders["admobAppId"] = admobAppId
         }
     }
