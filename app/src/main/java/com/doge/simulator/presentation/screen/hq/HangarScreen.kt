@@ -82,7 +82,8 @@ private fun HangarContent(viewModel: SpaceshipViewModel, modifier: Modifier) {
             item {
                 PanelSectionHeader("우주선 구매")
                 Spacer(modifier = Modifier.height(Spacing.sm))
-                val canBuy = spaceships.size < researchLab.maxSpaceships && coins >= GameConstants.SCOUT_SHIP_BASE_COST
+                val isHangarFull = spaceships.size >= researchLab.maxSpaceships
+                val canBuy = !isHangarFull && coins >= GameConstants.SCOUT_SHIP_BASE_COST
                 Card(
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.Transparent),
@@ -105,6 +106,12 @@ private fun HangarContent(viewModel: SpaceshipViewModel, modifier: Modifier) {
                                 fontWeight = FontWeight.Bold)
                             Text("탑승 ${GameConstants.SCOUT_CREW_BASE}명 · 속도 ${GameConstants.SCOUT_SPEED_BASE} · 적재 ${GameConstants.SCOUT_CARGO_BASE}",
                                 color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+                            // 가득 찼을 때 버튼만 회색으로 꺼지면 코인이 모자란 건지 헷갈린다 — 이유와 늘리는 곳을 알려준다
+                            if (isHangarFull) {
+                                Text("격납고가 가득 찼어요 · 연구소 '우주 공학'으로 늘려요",
+                                    color = StatusYellow, style = MaterialTheme.typography.labelSmall,
+                                    modifier = Modifier.padding(top = Spacing.xxs))
+                            }
                         }
                         GameButton(
                             text = "",
