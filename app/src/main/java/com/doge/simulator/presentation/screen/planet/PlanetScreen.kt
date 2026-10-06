@@ -31,6 +31,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -45,8 +46,11 @@ import com.doge.simulator.domain.model.PlanetMetaDataTable
 import com.doge.simulator.domain.model.PlanetType
 import com.doge.simulator.domain.model.RarityTier
 import com.doge.simulator.domain.model.effectiveProduction
+import com.doge.simulator.domain.model.isBroken
+import com.doge.simulator.domain.model.marketChange
 import com.doge.simulator.domain.model.marketValue
 import com.doge.simulator.domain.model.PlanetEventLog
+import com.doge.simulator.presentation.component.PlanetBrokenBadge
 import com.doge.simulator.presentation.component.PlanetLevelBadge
 import com.doge.simulator.presentation.component.rarityColor
 import com.doge.simulator.presentation.component.rarityLabel
@@ -183,7 +187,8 @@ private fun PlanetListCard(
             .textured(shape = RoundedCornerShape(12.dp), baseColor = SpaceNavy.copy(alpha = 0.85f)),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-        border = BorderStroke(1.dp, SpaceMid)
+        // 고장 난 행성은 테두리만 빨갛게 — 목록을 훑을 때 눈에 걸리게(배경은 그대로라 여러 개여도 덜 지저분)
+        border = if (planet.isBroken) BorderStroke(1.5.dp, StatusRed) else BorderStroke(1.dp, SpaceMid)
     ) {
         Row(
             modifier = Modifier
@@ -230,11 +235,15 @@ private fun PlanetListCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
                 ) {
+                    // 좁은 화면에서 레벨·고장 배지가 밀려나지 않도록 이름이 먼저 줄어든다(…)
                     Text(
                         text = meta?.displayName ?: planet.type.name,
                         color = TextPrimary,
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                     Text(
                         text = "#$planetCode",
@@ -242,7 +251,10 @@ private fun PlanetListCard(
                         style = MaterialTheme.typography.labelSmall
                     )
                     PlanetLevelBadge(level = planet.level)
-                    if (planet.productionMultiplier != 1.0) {
+                    if (planet.isBroken) {
+                        PlanetBrokenBadge()
+                    } else if (planet.productionMultiplier != 1.0) {
+                        // 시세가 올랐다/내렸다 표시 — 고장은 배지가 대신하므로 정상 행성에만
                         val eventDotColor = if (planet.productionMultiplier > 1.0) StatusGreen else StatusRed
                         Box(
                             modifier = Modifier
@@ -324,7 +336,7 @@ fun SellConfirmDialog(
     val fee = (baseValue * GameConstants.SELL_FEE_RATE).toLong()
     val netProceeds = baseValue - fee
     // 표시용 시세 변동 — 매입가+강화액을 다 깎는 "전액 손실"(-100%)까지만
-    val displayAdjustment = planet.marketAdjustment.coerceAtLeast(-investedAmount)
+    val displayAdjustment = planet.marketChange
     val adjustmentPct = if (investedAmount > 0L) (displayAdjustment * 100 / investedAmount).toInt() else 0 // 대략치
 
     GameDialog(

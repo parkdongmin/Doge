@@ -17,8 +17,8 @@ class PlanetPendingProfitTest {
     )
 
     // RollPlanetEventUseCase가 하는 일: 적립 후 배율 교체
-    private fun Planet.applyEvent(at: Long, newMultiplier: Double) =
-        copy(bankedProfit = bankedProfitAt(at), bankedUntil = at, productionMultiplier = newMultiplier)
+    private fun Planet.applyEvent(at: Long, newMultiplier: Double = productionMultiplier, loss: Double = lossMultiplier) =
+        copy(bankedProfit = bankedProfitAt(at), bankedUntil = at, productionMultiplier = newMultiplier, lossMultiplier = loss)
 
     @Test
     fun `without events pending profit is rate times elapsed minutes`() {
@@ -28,7 +28,7 @@ class PlanetPendingProfitTest {
     @Test
     fun `bad event during sleep only affects time after the event`() {
         // 0~6시간 +6/분, 6시간 시점 악재로 -6/분, 8시간에 수령
-        val p = planet().applyEvent(at = 360 * minute, newMultiplier = -1.0)
+        val p = planet().applyEvent(at = 360 * minute, loss = 1.0)
         assertEquals(6.0 * 360 - 6.0 * 120, p.pendingProfitAt(480 * minute), 1e-6)
     }
 
@@ -45,11 +45,11 @@ class PlanetPendingProfitTest {
     fun `offline cap still counts only the first 24 hours`() {
         val cap = GameConstants.MAX_OFFLINE_MINUTES
         // 상한(24h)을 넘긴 30시간 시점에 악재 — 이미 24시간치가 다 찼으므로 악재 이후 몫은 0
-        val late = planet().applyEvent(at = 30 * 60 * minute, newMultiplier = -1.0)
+        val late = planet().applyEvent(at = 30 * 60 * minute, loss = 1.0)
         assertEquals(6.0 * cap, late.pendingProfitAt(32 * 60 * minute), 1e-6)
 
         // 20시간 시점 악재 → 남은 4시간만 악재 생산량으로
-        val early = planet().applyEvent(at = 20 * 60 * minute, newMultiplier = -1.0)
+        val early = planet().applyEvent(at = 20 * 60 * minute, loss = 1.0)
         assertEquals(6.0 * 1200 - 6.0 * 240, early.pendingProfitAt(32 * 60 * minute), 1e-6)
     }
 }

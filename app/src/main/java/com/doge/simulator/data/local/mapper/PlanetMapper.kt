@@ -23,7 +23,8 @@ fun PlanetEntity.toDomain(): Planet {
         marketAdjustment = marketAdjustment,
         lastEventTime = lastEventTime,
         bankedProfit = bankedProfit,
-        bankedUntil = bankedUntil
+        bankedUntil = bankedUntil,
+        lossMultiplier = lossMultiplier
     )
 }
 
@@ -46,6 +47,7 @@ fun Planet.toEntity(): PlanetEntity {
         marketAdjustment = marketAdjustment,
         lastEventTime = lastEventTime,
         bankedProfit = bankedProfit,
-        bankedUntil = bankedUntil
+        bankedUntil = bankedUntil,
+        lossMultiplier = lossMultiplier
     )
 }

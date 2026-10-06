@@ -13,6 +13,7 @@ import com.doge.simulator.domain.repository.UserRepository
 import com.doge.simulator.domain.usecase.GetOwnedPlanetsUseCase
 import com.doge.simulator.domain.usecase.GetPlanetEventLogsUseCase
 import com.doge.simulator.domain.usecase.GetResourcesUseCase
+import com.doge.simulator.domain.usecase.MaintainPlanetUseCase
 import com.doge.simulator.domain.usecase.SellPlanetUseCase
 import com.doge.simulator.domain.usecase.UndoPlanetUpgradeUseCase
 import com.doge.simulator.domain.usecase.UpgradePlanetUseCase
@@ -47,6 +48,7 @@ class PlanetViewModel @Inject constructor(
     getPlanetEventLogsUseCase: GetPlanetEventLogsUseCase,
     private val sellPlanetUseCase: SellPlanetUseCase,
     private val upgradePlanetUseCase: UpgradePlanetUseCase,
+    private val maintainPlanetUseCase: MaintainPlanetUseCase,
     private val undoPlanetUpgradeUseCase: UndoPlanetUpgradeUseCase,
     private val getResourcesUseCase: GetResourcesUseCase,
     private val userRepository: UserRepository,
@@ -85,6 +87,36 @@ class PlanetViewModel @Inject constructor(
         viewModelScope.launch { sellPlanetUseCase(planet) }
     }
 
+    // 정비 다이얼로그 안에 띄우는 실패 안내(코인 부족 등). 성공하면 null로 비우고 onDone으로 다이얼로그를 닫는다
+    private val _maintenanceMessage = MutableStateFlow<String?>(null)
+    val maintenanceMessage: StateFlow<String?> = _maintenanceMessage.asStateFlow()
+    private var maintaining = false
+
+    fun maintainPlanet(planet: Planet, onDone: () -> Unit) {
+        if (maintaining) return
+        maintaining = true
+        viewModelScope.launch {
+            when (maintainPlanetUseCase(planet.id)) {
+                is MaintainPlanetUseCase.Result.Success -> {
+                    _maintenanceMessage.value = null
+                    onDone()
+                }
+                MaintainPlanetUseCase.Result.InsufficientCoins ->
+                    _maintenanceMessage.value = "코인이 부족해요"
+                // 그 사이 이미 정비됐거나 행성이 없어짐 — 다이얼로그만 닫는다
+                MaintainPlanetUseCase.Result.NotBroken -> {
+                    _maintenanceMessage.value = null
+                    onDone()
+                }
+            }
+            maintaining = false
+        }
+    }
+
+    fun clearMaintenanceMessage() {
+        _maintenanceMessage.value = null
+    }
+
     fun upgradePlanet(planet: Planet) {
         viewModelScope.launch {
             // 새 강화 시도를 시작하면 이전 실패에 대한 되돌리기는 더 이상 유효하지 않음
@@ -119,6 +151,8 @@ class PlanetViewModel @Inject constructor(
                     UpgradeMessage("코인이 부족합니다", UpgradeMessageTone.INFO, null) to false
                 UpgradePlanetUseCase.Result.InsufficientResources ->
                     UpgradeMessage("자원이 부족합니다", UpgradeMessageTone.INFO, null) to false
+                UpgradePlanetUseCase.Result.NeedsMaintenance ->
+                    UpgradeMessage("고장 난 행성은 정비부터 해야 해요", UpgradeMessageTone.INFO, null) to false
             }
 
             if (isRoll) {

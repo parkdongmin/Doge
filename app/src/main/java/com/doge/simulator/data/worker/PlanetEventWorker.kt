@@ -37,25 +37,28 @@ class PlanetEventWorker @AssistedInject constructor(
     }
 
     private suspend fun doWorkInner(): Result {
-        val bigMoves = collectProfitUseCase.rollPendingEvents()
-            .filter { it.magnitude >= GameConstants.PLANET_EVENT_NOTIFY_DELTA_THRESHOLD }
+        val rolls = collectProfitUseCase.rollPendingEvents()
+        // 고장은 정비가 필요해진 순간이라 폭과 상관없이 알린다. 그 외엔 큰 폭 변동만
+        val breakdowns = rolls.filter { it.brokeDown }
+        val bigMoves = rolls.filter { !it.brokeDown && it.magnitude >= GameConstants.PLANET_EVENT_NOTIFY_DELTA_THRESHOLD }
 
-        if (bigMoves.isNotEmpty()) sendNotification(bigMoves)
+        when {
+            breakdowns.isNotEmpty() -> sendNotification(breakdownText(breakdowns))
+            bigMoves.isNotEmpty() -> sendNotification(bigMoveText(bigMoves))
+        }
 
         return Result.success()
     }
 
-    private fun sendNotification(bigMoves: List<PlanetEventRoll>) {
-        val intent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra("deepLink", "doge://planet")
+    private fun breakdownText(breakdowns: List<PlanetEventRoll>): String =
+        if (breakdowns.size == 1) {
+            "${breakdowns[0].planetDisplayName.withSubjectParticle()} 고장 났어요! 정비가 필요해요"
+        } else {
+            "행성 ${breakdowns.size}개가 고장 났어요! 정비가 필요해요"
         }
-        val pendingIntent = PendingIntent.getActivity(
-            context, REQUEST_CODE, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
 
-        val bodyText = if (bigMoves.size == 1) {
+    private fun bigMoveText(bigMoves: List<PlanetEventRoll>): String =
+        if (bigMoves.size == 1) {
             val move = bigMoves[0]
             val verb = if (move.isBad) "폭락" else "폭등"
             "${move.planetDisplayName.withSubjectParticle()} ${verb}했습니다!"
@@ -64,6 +67,16 @@ class PlanetEventWorker @AssistedInject constructor(
             val goodCount = bigMoves.size - badCount
             "${bigMoves.size}개 행성에 큰 변동 발생 (폭등 $goodCount · 폭락 $badCount)"
         }
+
+    private fun sendNotification(bodyText: String) {
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra("deepLink", "doge://planet")
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context, REQUEST_CODE, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_ui_planet)

@@ -3,6 +3,7 @@ package com.doge.simulator.domain.usecase
 import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.Planet
 import com.doge.simulator.domain.model.ResourceType
+import com.doge.simulator.domain.model.isBroken
 import com.doge.simulator.domain.repository.PlanetRepository
 import com.doge.simulator.domain.repository.ResourceRepository
 import com.doge.simulator.domain.repository.UserRepository
@@ -27,9 +28,12 @@ class UpgradePlanetUseCase @Inject constructor(
         object MaxLevel : Result()
         object InsufficientCoins : Result()
         object InsufficientResources : Result()
+        // 고장(마이너스 생산) 중엔 강화 불가 — 정비부터
+        object NeedsMaintenance : Result()
     }
 
     suspend operator fun invoke(planet: Planet): Result {
+        if (planet.isBroken) return Result.NeedsMaintenance
         if (planet.level >= GameConstants.PLANET_MAX_LEVEL) return Result.MaxLevel
 
         val (coinCost, resourceCost) = GameConstants.planetUpgradeCost(planet.level)

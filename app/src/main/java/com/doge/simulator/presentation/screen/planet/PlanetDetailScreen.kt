@@ -41,7 +41,11 @@ import com.doge.simulator.domain.model.Resource
 import com.doge.simulator.domain.model.ResourceType
 import com.doge.simulator.domain.model.effectiveProduction
 import com.doge.simulator.domain.model.marketValue
-import com.doge.simulator.domain.model.preciseProductionAtLevel
+import com.doge.simulator.domain.model.normalProductionAtLevel
+import com.doge.simulator.domain.model.isBroken
+import com.doge.simulator.domain.model.maintenanceCost
+import com.doge.simulator.domain.model.marketChange
+import com.doge.simulator.domain.model.normalProduction
 import com.doge.simulator.presentation.component.PlanetLevelBadge
 import com.doge.simulator.presentation.component.rememberLiveCoinDisplay
 import com.doge.simulator.presentation.viewmodel.PlanetViewModel
@@ -80,6 +84,8 @@ fun PlanetDetailScreen(
     var showSellDialog by remember { mutableStateOf(false) }
     var showUpgradeSheet by remember { mutableStateOf(false) }
     var showStatsInfo by remember { mutableStateOf(false) }
+    var showMaintenanceDialog by remember { mutableStateOf(false) }
+    val maintenanceMessage by viewModel.maintenanceMessage.collectAsState()
 
     // 하위 화면 공통 밤하늘 배경(NightSkyBackground) 위에 투명 Scaffold.
     NightSkyBackground(Modifier.fillMaxSize()) {
@@ -117,7 +123,7 @@ fun PlanetDetailScreen(
             val baseValue = planet.marketValue // 0 이상 (악재가 겹쳐도 시세는 0에서 바닥)
             val estimatedProceeds = baseValue - (baseValue * GameConstants.SELL_FEE_RATE).toLong()
             // 표시용 시세 변동 — 매입가+강화액을 다 깎는 "전액 손실"(-100%)까지만
-            val displayAdjustment = planet.marketAdjustment.coerceAtLeast(-investedAmount)
+            val displayAdjustment = planet.marketChange
             val adjustmentPct = if (investedAmount > 0L) (displayAdjustment * 100 / investedAmount).toInt() else 0 // 대략치
             val coins by viewModel.coins.collectAsState()
 
@@ -212,7 +218,7 @@ fun PlanetDetailScreen(
                             if (planet.effectiveProduction >= 0) StatusGreen else StatusRed
                         )
                         DetailRow(
-                            label = if (hourlyEarnings >= 0) "생산 진행" else "생산 중단",
+                            label = if (planet.isBroken) "고장 중" else "생산 진행",
                             value = "${if (hourlyEarnings >= 0) "+" else ""}${"%,d".format(hourlyEarnings)} 코인/시",
                             color = if (hourlyEarnings >= 0) GoldAccent else StatusRed
                         )
@@ -323,8 +329,32 @@ fun PlanetDetailScreen(
 
                 // ── 강화·매도 액션 바 ─────────────────────────────────
                 // 페이지의 다른 모든 블록이 풀폭이라, 매도 버튼만 따로 작게 가운데 두면 그것대로
-                // 붕 떠 보인다. 대신 강화(주 액션)와 한 줄에 나란히 두고 비율로 위계를 준다
-                if (planet.level < GameConstants.PLANET_MAX_LEVEL) {
+                // 붕 떠 보인다. 대신 강화(주 액션)와 한 줄에 나란히 두고 비율로 위계를 준다.
+                // 고장 중엔 강화 자리를 정비가 대신한다(최대 레벨이어도 정비는 필요)
+                if (planet.isBroken) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Min),
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
+                    ) {
+                        GameButton(
+                            text = "매도",
+                            onClick = { showSellDialog = true },
+                            modifier = Modifier.weight(0.32f).fillMaxHeight(),
+                            style = GameButtonStyle.Danger,
+                            size = GameButtonSize.Large
+                        )
+                        GameButton(
+                            text = "정비",
+                            onClick = { showMaintenanceDialog = true },
+                            modifier = Modifier.weight(0.68f).fillMaxHeight(),
+                            style = GameButtonStyle.Gold,
+                            size = GameButtonSize.Large,
+                            subText = "%,d 코인".format(planet.maintenanceCost)
+                        )
+                    }
+                } else if (planet.level < GameConstants.PLANET_MAX_LEVEL) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -413,6 +443,20 @@ fun PlanetDetailScreen(
 
             if (showStatsInfo) {
                 StatsInfoDialog(onDismiss = { showStatsInfo = false })
+            }
+
+            // 고장이 아니게 되면(정비 성공·다른 경로) 자동으로 닫힌다
+            if (showMaintenanceDialog && planet.isBroken) {
+                MaintenanceDialog(
+                    planet = planet,
+                    coins = coins,
+                    message = maintenanceMessage,
+                    onMaintain = { viewModel.maintainPlanet(planet) { showMaintenanceDialog = false } },
+                    onDismiss = {
+                        viewModel.clearMaintenanceMessage()
+                        showMaintenanceDialog = false
+                    }
+                )
             }
         }
     }
@@ -546,7 +590,7 @@ private fun PlanetUpgradeDialog(
             // ── 강화 성공 시 효과 미리보기 ───────────────────────
             Spacer(modifier = Modifier.height(Spacing.md))
             val curProd = planet.effectiveProduction
-            val nextProd = planet.preciseProductionAtLevel(planet.level + 1).toLong()
+            val nextProd = planet.normalProductionAtLevel(planet.level + 1).toLong()
             DetailRow(
                 "분당 생산량",
                 "%,d → %,d 코인".format(curProd, nextProd),
@@ -624,10 +668,60 @@ private fun PlanetUpgradeDialog(
 private fun StatsInfoDialog(onDismiss: () -> Unit) {
     InfoDialog(title = "스탯 설명", onDismiss = onDismiss) {
         StatsInfoEntry("생산량", "이 행성이 1분에 만드는 코인이에요. 레벨과 이벤트 효과가 반영돼요.")
-        StatsInfoEntry("생산 진행 / 생산 중단", "생산량을 1시간 기준으로 보여줘요. 악재가 쌓여 마이너스가 되면 '생산 중단'으로 바뀌고 그동안 코인이 줄어요.")
-        StatsInfoEntry("시세 변동", "악재·호재로 달라진 매도가예요. 괄호 안 %는 투자액 대비 비율이에요.")
+        StatsInfoEntry("생산 진행 / 고장 중", "생산량을 1시간 기준으로 보여줘요. 악재가 뜨면 고장 나서 마이너스가 되고, 정비할 때까지 코인이 줄어요.")
+        StatsInfoEntry("정비", "고장 난 행성을 원래 생산량으로 되돌려요. 고장 중엔 강화할 수 없고 매도가도 떨어져요.")
+        StatsInfoEntry("시세 변동", "악재·호재·고장으로 달라진 매도가예요. 괄호 안 %는 투자액 대비 비율이에요.")
         StatsInfoEntry("이벤트 간격", "이 행성에 이벤트가 얼마나 자주 오는지예요. 위험한 타입일수록 자주 와요.")
         StatsInfoEntry("악재 확률", "이벤트가 나쁜 쪽으로 나올 확률이에요. 희귀도가 높을수록 낮아요.", isLast = true)
+    }
+}
+
+// 고장 행성 정비 — 지금(마이너스) → 정비 후(플러스) 생산량·매도가와 비용을 보여주고 확인받는다
+@Composable
+private fun MaintenanceDialog(
+    planet: Planet,
+    coins: Long,
+    message: String?,
+    onMaintain: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val cost = planet.maintenanceCost
+    val fixed = planet.copy(lossMultiplier = 0.0)
+    GameDialog(
+        title = "행성 정비",
+        onDismissRequest = onDismiss,
+        borderColor = StatusRed,
+        buttons = {
+            GameDialogButtons(
+                confirmText = "정비",
+                onConfirm = onMaintain,
+                confirmStyle = GameButtonStyle.Gold,
+                confirmEnabled = coins >= cost,
+                dismissText = "닫기",
+                onDismiss = onDismiss
+            )
+        }
+    ) {
+        DetailRow(
+            "분당 생산량",
+            "%,d → +%,d 코인".format(planet.effectiveProduction, planet.normalProduction.toLong()),
+            StatusGreen
+        )
+        DetailRow(
+            "매도가",
+            "%,d → %,d 코인".format(planet.marketValue, fixed.marketValue),
+            StatusGreen
+        )
+        DetailRow("비용", "%,d 코인".format(cost), if (coins >= cost) GoldAccent else StatusRed)
+        message?.let {
+            Text(it, color = StatusRed, style = BodyReading, modifier = Modifier.padding(top = Spacing.xs))
+        }
+        Text(
+            "정비하면 고장 전 생산량으로 돌아와요. 그냥 두면 계속 코인이 줄어요.",
+            color = TextSecondary,
+            style = BodyReading,
+            modifier = Modifier.padding(top = Spacing.xs)
+        )
     }
 }
 

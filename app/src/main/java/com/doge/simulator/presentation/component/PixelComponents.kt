@@ -123,6 +123,24 @@ fun PlanetLevelBadge(level: Int, modifier: Modifier = Modifier) {
     }
 }
 
+// 고장(마이너스 생산) 행성 표시. 레벨 배지와 같은 크기지만 바탕을 꽉 채운 빨강이라
+// Lv.15+ 빨간 레벨 배지(옅은 바탕)와도 구분되고 목록을 훑을 때 눈에 걸린다
+@Composable
+fun PlanetBrokenBadge(modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(2.dp),
+        color = StatusRed
+    ) {
+        Text(
+            text = "고장",
+            color = Color.White,
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+        )
+    }
+}
+
 // ─── 시세 변동 플래시 텍스트 ─────────────────────────────────────
 /**
  * value가 변경될 때 이전보다 크면 초록, 작으면 빨강으로 잠깐 번쩍인 뒤

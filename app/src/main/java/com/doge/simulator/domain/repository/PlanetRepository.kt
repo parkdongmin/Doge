@@ -16,5 +16,8 @@ interface PlanetRepository {
 
     suspend fun upgradePlanet(planetId: String, level: Int, upgradeInvestment: Long)
 
-    suspend fun updatePlanetEvent(planetId: String, productionMultiplier: Double, marketAdjustment: Long, lastEventTime: Long, bankedProfit: Double, bankedUntil: Long)
+    suspend fun updatePlanetEvent(planetId: String, productionMultiplier: Double, marketAdjustment: Long, lastEventTime: Long, bankedProfit: Double, bankedUntil: Long, lossMultiplier: Double)
+
+    // 고장 → 정상. false면 이미 정상(중복 정비 시도)이라는 뜻
+    suspend fun maintainPlanet(planetId: String, bankedProfit: Double, bankedUntil: Long): Boolean
 }

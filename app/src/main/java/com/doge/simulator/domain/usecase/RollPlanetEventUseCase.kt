@@ -6,6 +6,10 @@ import com.doge.simulator.domain.model.PlanetEventFlavor
 import com.doge.simulator.domain.model.PlanetEventLog
 import com.doge.simulator.domain.model.PlanetMetaDataTable
 import com.doge.simulator.domain.model.bankedProfitAt
+import com.doge.simulator.domain.model.isBroken
+import com.doge.simulator.domain.model.marketAdjustmentFor
+import com.doge.simulator.domain.model.marketValue
+import com.doge.simulator.domain.model.preciseProduction
 import com.doge.simulator.domain.repository.PlanetEventLogRepository
 import com.doge.simulator.domain.repository.PlanetRepository
 import javax.inject.Inject
@@ -28,40 +32,22 @@ class RollPlanetEventUseCase @Inject constructor(
 
         val isBad = Random.nextInt(100) < planet.eventRate
         val delta = Random.nextDouble(GameConstants.PLANET_EVENT_DELTA_MIN, GameConstants.PLANET_EVENT_DELTA_MAX)
-        val signedDelta = if (isBad) -delta else delta
+        val after = applyEvent(planet, isBad, delta)
 
-        // 덮어쓰기가 아니라 누적 — 나쁜 이벤트가 연달아 겹치면 정말로 마이너스(실손해)까지 갈 수 있음.
-        // 바닥·천장으로만 클램프해서 무한정 나빠지거나 좋아지지 않게 함
-        val newMultiplier = (planet.productionMultiplier + signedDelta)
-            .coerceIn(GameConstants.PLANET_EVENT_MULTIPLIER_FLOOR, GameConstants.PLANET_EVENT_MULTIPLIER_CEILING)
-
-        // 시세는 이번 이벤트만큼 따로 누적하지 않고, 매번 "지금 누적된 생산 배율" 기준으로 다시 계산
-        // — 생산 배율과 시세가 서로 다른 값으로 어긋나지 않음
-        val deviation = newMultiplier - 1.0
-        // 악재로 시세가 내려가되, 매입가+강화액을 다 깎아 매도가가 마이너스가 되는 건 막는다 —
-        // 산 값보다 싸게 팔 순 있어도(손해), 파는데 코인을 더 내는 건 말이 안 됨
-        val marketFloor = -(planet.buyPrice + planet.upgradeInvestment)
-        val newMarketAdjustment = (
-            deviation * planet.buyPrice +
-                deviation * planet.upgradeInvestment * GameConstants.PLANET_EVENT_MARKET_UPGRADE_INVESTMENT_RATIO
-            ).toLong().coerceAtLeast(marketFloor)
-
-        // 배율을 바꾸기 전에, 지금까지 바뀌기 전 생산량으로 번 몫을 적립해 둔다 — 안 그러면 나중에
+        // 생산량을 바꾸기 전에, 지금까지 바뀌기 전 생산량으로 번 몫을 적립해 둔다 — 안 그러면 나중에
         // 수령할 때 방치 시간 전체가 새 생산량으로 소급 계산된다(악재면 이벤트 전 시간까지 손해)
         planetRepository.updatePlanetEvent(
-            planet.id, newMultiplier, newMarketAdjustment, now,
+            planet.id, after.productionMultiplier, after.marketAdjustment, now,
             bankedProfit = planet.bankedProfitAt(now),
-            bankedUntil = now
+            bankedUntil = now,
+            lossMultiplier = after.lossMultiplier
         )
 
         // 소식 로그에는 "이번 이벤트 하나만으로" 얼마나 변했는지를 남긴다 — 상세화면의 생산 진행/
-        // 시세 변동은 누적치를 보여주는 자리라 역할이 다름. 시세는 바닥에 걸리면 실제 반영폭이
-        // 델타보다 작으므로, 로그에도 클램프 후 실제 변화분을 쓴다
+        // 시세 변동은 누적치를 보여주는 자리라 역할이 다름
         val meta = PlanetMetaDataTable.data[planet.type]
-        val baseHourlyRate = planet.production * GameConstants.PLANET_PRODUCTION_SCALE *
-            GameConstants.planetLevelMultiplier(planet.level) * 60.0
-        val eventProductionDeltaPerHour = (signedDelta * baseHourlyRate).toLong()
-        val eventMarketDelta = newMarketAdjustment - planet.marketAdjustment
+        val eventProductionDeltaPerHour = ((after.preciseProduction - planet.preciseProduction) * 60.0).toLong()
+        val eventMarketDelta = after.marketValue - planet.marketValue
 
         planetEventLogRepository.addLog(
             PlanetEventLog(
@@ -79,14 +65,40 @@ class RollPlanetEventUseCase @Inject constructor(
         return PlanetEventRoll(
             planetDisplayName = meta?.displayName ?: planet.type.name,
             isBad = isBad,
-            magnitude = delta
+            magnitude = delta,
+            brokeDown = !planet.isBroken && after.isBroken
         )
+    }
+
+    companion object {
+        // 이벤트 하나가 행성 상태를 어떻게 바꾸는지(순수 계산 — DB·랜덤 없음).
+        //  - 정상 + 호재: 생산 배율 +델타
+        //  - 정상 + 악재: 생산 배율 −델타 후 고장(손해 배율 1.0에서 시작)
+        //  - 고장 + 악재: 손해 배율 +델타 (손해 커짐)
+        //  - 고장 + 호재: 손해 배율 −델타 (손해 줄어듦, 플러스 복귀는 정비로만)
+        fun applyEvent(planet: Planet, isBad: Boolean, delta: Double): Planet {
+            if (planet.isBroken) {
+                val newLoss = (planet.lossMultiplier + if (isBad) delta else -delta)
+                    .coerceIn(GameConstants.PLANET_LOSS_MULTIPLIER_MIN, GameConstants.PLANET_LOSS_MULTIPLIER_MAX)
+                return planet.copy(lossMultiplier = newLoss)
+            }
+            val newMultiplier = (planet.productionMultiplier + if (isBad) -delta else delta)
+                .coerceIn(GameConstants.PLANET_EVENT_MULTIPLIER_FLOOR, GameConstants.PLANET_EVENT_MULTIPLIER_CEILING)
+            return planet.copy(
+                productionMultiplier = newMultiplier,
+                // 시세는 매번 "지금 생산 배율" 기준으로 다시 계산 — 생산 배율과 시세가 어긋나지 않음
+                marketAdjustment = planet.marketAdjustmentFor(newMultiplier),
+                lossMultiplier = if (isBad) GameConstants.PLANET_LOSS_MULTIPLIER_START else 0.0
+            )
+        }
     }
 }
 
-// 이벤트가 실제로 굴러갔을 때의 결과 요약 — 백그라운드 워커가 "큰 폭" 알림 여부를 판단하는 데 씀
+// 이벤트가 실제로 굴러갔을 때의 결과 요약 — 백그라운드 워커가 알림 여부를 판단하는 데 씀
 data class PlanetEventRoll(
     val planetDisplayName: String,
     val isBad: Boolean,
-    val magnitude: Double
+    val magnitude: Double,
+    // 이번 이벤트로 정상 → 고장이 됐는지. 정비가 필요해졌으니 폭과 상관없이 알린다
+    val brokeDown: Boolean
 )

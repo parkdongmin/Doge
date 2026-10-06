@@ -24,5 +24,6 @@ data class PlanetEntity(
     val marketAdjustment: Long = 0L,
     val lastEventTime: Long = System.currentTimeMillis(),
     val bankedProfit: Double = 0.0,
-    val bankedUntil: Long = 0L
+    val bankedUntil: Long = 0L,
+    val lossMultiplier: Double = 0.0
 )

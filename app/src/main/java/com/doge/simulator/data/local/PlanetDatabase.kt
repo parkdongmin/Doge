@@ -64,7 +64,7 @@ abstract class PlanetDatabase : RoomDatabase() {
     abstract fun snapshotDao(): SnapshotDao
 
     companion object {
-        const val VERSION = 20
+        const val VERSION = 21
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
@@ -466,6 +466,22 @@ abstract class PlanetDatabase : RoomDatabase() {
                 // 새 생산량으로 계산하던 정산 버그 수정용
                 database.execSQL("ALTER TABLE planet_table ADD COLUMN bankedProfit REAL NOT NULL DEFAULT 0.0")
                 database.execSQL("ALTER TABLE planet_table ADD COLUMN bankedUntil INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val MIGRATION_20_21 = object : Migration(20, 21) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // 행성 고장/정비 시스템 — 마이너스 생산은 이제 "고장" 상태(lossMultiplier > 0)로만 표현한다.
+                // 예전 방식으로 배율이 음수였던 행성은 고장(손해 배율 1.0)으로, 배율은 새 범위(0.5~2.0)로
+                // 맞추고, 시세 보정도 바뀐 배율 기준으로 다시 계산한다(Planet.marketAdjustmentFor와 같은 식)
+                database.execSQL("ALTER TABLE planet_table ADD COLUMN lossMultiplier REAL NOT NULL DEFAULT 0.0")
+                database.execSQL("UPDATE planet_table SET lossMultiplier = 1.0 WHERE productionMultiplier < 0")
+                database.execSQL("UPDATE planet_table SET productionMultiplier = MAX(0.5, MIN(2.0, productionMultiplier))")
+                database.execSQL(
+                    """UPDATE planet_table SET marketAdjustment = CAST(ROUND(
+                        (productionMultiplier - 1.0) * buyPrice +
+                        (productionMultiplier - 1.0) * upgradeInvestment * 0.25) AS INTEGER)"""
+                )
             }
         }
     }

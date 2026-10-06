@@ -88,6 +88,9 @@ class CollectProfitUseCase @Inject constructor(
         planetRepository.getOwnedPlanets().first().mapNotNull { rollPlanetEventUseCase(it, now) }
     }
 
+    // 수령·이벤트 외에 생산량을 바꾸는 작업(정비)이 같은 락 안에서 돌도록
+    suspend fun <T> withSettlementLock(block: suspend () -> T): T = mutex.withLock { block() }
+
     // 분당 dropChance(%) × 등급 배율 × 강화 레벨 배율을 경과 시간에 대한 기댓값으로 환산하여 정수 개수를 산출
     private fun rollResourceAmount(
         elapsedMinutes: Long,

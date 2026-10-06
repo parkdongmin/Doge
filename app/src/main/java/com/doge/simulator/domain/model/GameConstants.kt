@@ -81,12 +81,24 @@ object GameConstants {
     const val PLANET_EVENT_NOTIFY_DELTA_THRESHOLD = 0.25
     // 알림 파이프라인만 확인할 땐 잠깐 0.05로 낮추면 이벤트가 뜰 때마다 무조건 알림이 온다
 
-    // 생산 배율은 매 이벤트마다 덮어쓰지 않고 누적(+=)된다 — 나쁜 이벤트가 연달아 겹치면
-    // 정말로 생산이 0 밑으로(마이너스, 즉 실제 손해) 내려갈 수 있음. 다만 완전히 무한정
-    // 나빠지거나(회복 불가능해 보임) 좋아지지(비현실적) 않도록 바닥·천장을 둠 — 바닥까지
-    // 가려면 최악의 델타로만 4~5연속 불운해야 해서 "가끔 진짜 사고"라는 느낌은 유지됨
-    const val PLANET_EVENT_MULTIPLIER_FLOOR = -0.30
-    const val PLANET_EVENT_MULTIPLIER_CEILING = 3.0
+    // 정상 상태의 생산 배율 범위. 호재는 +델타, 악재는 −델타(그리고 고장)로 누적된다.
+    // 악재도 배율을 깎아야 호재만 쌓여 모든 행성이 천장에 붙는 일이 없다
+    const val PLANET_EVENT_MULTIPLIER_FLOOR = 0.5
+    const val PLANET_EVENT_MULTIPLIER_CEILING = 2.0
+
+    // ── 행성 고장/정비 ───────────────────────────────────────────────
+    // 정상 행성에 악재가 뜨면 생산 배율을 깎은 뒤 부호가 뒤집혀 "고장"(마이너스 생산) 상태가 된다.
+    // 고장 동안의 손해 = 정상일 때 생산량 × 손해 배율. 손해 배율은 고장 시 1.0에서 시작해
+    // 악재면 +델타, 호재면 −델타(플러스로는 안 돌아옴 — 회복은 정비로만)
+    const val PLANET_LOSS_MULTIPLIER_START = 1.0
+    const val PLANET_LOSS_MULTIPLIER_MIN = 0.5
+    const val PLANET_LOSS_MULTIPLIER_MAX = 2.0
+
+    // 고장 중 매도가 할인 = 정상 매도가 × (이 비율 × 손해 배율) — 손해 배율 1.0이면 −30%, 2.0이면 −60%
+    const val PLANET_BROKEN_SELL_DISCOUNT_PER_LOSS = 0.30
+
+    // 정비 비용 = 정상일 때 분당 생산량 × 이 시간(분). 고장 난 채 하룻밤(8h) 두면 이 비용의 약 4배를 잃는다
+    const val PLANET_MAINTENANCE_COST_MINUTES = 120L
 
     // 시세 변동폭 = (생산 배율 누적치 − 1.0) × buyPrice + (생산 배율 누적치 − 1.0) × upgradeInvestment × 이 비율.
     // 강화투자액이 클수록 상대적 타격이 작아지지만 이 비율만큼은 항상 남아 완전 무위험이 안 됨.

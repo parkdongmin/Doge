@@ -46,6 +46,29 @@ class SnapshotLoaderTest {
     }
 
     @Test
+    fun `old saves convert negative production into the broken state`() {
+        val planet = """"type":"NO_ATMOSPHERE","production":60,"risk":6,"investment":0,"eventRate":50,
+            "buyPrice":2260,"acquireTime":0,"level":1,"totalProfit":0,"lastProfitTime":0"""
+        val json = """{"snapshotSchemaVersion":1,"roomDbVersion":19,"planets":[
+            {"id":"neg",$planet,"productionMultiplier":-0.2,"marketAdjustment":-2712},
+            {"id":"high",$planet,"productionMultiplier":2.6,"marketAdjustment":3616},
+            {"id":"normal",$planet}]}"""
+        val planets = ((loadSnapshot(json) as SnapshotLoad.Loaded).snapshot.planets).associateBy { it.id }
+
+        assertEquals(1.0, planets.getValue("neg").lossMultiplier, 1e-9)
+        assertEquals(0.5, planets.getValue("neg").productionMultiplier, 1e-9)
+        assertEquals(-1130L, planets.getValue("neg").marketAdjustment)
+
+        assertEquals(0.0, planets.getValue("high").lossMultiplier, 1e-9)
+        assertEquals(2.0, planets.getValue("high").productionMultiplier, 1e-9)
+        assertEquals(2260L, planets.getValue("high").marketAdjustment)
+
+        assertEquals(0.0, planets.getValue("normal").lossMultiplier, 1e-9)
+        assertEquals(1.0, planets.getValue("normal").productionMultiplier, 1e-9)
+        assertEquals(0L, planets.getValue("normal").marketAdjustment)
+    }
+
+    @Test
     fun `same-version migrate returns input unchanged`() {
         val v = GameSnapshot.SCHEMA_VERSION
         val json = """{"snapshotSchemaVersion":$v,"roomDbVersion":17}"""

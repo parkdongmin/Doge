@@ -26,13 +26,20 @@ interface PlanetDao {
 
     @Query("""UPDATE planet_table SET productionMultiplier = :productionMultiplier,
               marketAdjustment = :marketAdjustment, lastEventTime = :lastEventTime,
-              bankedProfit = :bankedProfit, bankedUntil = :bankedUntil WHERE id = :planetId""")
+              bankedProfit = :bankedProfit, bankedUntil = :bankedUntil,
+              lossMultiplier = :lossMultiplier WHERE id = :planetId""")
     suspend fun updatePlanetEvent(
         planetId: String,
         productionMultiplier: Double,
         marketAdjustment: Long,
         lastEventTime: Long,
         bankedProfit: Double,
-        bankedUntil: Long
+        bankedUntil: Long,
+        lossMultiplier: Double
     )
+
+    // 고장 → 정상. 이미 정상이면(연타·중복 요청) 0을 반환해 호출부가 비용을 환불하게 한다
+    @Query("""UPDATE planet_table SET lossMultiplier = 0, bankedProfit = :bankedProfit,
+              bankedUntil = :bankedUntil WHERE id = :planetId AND lossMultiplier > 0""")
+    suspend fun maintainPlanet(planetId: String, bankedProfit: Double, bankedUntil: Long): Int
 }
