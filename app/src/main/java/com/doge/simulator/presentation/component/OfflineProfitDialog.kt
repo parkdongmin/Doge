@@ -25,6 +25,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.doge.simulator.R
 import com.doge.simulator.domain.model.GameConstants
+import com.doge.simulator.ui.theme.BodyReading
 import com.doge.simulator.ui.theme.GoldAccent
 import com.doge.simulator.ui.theme.SpaceBlue
 import com.doge.simulator.ui.theme.SpaceLight
@@ -36,6 +37,7 @@ import com.doge.simulator.ui.theme.TextSecondary
 @Composable
 fun OfflineProfitDialog(
     coins: Long,
+    adNotice: String?,
     onClaimWithAd: () -> Unit,
     onClaimFree: () -> Unit
 ) {
@@ -70,5 +72,16 @@ fun OfflineProfitDialog(
             fontWeight = FontWeight.Bold,
             modifier = Modifier.align(Alignment.CenterHorizontally)
         )
+        // 2배 광고가 안 됐을 때(로드 실패·중도 종료) — 다시 누르거나 그냥 받기를 고르면 된다
+        adNotice?.let {
+            Text(
+                it,
+                color = TextSecondary,
+                style = BodyReading,
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(top = Spacing.sm)
+            )
+        }
     }
 }

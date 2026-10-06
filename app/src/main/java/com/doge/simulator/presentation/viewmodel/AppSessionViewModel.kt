@@ -55,10 +55,21 @@ class AppSessionViewModel @Inject constructor(
         }
     }
 
+    // 2배 광고가 안 됐을 때 다이얼로그 안에 띄우는 안내. 예전엔 광고가 없거나 실패해도 조용히
+    // 1배로 수령하고 닫아버려서, "광고 보고 받기"를 눌렀는데 1배만 들어오는 일이 생겼다 —
+    // 이제는 다이얼로그를 그대로 두고 다시 시도하거나 그냥 받기를 고르게 한다.
+    private val _offlineAdNotice = MutableStateFlow<String?>(null)
+    val offlineAdNotice: StateFlow<String?> = _offlineAdNotice.asStateFlow()
+
     fun claimWithAd(activity: Activity) {
         rewardedAdManager.show(activity, RewardPlacement.OFFLINE_PROFIT_X2) { result ->
-            val multiplier = if (result is RewardedAdResult.Earned) GameConstants.OFFLINE_PROFIT_AD_MULTIPLIER else 1.0
-            claim(multiplier)
+            when (result) {
+                RewardedAdResult.Earned -> claim(GameConstants.OFFLINE_PROFIT_AD_MULTIPLIER)
+                RewardedAdResult.Dismissed ->
+                    _offlineAdNotice.value = "광고를 끝까지 봐야 2배로 받을 수 있어요"
+                RewardedAdResult.NotReady, is RewardedAdResult.Failed ->
+                    _offlineAdNotice.value = "광고를 불러오지 못했어요. 잠시 후 다시 눌러 주세요"
+            }
         }
     }
 
@@ -69,6 +80,7 @@ class AppSessionViewModel @Inject constructor(
             val planets = getOwnedPlanetsUseCase().first()
             collectProfitUseCase(planets, multiplier)
             _pendingOfflineProfit.value = null
+            _offlineAdNotice.value = null
         }
     }
 }

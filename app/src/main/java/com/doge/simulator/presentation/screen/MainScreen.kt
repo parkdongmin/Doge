@@ -53,6 +53,7 @@ fun MainScreen(deepLinkFlow: StateFlow<String?>, onSignOut: () -> Unit) {
 
     val appSessionViewModel: AppSessionViewModel = hiltViewModel()
     val pendingOfflineProfit by appSessionViewModel.pendingOfflineProfit.collectAsState()
+    val offlineAdNotice by appSessionViewModel.offlineAdNotice.collectAsState()
 
     val tutorialViewModel: TutorialViewModel = hiltViewModel()
     val tutorialStep by tutorialViewModel.step.collectAsState()
@@ -234,6 +235,7 @@ fun MainScreen(deepLinkFlow: StateFlow<String?>, onSignOut: () -> Unit) {
         if (pending.coins >= 0) {
             OfflineProfitDialog(
                 coins = pending.coins,
+                adNotice = offlineAdNotice,
                 onClaimWithAd = { appSessionViewModel.claimWithAd(activity) },
                 onClaimFree = { appSessionViewModel.claimFree() }
             )
