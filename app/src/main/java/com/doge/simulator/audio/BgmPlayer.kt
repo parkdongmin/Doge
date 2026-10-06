@@ -41,6 +41,12 @@ class BgmPlayer @Inject constructor(
     private var enabled = settingsPrefs.bgmEnabled.value
     private var appInForeground = false
     private var hasAudioFocus = false
+    // 다른 오디오(광고 영상·전화 등)에 포커스를 뺏긴 상태. 이때 sync()가 곧장 포커스를 다시
+    // 요청하면 상대 쪽 재생을 끊어버리므로(광고가 끊기던 원인), 포커스가 돌아오거나(GAIN)
+    // 앱이 다시 포그라운드로 올라올 때까지는 다시 요청하지 않는다.
+    private var focusTakenByOther = false
+    // 전면/리워드 광고가 떠 있는 동안. 광고 SDK가 포커스를 요청하든 말든 BGM은 확실히 멈춘다.
+    private var adShowing = false
 
     private val trackResId: Int
         get() = context.resources.getIdentifier("bgm_ambient", "raw", context.packageName)
@@ -49,12 +55,14 @@ class BgmPlayer @Inject constructor(
         when (change) {
             AudioManager.AUDIOFOCUS_GAIN -> {
                 hasAudioFocus = true
+                focusTakenByOther = false
                 player?.setVolume(FULL_VOLUME, FULL_VOLUME)
                 sync()
             }
             AudioManager.AUDIOFOCUS_LOSS,
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
                 hasAudioFocus = false
+                focusTakenByOther = true
                 sync()
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK ->
@@ -84,6 +92,7 @@ class BgmPlayer @Inject constructor(
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) {
                 appInForeground = true
+                focusTakenByOther = false
                 sync()
             }
 
@@ -97,18 +106,37 @@ class BgmPlayer @Inject constructor(
             .launchIn(scope)
     }
 
+    /** 전면/리워드 광고를 띄우기 직전에 호출 (메인 스레드). */
+    @MainThread
+    fun pauseForAd() {
+        adShowing = true
+        sync()
+    }
+
+    /** 광고가 닫히거나 표시에 실패했을 때 호출 (메인 스레드). */
+    @MainThread
+    fun resumeAfterAd() {
+        if (!adShowing) return
+        adShowing = false
+        focusTakenByOther = false
+        sync()
+    }
+
     private fun sync() {
-        val shouldPlay = enabled && appInForeground && trackResId != 0
+        val shouldPlay = enabled && appInForeground && !adShowing && trackResId != 0
         if (shouldPlay) {
-            if (!hasAudioFocus) requestFocus()
-            if (!hasAudioFocus) return
+            if (!hasAudioFocus && !focusTakenByOther) requestFocus()
+            if (!hasAudioFocus) {
+                player?.let { if (it.isPlaying) it.pause() }
+                return
+            }
             val mp = ensurePlayer() ?: return
             if (!mp.isPlaying) mp.start()
         } else {
             player?.let { if (it.isPlaying) it.pause() }
-            // 사용자가 껐거나 앱이 백그라운드면 포커스를 다른 앱에 넘긴다.
-            // (일시적 포커스 상실은 그대로 두고 복귀를 기다린다)
-            if (!enabled || !appInForeground) abandonFocus()
+            // 사용자가 껐거나 앱이 백그라운드거나 광고 중이면 포커스를 넘긴다.
+            // (다른 앱에 의한 일시적 포커스 상실은 그대로 두고 복귀를 기다린다)
+            if (!enabled || !appInForeground || adShowing) abandonFocus()
         }
     }
 

@@ -3,6 +3,7 @@ package com.doge.simulator.ads
 import android.app.Activity
 import android.content.Context
 import com.doge.simulator.BuildConfig
+import com.doge.simulator.audio.BgmPlayer
 import com.google.android.gms.ads.AdError
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.FullScreenContentCallback
@@ -26,7 +27,8 @@ sealed class RewardedAdResult {
 
 @Singleton
 class RewardedAdManager @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val bgmPlayer: BgmPlayer
 ) {
     private val loadedAds = mutableMapOf<RewardPlacement, RewardedAd>()
     private val loadingPlacements = mutableSetOf<RewardPlacement>()
@@ -71,15 +73,19 @@ class RewardedAdManager @Inject constructor(
         var earned = false
         ad.fullScreenContentCallback = object : FullScreenContentCallback() {
             override fun onAdDismissedFullScreenContent() {
+                bgmPlayer.resumeAfterAd()
                 preload(placement)
                 onResult(if (earned) RewardedAdResult.Earned else RewardedAdResult.Dismissed)
             }
 
             override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                bgmPlayer.resumeAfterAd()
                 preload(placement)
                 onResult(RewardedAdResult.Failed(error.message))
             }
         }
+        // 광고 영상 소리와 BGM이 오디오 포커스를 두고 다투지 않게 광고 동안은 BGM을 확실히 멈춘다
+        bgmPlayer.pauseForAd()
         ad.show(activity) { earned = true }
     }
 }
