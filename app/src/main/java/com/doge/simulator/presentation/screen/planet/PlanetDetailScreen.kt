@@ -76,7 +76,10 @@ fun PlanetDetailScreen(
 ) {
     val planets by viewModel.planets.collectAsState()
     val resources by viewModel.resources.collectAsState()
-    val planet = planets.firstOrNull { it.id == planetId }
+    // 강화 결과 공개 전까지는 강화 전 모습으로 고정(레벨 배지 등이 연출 도중 먼저 바뀌는 스포 방지)
+    val upgradeDisplayFreeze by viewModel.upgradeDisplayFreeze.collectAsState()
+    val planet = upgradeDisplayFreeze?.takeIf { it.id == planetId }
+        ?: planets.firstOrNull { it.id == planetId }
     val upgradeMessage by viewModel.upgradeMessage.collectAsState()
     val upgradePhase by viewModel.upgradePhase.collectAsState()
     val undoableFailure by viewModel.undoableFailure.collectAsState()

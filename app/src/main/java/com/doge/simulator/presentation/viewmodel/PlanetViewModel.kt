@@ -83,6 +83,10 @@ class PlanetViewModel @Inject constructor(
     private val _upgradePhase = MutableStateFlow<UpgradePhase>(UpgradePhase.Idle)
     val upgradePhase: StateFlow<UpgradePhase> = _upgradePhase.asStateFlow()
 
+    // 강화 굴림 ~ 결과 공개 사이에 화면에 보여줄 강화 전 행성(null이면 실제 값 그대로)
+    private val _upgradeDisplayFreeze = MutableStateFlow<Planet?>(null)
+    val upgradeDisplayFreeze: StateFlow<Planet?> = _upgradeDisplayFreeze.asStateFlow()
+
     fun sellPlanet(planet: Planet) {
         viewModelScope.launch { sellPlanetUseCase(planet) }
     }
@@ -122,6 +126,9 @@ class PlanetViewModel @Inject constructor(
             // 새 강화 시도를 시작하면 이전 실패에 대한 되돌리기는 더 이상 유효하지 않음
             _undoableFailure.value = null
 
+            // 결과는 유스케이스 안에서 바로 DB에 저장돼 화면의 레벨 배지·"Lv.a → Lv.b" 등이 충전 연출
+            // 도중에 먼저 바뀌어 버린다(스포). 결과 공개 전까지는 강화 전 모습을 보여주도록 고정해 둔다
+            _upgradeDisplayFreeze.value = planet
             val result = upgradePlanetUseCase(planet)
             // 코인/자원 부족·최대 레벨 검증 실패는 도박이 아니라 즉시 알려줘야 할 정보라
             // 긴장 연출 없이 바로 처리. 실제로 성공/실패 롤이 일어난 경우에만 연출한다
@@ -159,7 +166,9 @@ class PlanetViewModel @Inject constructor(
                 // 결과 공개 후엔 자동으로 사라지지 않고, 사용자가 확인/닫기를 눌러야 사라진다 —
                 // 타이머로 사라지면 결과를 놓치거나, 되돌리기 버튼을 누를 새도 없이 없어질 수 있다
                 _upgradePhase.value = UpgradePhase.Revealing(msg, isDangerFail)
+                _upgradeDisplayFreeze.value = null
             } else {
+                _upgradeDisplayFreeze.value = null
                 _upgradeMessage.value = msg
                 delay(3000)
                 _upgradeMessage.value = null
