@@ -22,5 +22,7 @@ data class PlanetEntity(
     val lastProfitTime: Long,
     val productionMultiplier: Double = 1.0,
     val marketAdjustment: Long = 0L,
-    val lastEventTime: Long = System.currentTimeMillis()
+    val lastEventTime: Long = System.currentTimeMillis(),
+    val bankedProfit: Double = 0.0,
+    val bankedUntil: Long = 0L
 )

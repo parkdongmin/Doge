@@ -11,7 +11,8 @@ import androidx.work.WorkerParameters
 import com.doge.simulator.MainActivity
 import com.doge.simulator.R
 import com.doge.simulator.domain.model.GameConstants
-import com.doge.simulator.domain.model.preciseProduction
+import com.doge.simulator.domain.model.elapsedProfitMinutes
+import com.doge.simulator.domain.model.pendingProfitAt
 import com.doge.simulator.domain.repository.PlanetRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -51,11 +52,7 @@ class PlanetMaintenanceWorker @AssistedInject constructor(
         if (earliestPlanet.lastProfitTime == lastNotifiedProfitTime) return Result.success()
 
         val totalAccumulated = planets.sumOf { planet ->
-            val elapsedMinutes = minOf(
-                (now - planet.lastProfitTime) / 60_000L,
-                GameConstants.MAX_OFFLINE_MINUTES
-            )
-            (planet.preciseProduction * elapsedMinutes).toLong()
+            if (planet.elapsedProfitMinutes(now) <= 0) 0L else planet.pendingProfitAt(now).toLong()
         }
         val remainingHours = ((capMs - elapsedMs) / 3_600_000L).coerceAtLeast(0L)
 

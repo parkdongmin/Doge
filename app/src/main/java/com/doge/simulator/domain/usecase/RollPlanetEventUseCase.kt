@@ -5,6 +5,7 @@ import com.doge.simulator.domain.model.Planet
 import com.doge.simulator.domain.model.PlanetEventFlavor
 import com.doge.simulator.domain.model.PlanetEventLog
 import com.doge.simulator.domain.model.PlanetMetaDataTable
+import com.doge.simulator.domain.model.bankedProfitAt
 import com.doge.simulator.domain.repository.PlanetEventLogRepository
 import com.doge.simulator.domain.repository.PlanetRepository
 import javax.inject.Inject
@@ -45,7 +46,13 @@ class RollPlanetEventUseCase @Inject constructor(
                 deviation * planet.upgradeInvestment * GameConstants.PLANET_EVENT_MARKET_UPGRADE_INVESTMENT_RATIO
             ).toLong().coerceAtLeast(marketFloor)
 
-        planetRepository.updatePlanetEvent(planet.id, newMultiplier, newMarketAdjustment, now)
+        // 배율을 바꾸기 전에, 지금까지 바뀌기 전 생산량으로 번 몫을 적립해 둔다 — 안 그러면 나중에
+        // 수령할 때 방치 시간 전체가 새 생산량으로 소급 계산된다(악재면 이벤트 전 시간까지 손해)
+        planetRepository.updatePlanetEvent(
+            planet.id, newMultiplier, newMarketAdjustment, now,
+            bankedProfit = planet.bankedProfitAt(now),
+            bankedUntil = now
+        )
 
         // 소식 로그에는 "이번 이벤트 하나만으로" 얼마나 변했는지를 남긴다 — 상세화면의 생산 진행/
         // 시세 변동은 누적치를 보여주는 자리라 역할이 다름. 시세는 바닥에 걸리면 실제 반영폭이

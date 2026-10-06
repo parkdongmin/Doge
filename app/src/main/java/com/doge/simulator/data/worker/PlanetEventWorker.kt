@@ -11,25 +11,22 @@ import androidx.work.WorkerParameters
 import com.doge.simulator.MainActivity
 import com.doge.simulator.R
 import com.doge.simulator.domain.model.GameConstants
-import com.doge.simulator.domain.repository.PlanetRepository
+import com.doge.simulator.domain.usecase.CollectProfitUseCase
 import com.doge.simulator.domain.usecase.PlanetEventRoll
-import com.doge.simulator.domain.usecase.RollPlanetEventUseCase
 import com.doge.simulator.util.withSubjectParticle
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
-import kotlinx.coroutines.flow.first
 
 // 앱을 안 열고 있어도 밀린 행성 이벤트를 주기적으로 굴려서, 그중 "큰 폭"으로 움직인 것만
 // 골라 알림을 보낸다 — 주식 앱이 1%는 조용히 넘기고 20% 급등락에만 알림을 보내는 것과 같은
-// 개념. 이벤트 롤 자체는 CollectProfitUseCase(포그라운드 진입 시)와 같은 로직을
-// RollPlanetEventUseCase로 공유하므로, 이 워커가 먼저 굴리든 나중에 앱을 열어서 굴리든
-// 결과가 달라지지 않는다(lastEventTime 기준으로 한 번만 롤됨)
+// 개념. 이벤트 롤 자체는 포그라운드 수령 경로와 같은 RollPlanetEventUseCase를 쓰고, 수령과 같은
+// 락을 타도록 CollectProfitUseCase를 거친다 — 이 워커가 먼저 굴리든 나중에 앱을 열어서 굴리든
+// 결과가 달라지지 않는다(lastEventTime 기준으로 한 번만 롤되고, 이벤트 전 수익은 적립됨)
 @HiltWorker
 class PlanetEventWorker @AssistedInject constructor(
     @Assisted private val context: Context,
     @Assisted params: WorkerParameters,
-    private val planetRepository: PlanetRepository,
-    private val rollPlanetEventUseCase: RollPlanetEventUseCase
+    private val collectProfitUseCase: CollectProfitUseCase
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result = try {
@@ -40,14 +37,8 @@ class PlanetEventWorker @AssistedInject constructor(
     }
 
     private suspend fun doWorkInner(): Result {
-        val planets = planetRepository.getOwnedPlanets().first()
-        if (planets.isEmpty()) return Result.success()
-
-        val now = System.currentTimeMillis()
-        val bigMoves = planets.mapNotNull { planet ->
-            rollPlanetEventUseCase(planet, now)
-                ?.takeIf { it.magnitude >= GameConstants.PLANET_EVENT_NOTIFY_DELTA_THRESHOLD }
-        }
+        val bigMoves = collectProfitUseCase.rollPendingEvents()
+            .filter { it.magnitude >= GameConstants.PLANET_EVENT_NOTIFY_DELTA_THRESHOLD }
 
         if (bigMoves.isNotEmpty()) sendNotification(bigMoves)
 

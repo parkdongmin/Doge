@@ -41,6 +41,7 @@ import com.doge.simulator.domain.model.Resource
 import com.doge.simulator.domain.model.ResourceType
 import com.doge.simulator.domain.model.effectiveProduction
 import com.doge.simulator.domain.model.marketValue
+import com.doge.simulator.domain.model.preciseProductionAtLevel
 import com.doge.simulator.presentation.component.PlanetLevelBadge
 import com.doge.simulator.presentation.component.rememberLiveCoinDisplay
 import com.doge.simulator.presentation.viewmodel.PlanetViewModel
@@ -545,9 +546,7 @@ private fun PlanetUpgradeDialog(
             // ── 강화 성공 시 효과 미리보기 ───────────────────────
             Spacer(modifier = Modifier.height(Spacing.md))
             val curProd = planet.effectiveProduction
-            val nextProd = (planet.production * GameConstants.PLANET_PRODUCTION_SCALE *
-                GameConstants.planetLevelMultiplier(planet.level + 1) *
-                planet.productionMultiplier).toLong()
+            val nextProd = planet.preciseProductionAtLevel(planet.level + 1).toLong()
             DetailRow(
                 "분당 생산량",
                 "%,d → %,d 코인".format(curProd, nextProd),

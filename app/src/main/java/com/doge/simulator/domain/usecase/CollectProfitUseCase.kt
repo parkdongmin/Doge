@@ -3,7 +3,8 @@ package com.doge.simulator.domain.usecase
 import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.Planet
 import com.doge.simulator.domain.model.PlanetMetaDataTable
-import com.doge.simulator.domain.model.preciseProduction
+import com.doge.simulator.domain.model.elapsedProfitMinutes
+import com.doge.simulator.domain.model.pendingProfitAt
 import com.doge.simulator.domain.repository.PlanetRepository
 import com.doge.simulator.domain.repository.ResourceRepository
 import com.doge.simulator.domain.repository.UserRepository
@@ -39,17 +40,25 @@ class CollectProfitUseCase @Inject constructor(
         val currentPlanets = planetRepository.getOwnedPlanets().first().filter { it.id in ownedIds }
 
         currentPlanets.forEach { planet ->
-            val rawElapsed = (now - planet.lastProfitTime) / 60_000L
-            val elapsedMinutes = minOf(rawElapsed, GameConstants.MAX_OFFLINE_MINUTES)
+            val elapsedMinutes = planet.elapsedProfitMinutes(now)
             if (elapsedMinutes <= 0) return@forEach
 
-            val earned = (planet.preciseProduction * elapsedMinutes).toLong()
+            // 이벤트 전 적립분 + 이벤트 후 현재 생산량 몫
+            val earned = planet.pendingProfitAt(now).toLong()
             totalEarned += earned
 
             planetRepository.updatePlanetProfit(
                 planetId = planet.id,
                 totalProfit = planet.totalProfit + earned,
                 lastProfitTime = now
+            )
+            // 이벤트 롤은 방금 정산이 끝난(적립분 0, lastProfitTime = now) 상태 기준으로 해야
+            // 이미 지급한 몫을 다시 적립하지 않는다
+            val settledPlanet = planet.copy(
+                totalProfit = planet.totalProfit + earned,
+                lastProfitTime = now,
+                bankedProfit = 0.0,
+                bankedUntil = 0L
             )
 
             val meta = PlanetMetaDataTable.data[planet.type]
@@ -61,7 +70,7 @@ class CollectProfitUseCase @Inject constructor(
                 if (amount > 0L) resourceRepository.add(type, amount)
             }
 
-            rollPlanetEventUseCase(planet, now)
+            rollPlanetEventUseCase(settledPlanet, now)
         }
 
         // 마이너스 순수익(다수 행성이 "생산 중단" 상태)도 실제 잔액에 반영돼야 방치 손해가 의미
@@ -71,6 +80,12 @@ class CollectProfitUseCase @Inject constructor(
             totalEarned > 0 -> userRepository.addCoins((totalEarned * multiplier).toLong())
             totalEarned < 0 -> userRepository.deductCoinsClamped(-totalEarned)
         }
+    }
+
+    // 앱을 안 연 사이 백그라운드 워커(PlanetEventWorker)가 밀린 이벤트만 굴릴 때. 수령과 같은 락을
+    // 써야 수령 도중 끼어들어 적립분이 날아가거나 이벤트가 두 번 굴러가지 않는다
+    suspend fun rollPendingEvents(now: Long = System.currentTimeMillis()): List<PlanetEventRoll> = mutex.withLock {
+        planetRepository.getOwnedPlanets().first().mapNotNull { rollPlanetEventUseCase(it, now) }
     }
 
     // 분당 dropChance(%) × 등급 배율 × 강화 레벨 배율을 경과 시간에 대한 기댓값으로 환산하여 정수 개수를 산출

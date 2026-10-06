@@ -17,18 +17,22 @@ interface PlanetDao {
     @Query("DELETE FROM planet_table WHERE id = :planetId")
     suspend fun deletePlanet(planetId: String): Int
 
-    @Query("UPDATE planet_table SET totalProfit = :totalProfit, lastProfitTime = :lastProfitTime WHERE id = :id")
+    // 수령하면 적립분도 함께 비운다(적립분은 totalProfit에 이미 포함돼 지급됨)
+    @Query("UPDATE planet_table SET totalProfit = :totalProfit, lastProfitTime = :lastProfitTime, bankedProfit = 0, bankedUntil = 0 WHERE id = :id")
     suspend fun updateProfit(id: String, totalProfit: Long, lastProfitTime: Long)
 
     @Query("UPDATE planet_table SET level = :level, upgradeInvestment = :upgradeInvestment WHERE id = :planetId")
     suspend fun upgradePlanet(planetId: String, level: Int, upgradeInvestment: Long)
 
     @Query("""UPDATE planet_table SET productionMultiplier = :productionMultiplier,
-              marketAdjustment = :marketAdjustment, lastEventTime = :lastEventTime WHERE id = :planetId""")
+              marketAdjustment = :marketAdjustment, lastEventTime = :lastEventTime,
+              bankedProfit = :bankedProfit, bankedUntil = :bankedUntil WHERE id = :planetId""")
     suspend fun updatePlanetEvent(
         planetId: String,
         productionMultiplier: Double,
         marketAdjustment: Long,
-        lastEventTime: Long
+        lastEventTime: Long,
+        bankedProfit: Double,
+        bankedUntil: Long
     )
 }

@@ -64,7 +64,7 @@ abstract class PlanetDatabase : RoomDatabase() {
     abstract fun snapshotDao(): SnapshotDao
 
     companion object {
-        const val VERSION = 19
+        const val VERSION = 20
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
@@ -457,6 +457,15 @@ abstract class PlanetDatabase : RoomDatabase() {
                 database.execSQL("ALTER TABLE story_progress_table ADD COLUMN firstT10Completed INTEGER NOT NULL DEFAULT 0")
                 database.execSQL("ALTER TABLE story_progress_table ADD COLUMN storyCompleted INTEGER NOT NULL DEFAULT 0")
                 database.execSQL("ALTER TABLE expedition_report_table ADD COLUMN isStoryEnding INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val MIGRATION_19_20 = object : Migration(19, 20) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // 이벤트 직전까지의 미수령 수익 적립 — 백그라운드 이벤트가 방치 수익을 소급해서
+                // 새 생산량으로 계산하던 정산 버그 수정용
+                database.execSQL("ALTER TABLE planet_table ADD COLUMN bankedProfit REAL NOT NULL DEFAULT 0.0")
+                database.execSQL("ALTER TABLE planet_table ADD COLUMN bankedUntil INTEGER NOT NULL DEFAULT 0")
             }
         }
     }
