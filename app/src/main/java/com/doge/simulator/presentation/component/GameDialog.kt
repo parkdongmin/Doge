@@ -1,6 +1,7 @@
 package com.doge.simulator.presentation.component
 
 import androidx.annotation.DrawableRes
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -37,6 +38,10 @@ fun GameDialog(
     dismissOnClickOutside: Boolean = true,
     // 결정적 순간 강조(강화 결과 공개 중 초록/빨강 등)에만 바꾼다.
     borderColor: Color = SpaceBlue,
+    // 명판 바로 아래, 스크롤되지 않는 자리(탭 등). 본문을 내려도 위에 남는다.
+    header: (@Composable () -> Unit)? = null,
+    // 탭을 바꿀 때 맨 위로 되돌리는 등 본문 스크롤을 밖에서 다뤄야 할 때만 넘긴다.
+    scrollState: ScrollState = rememberScrollState(),
     buttons: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
@@ -62,11 +67,14 @@ fun GameDialog(
                 infoDescription = "",
                 onClose = onClose
             )
+            if (header != null) {
+                Box(Modifier.padding(start = Spacing.xl, end = Spacing.xl, top = Spacing.lg)) { header() }
+            }
             Column(
                 Modifier
                     .weight(1f, fill = false)
-                    .verticalScroll(rememberScrollState())
-                    .padding(start = Spacing.xl, end = Spacing.xl, top = Spacing.lg, bottom = Spacing.lg),
+                    .verticalScroll(scrollState)
+                    .padding(start = Spacing.xl, end = Spacing.xl, top = if (header != null) Spacing.md else Spacing.lg, bottom = Spacing.lg),
                 content = content
             )
             if (buttons != null) {

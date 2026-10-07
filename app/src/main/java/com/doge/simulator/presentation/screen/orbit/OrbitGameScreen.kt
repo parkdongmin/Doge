@@ -624,18 +624,6 @@ private fun OrbitCardFace(card: OrbitCard, size: OrbitCardSize) {
     }
 }
 
-// 카드별 고유색. 금색은 앱에서 "귀한 것" 전용이라 가장 강한 CAPTAIN에만 쓴다.
-private fun cardAccent(type: OrbitCardType): Color = when (type) {
-    OrbitCardType.SCOUT_DRONE -> Color(0xFF4FC3F7)
-    OrbitCardType.SENSOR -> SpaceLight
-    OrbitCardType.PROBE -> Color(0xFF9C8CFF)
-    OrbitCardType.SHIELD -> StatusGreen
-    OrbitCardType.EMP -> StatusRed
-    OrbitCardType.WARP_GATE -> Color(0xFFD17CE8)
-    OrbitCardType.AI_CORE -> Color(0xFF26D0CE)
-    OrbitCardType.CAPTAIN -> GoldAccent
-}
-
 // 카드 모서리: 둥글게 깎지 않고 비스듬히 잘라 도트 계단 모서리처럼 보이게.
 private fun pixelCardShape(small: Boolean) = pixelShape(if (small) 2.dp else 4.dp)
 
@@ -948,39 +936,4 @@ private fun roundEndBannerText(info: OrbitRoundEndInfo): String {
     }
     val cause = if (info.reason == RoundEndReason.OUT) "라운드 종료" else "덱 소진 — 라운드 종료"
     return "$cause — $outcome  (SIGNAL ${info.playerSignal}-${info.b01Signal})"
-}
-
-private fun cardLabel(type: OrbitCardType): String = when (type) {
-    OrbitCardType.SCOUT_DRONE -> "SCOUT DRONE"
-    OrbitCardType.SENSOR -> "SENSOR"
-    OrbitCardType.PROBE -> "PROBE"
-    OrbitCardType.SHIELD -> "SHIELD"
-    OrbitCardType.EMP -> "EMP"
-    OrbitCardType.WARP_GATE -> "WARP GATE"
-    OrbitCardType.AI_CORE -> "AI CORE"
-    OrbitCardType.CAPTAIN -> "CAPTAIN"
-}
-
-private fun cardIconRes(type: OrbitCardType): Int = when (type) {
-    OrbitCardType.SCOUT_DRONE -> R.drawable.ic_orbit_scout_drone
-    OrbitCardType.SENSOR -> R.drawable.ic_orbit_sensor
-    OrbitCardType.PROBE -> R.drawable.ic_orbit_probe
-    OrbitCardType.SHIELD -> R.drawable.ic_orbit_shield
-    OrbitCardType.EMP -> R.drawable.ic_orbit_emp
-    OrbitCardType.WARP_GATE -> R.drawable.ic_orbit_warp_gate
-    OrbitCardType.AI_CORE -> R.drawable.ic_orbit_ai_core
-    OrbitCardType.CAPTAIN -> R.drawable.ic_orbit_captain
-}
-
-// 카드 기본 효과만 한 줄로. 선택 줄처럼 좁은 곳에 뜨므로 예외 규칙(SCOUT DRONE은 Power 1 지목 불가,
-// AI CORE 강제 사용 등)은 빼고 "이 카드가 뭘 하는지"만 — 예외 규칙은 어기려 할 때 경고로 안내한다.
-private fun cardShortDescription(type: OrbitCardType): String = when (type) {
-    OrbitCardType.SCOUT_DRONE -> "상대 카드의 Power를 맞히면 상대가 OUT돼요."
-    OrbitCardType.SENSOR -> "상대가 든 카드를 확인해요."
-    OrbitCardType.PROBE -> "카드 Power를 비교해 낮은 쪽이 OUT돼요."
-    OrbitCardType.SHIELD -> "다음 내 턴까지 상대 카드 효과를 막아요."
-    OrbitCardType.EMP -> "한 명의 카드를 버리고 새로 받게 해요."
-    OrbitCardType.WARP_GATE -> "서로 카드를 맞바꿔요."
-    OrbitCardType.AI_CORE -> "효과는 없어요."
-    OrbitCardType.CAPTAIN -> "가장 강한 카드. 내거나 버려지면 OUT돼요."
 }
