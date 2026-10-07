@@ -73,7 +73,8 @@ class RollPlanetEventUseCase @Inject constructor(
     companion object {
         // 이벤트 하나가 행성 상태를 어떻게 바꾸는지(순수 계산 — DB·랜덤 없음).
         //  - 정상 + 호재: 생산 배율 +델타
-        //  - 정상 + 악재: 생산 배율 −델타 후 고장(손해 배율 1.0에서 시작)
+        //  - 정상 + 작은 악재(델타 < 고장 기준): 생산 배율 −델타만
+        //  - 정상 + 큰 악재: 생산 배율 −델타 후 고장(손해 배율 1.0에서 시작)
         //  - 고장 + 악재: 손해 배율 +델타 (손해 커짐)
         //  - 고장 + 호재: 손해 배율 −델타 (손해 줄어듦, 플러스 복귀는 정비로만)
         fun applyEvent(planet: Planet, isBad: Boolean, delta: Double): Planet {
@@ -84,11 +85,12 @@ class RollPlanetEventUseCase @Inject constructor(
             }
             val newMultiplier = (planet.productionMultiplier + if (isBad) -delta else delta)
                 .coerceIn(GameConstants.PLANET_EVENT_MULTIPLIER_FLOOR, GameConstants.PLANET_EVENT_MULTIPLIER_CEILING)
+            val breaks = isBad && delta >= GameConstants.PLANET_BREAKDOWN_DELTA_THRESHOLD
             return planet.copy(
                 productionMultiplier = newMultiplier,
                 // 시세는 매번 "지금 생산 배율" 기준으로 다시 계산 — 생산 배율과 시세가 어긋나지 않음
                 marketAdjustment = planet.marketAdjustmentFor(newMultiplier),
-                lossMultiplier = if (isBad) GameConstants.PLANET_LOSS_MULTIPLIER_START else 0.0
+                lossMultiplier = if (breaks) GameConstants.PLANET_LOSS_MULTIPLIER_START else 0.0
             )
         }
     }

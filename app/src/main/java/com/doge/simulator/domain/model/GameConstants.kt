@@ -81,15 +81,18 @@ object GameConstants {
     const val PLANET_EVENT_NOTIFY_DELTA_THRESHOLD = 0.25
     // 알림 파이프라인만 확인할 땐 잠깐 0.05로 낮추면 이벤트가 뜰 때마다 무조건 알림이 온다
 
-    // 정상 상태의 생산 배율 범위. 호재는 +델타, 악재는 −델타(그리고 고장)로 누적된다.
+    // 정상 상태의 생산 배율 범위. 호재는 +델타, 악재는 −델타(큰 악재면 고장까지)로 누적된다.
     // 악재도 배율을 깎아야 호재만 쌓여 모든 행성이 천장에 붙는 일이 없다
     const val PLANET_EVENT_MULTIPLIER_FLOOR = 0.5
     const val PLANET_EVENT_MULTIPLIER_CEILING = 2.0
 
     // ── 행성 고장/정비 ───────────────────────────────────────────────
-    // 정상 행성에 악재가 뜨면 생산 배율을 깎은 뒤 부호가 뒤집혀 "고장"(마이너스 생산) 상태가 된다.
+    // 정상 행성에 큰 악재가 뜨면 생산 배율을 깎은 뒤 부호가 뒤집혀 "고장"(마이너스 생산) 상태가 된다.
     // 고장 동안의 손해 = 정상일 때 생산량 × 손해 배율. 손해 배율은 고장 시 1.0에서 시작해
     // 악재면 +델타, 호재면 −델타(플러스로는 안 돌아옴 — 회복은 정비로만)
+    // 정상 행성은 악재 폭이 이 값(15%p) 이상일 때만 고장 난다. 원래 악재면 무조건 고장이었는데
+    // 행성마다 하루 1~2번씩 정비가 떠서 과했음 — 균등분포(3~30%p) 기준 악재의 약 56%만 고장
+    const val PLANET_BREAKDOWN_DELTA_THRESHOLD = 0.15
     const val PLANET_LOSS_MULTIPLIER_START = 1.0
     const val PLANET_LOSS_MULTIPLIER_MIN = 0.5
     const val PLANET_LOSS_MULTIPLIER_MAX = 2.0

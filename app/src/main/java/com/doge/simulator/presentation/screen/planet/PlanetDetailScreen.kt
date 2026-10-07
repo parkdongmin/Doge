@@ -671,7 +671,7 @@ private fun PlanetUpgradeDialog(
 private fun StatsInfoDialog(onDismiss: () -> Unit) {
     InfoDialog(title = "스탯 설명", onDismiss = onDismiss) {
         StatsInfoEntry("생산량", "이 행성이 1분에 만드는 코인이에요. 레벨과 이벤트 효과가 반영돼요.")
-        StatsInfoEntry("생산 진행 / 고장 중", "생산량을 1시간 기준으로 보여줘요. 악재가 뜨면 고장 나서 마이너스가 되고, 정비할 때까지 코인이 줄어요.")
+        StatsInfoEntry("생산 진행 / 고장 중", "생산량을 1시간 기준으로 보여줘요. 큰 악재가 뜨면 고장 나서 마이너스가 되고, 정비할 때까지 코인이 줄어요.")
         StatsInfoEntry("정비", "고장 난 행성을 원래 생산량으로 되돌려요. 고장 중엔 강화할 수 없고 매도가도 떨어져요.")
         StatsInfoEntry("시세 변동", "악재·호재·고장으로 달라진 매도가예요. 괄호 안 %는 투자액 대비 비율이에요.")
         StatsInfoEntry("이벤트 간격", "이 행성에 이벤트가 얼마나 자주 오는지예요. 위험한 타입일수록 자주 와요.")

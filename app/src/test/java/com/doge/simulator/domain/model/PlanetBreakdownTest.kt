@@ -35,8 +35,16 @@ class PlanetBreakdownTest {
     }
 
     @Test
+    fun `small bad event on a healthy planet only cuts the multiplier`() {
+        val p = applyEvent(planet(), isBad = true, delta = 0.1)
+        assertFalse(p.isBroken)
+        assertEquals(0.9, p.productionMultiplier, 1e-9)
+        assertEquals(8.1, p.preciseProduction, 1e-9)
+    }
+
+    @Test
     fun `events on a broken planet only move the loss`() {
-        val broken = applyEvent(planet(), isBad = true, delta = 0.0001).copy(productionMultiplier = 1.0, marketAdjustment = 0L)
+        val broken = applyEvent(planet(), isBad = true, delta = 0.15).copy(productionMultiplier = 1.0, marketAdjustment = 0L)
         val worse = applyEvent(broken, isBad = true, delta = 0.2)
         assertEquals(-10.8, worse.preciseProduction, 1e-9)
         assertEquals(1446L, worse.marketValue) // −36%
