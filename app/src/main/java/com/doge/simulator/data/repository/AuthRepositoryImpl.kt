@@ -1,5 +1,6 @@
 package com.doge.simulator.data.repository
 
+import com.doge.simulator.domain.model.maskDisplayName
 import com.doge.simulator.domain.repository.AuthRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
@@ -48,10 +49,11 @@ class AuthRepositoryImpl @Inject constructor(
     // users/{uid}에는 리더보드에 필요한 것 + 민원대응용 타임스탬프만 저장한다.
     // email·photoUrl은 Firebase Auth가 이미 갖고 있어 중복이고(email은 규칙상 다른 유저에게
     // 읽혀 프라이버시 문제), fcmToken은 알림 전송 시점에 매번 새로 조회하므로 저장 불필요.
+    // displayName도 다른 유저에게 읽히므로 실명 대신 마스킹된 값만 저장한다.
     private suspend fun saveUser(user: FirebaseUser, isNewUser: Boolean) {
         val data = mutableMapOf<String, Any?>(
             "uid" to user.uid,
-            "displayName" to user.displayName,
+            "displayName" to maskDisplayName(user.displayName),
             "lastLoginAt" to FieldValue.serverTimestamp()
         )
         if (isNewUser) {

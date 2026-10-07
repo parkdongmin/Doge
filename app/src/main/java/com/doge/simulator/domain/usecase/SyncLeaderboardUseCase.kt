@@ -25,13 +25,9 @@ class SyncLeaderboardUseCase @Inject constructor(
         // 행성 가치는 매도가(SellPlanetUseCase)·자산 화면(AssetViewModel)과 동일하게
         // marketValue(buyPrice + upgradeInvestment + marketAdjustment)로 계산한다.
         val totalAsset = coins + planets.sumOf { it.marketValue }
-        val displayName = user.displayName
-            ?.takeIf { it.isNotBlank() }
-            ?: "플레이어#${user.uid.take(6)}"
-
         leaderboardRepository.updateMyScore(
             uid = user.uid,
-            displayName = displayName,
+            displayName = user.displayName.orEmpty(),
             totalAsset = totalAsset,
             coins = coins,
             planetCount = planets.size

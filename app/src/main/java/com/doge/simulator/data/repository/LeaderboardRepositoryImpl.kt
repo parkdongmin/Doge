@@ -1,6 +1,8 @@
 package com.doge.simulator.data.repository
 
 import com.doge.simulator.domain.model.LeaderboardEntry
+import com.doge.simulator.domain.model.maskDisplayName
+import com.doge.simulator.domain.model.rankingDisplayName
 import com.doge.simulator.domain.repository.LeaderboardRepository
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -17,6 +19,7 @@ import javax.inject.Inject
  *   - coins       : Long
  *   - planetCount : Int
  *   - assetUpdatedAt : Long
+ *   - displayName : String (마스킹된 값 — 구버전이 남긴 실명도 다음 동기화 때 덮어쓴다)
  */
 class LeaderboardRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore
@@ -33,6 +36,7 @@ class LeaderboardRepositoryImpl @Inject constructor(
     ) {
         // 기존 users 문서에 게임 통계 필드만 merge (인증 정보 덮어쓰지 않음)
         val data = mapOf(
+            "displayName"    to maskDisplayName(displayName),
             "totalAsset"     to totalAsset,
             "coins"          to coins,
             "planetCount"    to planetCount,
@@ -52,7 +56,8 @@ class LeaderboardRepositoryImpl @Inject constructor(
             snapshot.documents.mapIndexed { index, doc ->
                 LeaderboardEntry(
                     uid         = doc.getString("uid") ?: doc.id,
-                    displayName = doc.getString("displayName") ?: "익명",
+                    // 아직 실명이 남은 문서(업데이트 안 한 유저)도 화면에선 가린다 (NPC 문서는 제외)
+                    displayName = rankingDisplayName(doc.getString("displayName")),
                     totalAsset  = doc.getLong("totalAsset") ?: 0L,
                     coins       = doc.getLong("coins") ?: 0L,
                     planetCount = (doc.getLong("planetCount") ?: 0L).toInt(),

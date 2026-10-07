@@ -22,7 +22,7 @@ service cloud.firestore {
     // ── 유저 프로필 + 리더보드 ─────────────────────────
     // 리더보드가 users 컬렉션을 totalAsset 정렬로 상위 50명 조회하므로
     // 로그인 유저에게 read는 열어야 한다. write는 본인 문서만.
-    // 문서에 담기는 필드: uid·displayName·createdAt·lastLoginAt(민원대응용) +
+    // 문서에 담기는 필드: uid·displayName(마스킹, 예: "박*민")·createdAt·lastLoginAt(민원대응용) +
     // 리더보드 통계(totalAsset·coins·planetCount·assetUpdatedAt). email·photoUrl·
     // fcmToken은 저장하지 않는다(2026-08-31 제거 — 다른 유저에게 읽혀도 무방하도록).
     match /users/{userId} {
