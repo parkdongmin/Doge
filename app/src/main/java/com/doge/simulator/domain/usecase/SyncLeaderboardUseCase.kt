@@ -10,7 +10,7 @@ import javax.inject.Inject
 
 /**
  * 현재 플레이어의 총 자산(코인 + 행성 시세)을 계산해 Firestore 리더보드에 업데이트한다.
- * HomeScreen 진입 및 행성 구매/판매 후 호출.
+ * 랭킹 탭 진입, 앱이 백그라운드로 갈 때(ON_STOP), 실행 중 30분마다 호출.
  */
 class SyncLeaderboardUseCase @Inject constructor(
     private val authRepository: AuthRepository,

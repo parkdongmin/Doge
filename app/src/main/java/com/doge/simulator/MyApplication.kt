@@ -76,12 +76,17 @@ class MyApplication : Application(), Configuration.Provider, ImageLoaderFactory 
         bgmPlayer.start()
     }
 
-    // 앱이 백그라운드로 갈 때(ON_STOP) 로컬 게임 상태를 클라우드로 백업.
+    // 앱이 백그라운드로 갈 때(ON_STOP) 로컬 게임 상태를 클라우드로 백업하고 랭킹 점수도 올린다.
     // "저장할 만한 순간"에만 push → 분당 write 없음 → 서버비 최소.
+    // 랭킹 점수는 원래 랭킹 탭 진입·30분 주기에만 올라가서, 랭킹 탭을 안 열고 30분 안에 끄는
+    // 유저는 users 문서에 totalAsset이 아예 없어 랭킹(totalAsset 정렬)에서 빠졌었다
     private fun registerCloudSaveSync() {
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onStop(owner: LifecycleOwner) {
-                appScope.launch { runCatching { cloudSaveManager.push() } }
+                appScope.launch {
+                    runCatching { cloudSaveManager.push() }
+                    runCatching { syncLeaderboardUseCase() }
+                }
             }
         })
     }
