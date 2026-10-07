@@ -127,7 +127,9 @@ fun LoungePanel(
 
                 // 장면 안에 B-01이 크게 보이므로 말풍선엔 아바타를 붙이지 않는다.
                 // 창은 닫혀도 남아 있으므로 열 때마다 새 대사를 뽑는다.
-                val line = remember(visible) { B01Lines.lounge.random() }
+                // 명판 ⓘ가 작아 규칙을 안 보고 바로 입장하는 사람이 많아서, 어느 대사가 뽑히든
+                // B-01이 규칙 보는 곳을 한 줄 덧붙인다.
+                val line = remember(visible) { B01Lines.lounge.random() + "\n" + B01Lines.LOUNGE_RULES_HINT }
                 B01SpeechRow(line = line, showAvatar = false)
 
                 // ── ORBIT 입장 ─────────────────────────────────────
