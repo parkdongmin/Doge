@@ -69,7 +69,10 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8 코드 축소·난독화·최적화. 꺼져 있으면 Play Console이 "DEX 코드 최적화 기준점 미만"으로 경고한다
+            // (2026-10-07). 리소스 축소도 함께 — 이름으로 찾는 리소스는 res/raw/keep.xml에 남긴다.
+            isMinifyEnabled = true
+            isShrinkResources = true
 
             // local.properties에 서명 값이 있을 때만 release 서명을 붙인다.
             // 없으면 서명 안 된 산출물이 나오고 빌드는 계속 통과한다.

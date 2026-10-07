@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 리소스 축소(isShrinkResources)에서 지우지 말 것 — BgmPlayer가 getIdentifier("bgm_ambient")로
+     이름으로 찾는다(BGM 파일은 라이선스 확인 전이라 gitignore). -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/bgm_ambient" />

@@ -1,21 +1,7 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# R8 규칙. 사용하는 라이브러리(Room·Hilt·WorkManager·kotlinx.serialization·Firebase·AdMob·Coil)는
+# 각자 소비자 규칙을 AAR에 포함하고 있어 따로 keep할 것이 없다. 앱 코드에 리플렉션은 없다.
+# 문제가 생겨 규칙을 추가할 땐 어떤 증상 때문에 넣는지 주석으로 남길 것.
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
-
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
-
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Play Console 비정상 종료 보고에서 줄 번호가 보이도록(매핑 파일은 AAB에 자동 포함된다).
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
