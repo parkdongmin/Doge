@@ -41,16 +41,16 @@ class TrainAstronautUseCase @Inject constructor(
 
         if (!userRepository.deductCoins(coinCost)) return Result.InsufficientCoins
 
-        if (isAdvanced) {
-            val consumed = mutableListOf<Pair<com.doge.simulator.domain.model.ResourceType, Long>>()
-            for ((type, amount) in GameConstants.ADVANCED_TRAINING_RESOURCE_COST) {
-                if (!resourceRepository.consume(type, amount.toLong())) {
-                    userRepository.addCoins(coinCost)
-                    for ((refundType, refundAmount) in consumed) resourceRepository.add(refundType, refundAmount)
-                    return Result.InsufficientResources
-                }
-                consumed.add(type to amount.toLong())
+        val resourceCost = if (isAdvanced) GameConstants.ADVANCED_TRAINING_RESOURCE_COST
+                           else GameConstants.BASIC_TRAINING_RESOURCE_COST
+        val consumed = mutableListOf<Pair<ResourceType, Long>>()
+        for ((type, amount) in resourceCost) {
+            if (!resourceRepository.consume(type, amount.toLong())) {
+                userRepository.addCoins(coinCost)
+                for ((refundType, refundAmount) in consumed) resourceRepository.add(refundType, refundAmount)
+                return Result.InsufficientResources
             }
+            consumed.add(type to amount.toLong())
         }
 
         val duration = if (isAdvanced) GameConstants.ADVANCED_TRAINING_DURATION_MS

@@ -24,6 +24,7 @@ import com.doge.simulator.domain.model.Astronaut
 import com.doge.simulator.domain.model.AstronautGrade
 import com.doge.simulator.domain.model.AstronautStatus
 import com.doge.simulator.domain.model.GameConstants
+import com.doge.simulator.domain.model.ResourceType
 import com.doge.simulator.domain.model.RecruitmentCandidate
 import com.doge.simulator.domain.model.RecruitmentPool
 import com.doge.simulator.presentation.component.CrewInfoContent
@@ -78,6 +79,7 @@ private fun AstronautContent(viewModel: AstronautViewModel, modifier: Modifier) 
     val researchLab by viewModel.researchLab.collectAsState()
     val recruitmentPool by viewModel.recruitmentPool.collectAsState()
     val coins by viewModel.coins.collectAsState()
+    val resources by viewModel.resources.collectAsState()
     val message by viewModel.message.collectAsState()
     val activity = LocalContext.current.findActivity()
 
@@ -134,6 +136,7 @@ private fun AstronautContent(viewModel: AstronautViewModel, modifier: Modifier) 
                     AstronautCard(
                         astronaut = astronaut,
                         coins = coins,
+                        resources = resources,
                         trainingSlotAvailable = astronauts.count { it.status == AstronautStatus.TRAINING } < researchLab.maxTrainingSlots,
                         onTrainBasic = { viewModel.train(astronaut, false) },
                         onTrainAdvanced = { viewModel.train(astronaut, true) },
@@ -250,6 +253,7 @@ private fun RecruitmentCandidateCard(
 private fun AstronautCard(
     astronaut: Astronaut,
     coins: Long,
+    resources: Map<ResourceType, Long>,
     trainingSlotAvailable: Boolean,
     onTrainBasic: () -> Unit,
     onTrainAdvanced: () -> Unit,
@@ -325,12 +329,17 @@ private fun AstronautCard(
                     Text("이 등급의 숙련도 한계에 도달했습니다", color = TextDisabled,
                         style = MaterialTheme.typography.labelSmall)
                 } else {
+                    val hasResources = { cost: Map<ResourceType, Int> ->
+                        cost.all { (type, amount) -> (resources[type] ?: 0L) >= amount }
+                    }
+                    val canBasic = hasResources(GameConstants.BASIC_TRAINING_RESOURCE_COST)
+                    val canAdvanced = hasResources(GameConstants.ADVANCED_TRAINING_RESOURCE_COST)
                     Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                         // 카드 한 장에 강조색 버튼은 최대 하나 — 훈련은 두 개라 둘 다 남색, 금액만 금색으로 강조.
                         GameButton(
                             text = "기초 훈련 +${GameConstants.BASIC_TRAINING_PROFICIENCY_GAIN}",
                             onClick = onTrainBasic,
-                            enabled = trainingSlotAvailable && coins >= GameConstants.BASIC_TRAINING_COST_COINS,
+                            enabled = trainingSlotAvailable && canBasic && coins >= GameConstants.BASIC_TRAINING_COST_COINS,
                             modifier = Modifier.weight(1f),
                             style = GameButtonStyle.Neutral,
                             subText = "4시간",
@@ -339,18 +348,29 @@ private fun AstronautCard(
                         GameButton(
                             text = "심화 훈련 +${GameConstants.ADVANCED_TRAINING_PROFICIENCY_GAIN}",
                             onClick = onTrainAdvanced,
-                            enabled = trainingSlotAvailable && coins >= GameConstants.ADVANCED_TRAINING_COST_COINS,
+                            enabled = trainingSlotAvailable && canAdvanced && coins >= GameConstants.ADVANCED_TRAINING_COST_COINS,
                             modifier = Modifier.weight(1f),
                             style = GameButtonStyle.Neutral,
                             subText = "12시간",
                             subCoinAmount = GameConstants.ADVANCED_TRAINING_COST_COINS
                         )
                     }
+                    // 버튼 안은 시간·코인만으로도 꽉 차서 자원 비용은 아래 한 줄로 (격납고 강화 비용 표기와 같은 방식)
+                    Spacer(modifier = Modifier.height(Spacing.xs))
+                    Text(
+                        "기초 " + GameConstants.BASIC_TRAINING_RESOURCE_COST.costLabel() +
+                            " · 심화 " + GameConstants.ADVANCED_TRAINING_RESOURCE_COST.costLabel(),
+                        color = if (canBasic) TextSecondary else StatusRed,
+                        style = MaterialTheme.typography.labelSmall
+                    )
                 }
             }
         }
     }
 }
+
+private fun Map<ResourceType, Int>.costLabel(): String =
+    entries.joinToString(" · ") { "${it.key.displayName}×${it.value}" }
 
 private fun formatHours(ms: Long): String {
     val h = ms / 3_600_000L

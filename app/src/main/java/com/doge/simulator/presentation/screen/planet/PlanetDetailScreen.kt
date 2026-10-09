@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.annotation.DrawableRes
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -43,7 +44,9 @@ import com.doge.simulator.domain.model.effectiveProduction
 import com.doge.simulator.domain.model.marketValue
 import com.doge.simulator.domain.model.normalProductionAtLevel
 import com.doge.simulator.domain.model.isBroken
-import com.doge.simulator.domain.model.maintenanceCost
+import com.doge.simulator.domain.model.maintenancePlan
+import com.doge.simulator.domain.model.maintenanceResourceCost
+import com.doge.simulator.domain.model.upgradeCost
 import com.doge.simulator.domain.model.marketChange
 import com.doge.simulator.domain.model.normalProduction
 import com.doge.simulator.presentation.component.PlanetLevelBadge
@@ -54,6 +57,7 @@ import com.doge.simulator.presentation.viewmodel.UpgradeMessage
 import com.doge.simulator.presentation.viewmodel.UpgradeMessageTone
 import com.doge.simulator.presentation.viewmodel.UpgradePhase
 import com.doge.simulator.ui.theme.*
+import kotlin.math.roundToInt
 import com.doge.simulator.presentation.component.GameButton
 import com.doge.simulator.presentation.component.GameButtonSize
 import com.doge.simulator.presentation.component.GameButtonStyle
@@ -354,7 +358,7 @@ fun PlanetDetailScreen(
                             modifier = Modifier.weight(0.68f).fillMaxHeight(),
                             style = GameButtonStyle.Gold,
                             size = GameButtonSize.Large,
-                            subText = "%,d 코인".format(planet.maintenanceCost)
+                            subText = "%,d 코인".format(planet.maintenancePlan { type -> resources.ownedAmount(type) }.totalCoins)
                         )
                     }
                 } else if (planet.level < GameConstants.PLANET_MAX_LEVEL) {
@@ -453,6 +457,7 @@ fun PlanetDetailScreen(
                 MaintenanceDialog(
                     planet = planet,
                     coins = coins,
+                    resources = resources,
                     message = maintenanceMessage,
                     onMaintain = { viewModel.maintainPlanet(planet) { showMaintenanceDialog = false } },
                     onDismiss = {
@@ -479,14 +484,13 @@ private fun PlanetUpgradeDialog(
     onDismiss: () -> Unit
 ) {
     val isMaxLevel = planet.level >= GameConstants.PLANET_MAX_LEVEL
-    val (upgradeCoinCost, upgradeResourceCost) = GameConstants.planetUpgradeCost(planet.level)
+    val (upgradeCoinCost, upgradeResourceCost) = planet.upgradeCost
     val canUpgrade = !isMaxLevel &&
             coins >= upgradeCoinCost &&
-            upgradeResourceCost.all { (type, amount) ->
-                (resources.firstOrNull { it.type == type }?.amount ?: 0L) >= amount
-            }
+            upgradeResourceCost.all { (type, amount) -> resources.ownedAmount(type) >= amount }
     val successRate = GameConstants.UPGRADE_SUCCESS_RATES[planet.level] ?: 0f
     val isDangerZone = planet.level >= GameConstants.DANGER_ZONE_START
+    val dropChance = GameConstants.UPGRADE_DROP_CHANCES[planet.level] ?: 0f
     // 결과가 나오는 중(Charging)에는 실수로 중복 시도하거나 다이얼로그를 닫지 못하게 막는다
     val isResolving = upgradePhase is UpgradePhase.Charging
     // 결과 공개 중엔 다른 카드들보다 테두리를 강조해 "지금 중요한 순간"이라는 걸 프레임 전체로도 알려준다
@@ -500,8 +504,6 @@ private fun PlanetUpgradeDialog(
     GameDialog(
         title = "행성 강화",
         onDismissRequest = { if (!isResolving) onDismiss() },
-        subtitle = if (isDangerZone && !isMaxLevel) "위험 구간" else null,
-        subtitleColor = StatusYellow,
         dismissOnClickOutside = !isResolving,
         borderColor = borderColor,
         buttons = {
@@ -566,44 +568,26 @@ private fun PlanetUpgradeDialog(
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(Spacing.xs))
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
-                Text("성공률 ${(successRate * 100).toInt()}% · ",
-                    color = if (isDangerZone) StatusYellow else TextSecondary,
-                    style = MaterialTheme.typography.labelSmall)
-                if (isDangerZone) {
-                    Image(
-                        painter = painterResource(R.drawable.ic_ui_danger),
-                        contentDescription = null,
-                        modifier = Modifier.size(IconGlyphSize.small.value.dp)
-                    )
-                }
-                Text(if (isDangerZone) "실패 시 레벨 하락" else "실패 시 레벨 유지",
-                    color = if (isDangerZone) StatusYellow else TextSecondary,
-                    style = MaterialTheme.typography.labelSmall)
-            }
             Spacer(modifier = Modifier.height(Spacing.md))
-            DetailRow("비용", "%,d 코인".format(upgradeCoinCost),
-                if (coins >= upgradeCoinCost) GoldAccent else StatusRed)
-            if (upgradeResourceCost.isNotEmpty()) {
-                Text(upgradeResourceCost.entries.joinToString(" · ") { "${it.key.displayName}×${it.value}" },
-                    color = TextSecondary, style = MaterialTheme.typography.labelSmall)
-            }
+            UpgradeOutcomeCells(successRate = successRate, dropChance = if (isDangerZone) dropChance else 0f)
+
+            Spacer(modifier = Modifier.height(Spacing.lg))
+            CostTable(
+                coinCost = upgradeCoinCost,
+                coins = coins,
+                resourceCost = upgradeResourceCost.mapValues { it.value.toLong() },
+                resources = resources
+            )
 
             // ── 강화 성공 시 효과 미리보기 ───────────────────────
+            // 위 스탯 카드의 "생산 진행"과 같은 시간당 단위 — 분당(+1)으론 이득이 너무 작아 보였다
             Spacer(modifier = Modifier.height(Spacing.md))
-            val curProd = planet.effectiveProduction
-            val nextProd = planet.normalProductionAtLevel(planet.level + 1).toLong()
+            val curHourly = planet.effectiveProduction * 60L
+            val nextHourly = planet.normalProductionAtLevel(planet.level + 1).toLong() * 60L
             DetailRow(
-                "분당 생산량",
-                "%,d → %,d 코인".format(curProd, nextProd),
-                if (nextProd > curProd) StatusGreen else TextSecondary
-            )
-            Text(
-                "레벨이 오르면 생산량과 자원 드롭량이 늘어요. 강화에 쓴 코인은 행성 매도가에 더해져요.",
-                color = TextSecondary,
-                style = BodyReading,
-                modifier = Modifier.padding(top = Spacing.xs)
+                "생산량",
+                "%,d → %,d 코인/시".format(curHourly, nextHourly),
+                if (nextHourly > curHourly) StatusGreen else TextSecondary
             )
         }
 
@@ -672,7 +656,8 @@ private fun StatsInfoDialog(onDismiss: () -> Unit) {
     InfoDialog(title = "스탯 설명", onDismiss = onDismiss) {
         StatsInfoEntry("생산량", "이 행성이 1분에 만드는 코인이에요. 레벨과 이벤트 효과가 반영돼요.")
         StatsInfoEntry("생산 진행 / 고장 중", "생산량을 1시간 기준으로 보여줘요. 큰 악재가 뜨면 고장 나서 마이너스가 되고, 정비할 때까지 코인이 줄어요.")
-        StatsInfoEntry("정비", "고장 난 행성을 원래 생산량으로 되돌려요. 고장 중엔 강화할 수 없고 매도가도 떨어져요.")
+        StatsInfoEntry("강화", "레벨이 오르면 생산량과 자원 드롭량이 늘어요. 강화에 쓴 코인은 매도가에 더해지지만 자원은 돌려받지 못해요.")
+        StatsInfoEntry("정비", "고장 난 행성을 원래 생산량으로 되돌려요. 코인과 자원이 들고, 고장 중엔 강화할 수 없고 매도가도 떨어져요.")
         StatsInfoEntry("시세 변동", "악재·호재·고장으로 달라진 매도가예요. 괄호 안 %는 투자액 대비 비율이에요.")
         StatsInfoEntry("이벤트 간격", "이 행성에 이벤트가 얼마나 자주 오는지예요. 위험한 타입일수록 자주 와요.")
         StatsInfoEntry("악재 확률", "이벤트가 나쁜 쪽으로 나올 확률이에요. 희귀도가 높을수록 낮아요.", isLast = true)
@@ -684,11 +669,13 @@ private fun StatsInfoDialog(onDismiss: () -> Unit) {
 private fun MaintenanceDialog(
     planet: Planet,
     coins: Long,
+    resources: List<Resource>,
     message: String?,
     onMaintain: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val cost = planet.maintenanceCost
+    val plan = planet.maintenancePlan { type -> resources.ownedAmount(type) }
+    val cost = plan.totalCoins
     val fixed = planet.copy(lossMultiplier = 0.0)
     GameDialog(
         title = "행성 정비",
@@ -705,9 +692,10 @@ private fun MaintenanceDialog(
             )
         }
     ) {
+        // 위 스탯 카드("고장 중 −300 코인/시")와 같은 시간당 단위
         DetailRow(
-            "분당 생산량",
-            "%,d → +%,d 코인".format(planet.effectiveProduction, planet.normalProduction.toLong()),
+            "생산량",
+            "%,d → +%,d 코인/시".format(planet.effectiveProduction * 60L, planet.normalProduction.toLong() * 60L),
             StatusGreen
         )
         DetailRow(
@@ -715,18 +703,101 @@ private fun MaintenanceDialog(
             "%,d → %,d 코인".format(planet.marketValue, fixed.marketValue),
             StatusGreen
         )
-        DetailRow("비용", "%,d 코인".format(cost), if (coins >= cost) GoldAccent else StatusRed)
+
+        Spacer(modifier = Modifier.height(Spacing.md))
+        // 코인 필요량은 자원 대체분까지 더한 실제 지불액. 자원은 모자라도 코인으로 대신 낼 수 있어
+        // "불가"를 뜻하는 빨강 대신 노랑
+        CostTable(
+            coinCost = cost,
+            coins = coins,
+            resourceCost = planet.maintenanceResourceCost,
+            resources = resources,
+            resourceShortColor = StatusYellow
+        )
+        if (plan.substituteCoins > 0) {
+            Text(
+                "모자란 자원 대신 %,d 코인을 더 내요".format(plan.substituteCoins),
+                color = StatusYellow,
+                style = BodyReading,
+                modifier = Modifier.padding(top = Spacing.xxs)
+            )
+        }
         message?.let {
             Text(it, color = StatusRed, style = BodyReading, modifier = Modifier.padding(top = Spacing.xs))
         }
-        Text(
-            "정비하면 고장 전 생산량으로 돌아와요. 그냥 두면 계속 코인이 줄어요.",
-            color = TextSecondary,
-            style = BodyReading,
-            modifier = Modifier.padding(top = Spacing.xs)
-        )
     }
 }
+
+// 강화 한 번의 결과를 칸으로 — "실패 시 N% 확률로 하락"은 조건부 확률이라 한 번 더 계산해야 했다.
+// 하락이 없는 안전 구간은 성공/유지 두 칸. 반올림 오차는 유지 칸이 흡수해 합이 항상 100%
+@Composable
+private fun UpgradeOutcomeCells(successRate: Float, dropChance: Float) {
+    val successPct = (successRate * 100).roundToInt()
+    val dropPct = ((1f - successRate) * dropChance * 100).roundToInt()
+    val keepPct = 100 - successPct - dropPct
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        OutcomeCell("성공", successPct, StatusGreen, Modifier.weight(1f))
+        OutcomeCell("유지", keepPct, TextSecondary, Modifier.weight(1f))
+        if (dropChance > 0f) OutcomeCell("하락", dropPct, StatusRed, Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun OutcomeCell(label: String, percent: Int, color: Color, modifier: Modifier) {
+    Surface(modifier = modifier, shape = RoundedCornerShape(6.dp), color = color.copy(alpha = 0.12f)) {
+        Column(
+            modifier = Modifier.padding(vertical = Spacing.sm),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(label, color = color, style = MaterialTheme.typography.labelSmall)
+            Spacer(modifier = Modifier.height(Spacing.xxs))
+            Text("$percent%", color = color, style = NumericMedium)
+        }
+    }
+}
+
+// 강화·정비 비용 — 코인과 자원을 같은 형식(아이콘·이름·보유/필요)으로 한 줄씩. 모자란 줄만 색으로 표시.
+// 코인은 대체 수단이 없어 항상 빨강, 자원은 정비처럼 코인으로 대신 낼 수 있으면 노랑을 넘긴다
+@Composable
+private fun CostTable(
+    coinCost: Long,
+    coins: Long,
+    resourceCost: Map<ResourceType, Long>,
+    resources: List<Resource>,
+    resourceShortColor: Color = StatusRed
+) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text("비용", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+        Text("보유 / 필요", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+    }
+    Spacer(modifier = Modifier.height(Spacing.xxs))
+    CostRow(R.drawable.ic_ui_coin, "코인", coins, coinCost, StatusRed)
+    resourceCost.forEach { (type, amount) ->
+        CostRow(type.iconRes, type.displayName, resources.ownedAmount(type), amount, resourceShortColor)
+    }
+}
+
+@Composable
+private fun CostRow(@DrawableRes iconRes: Int, name: String, owned: Long, needed: Long, shortColor: Color) {
+    val enough = owned >= needed
+    val color = if (enough) TextPrimary else shortColor
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xxs),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Image(
+            painter = painterResource(iconRes),
+            contentDescription = null,
+            modifier = Modifier.size(IconGlyphSize.medium.value.dp)
+        )
+        Spacer(modifier = Modifier.width(Spacing.sm))
+        Text(name, color = color, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+        Text("%,d / %,d".format(owned, needed), color = color, style = NumericSmall)
+    }
+}
+
+private fun List<Resource>.ownedAmount(type: ResourceType): Long =
+    firstOrNull { it.type == type }?.amount ?: 0L
 
 @Composable
 private fun StatsInfoEntry(term: String, description: String, isLast: Boolean = false) {

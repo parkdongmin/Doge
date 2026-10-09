@@ -107,6 +107,8 @@ class PlanetViewModel @Inject constructor(
                 }
                 MaintainPlanetUseCase.Result.InsufficientCoins ->
                     _maintenanceMessage.value = "코인이 부족해요"
+                MaintainPlanetUseCase.Result.ResourcesChanged ->
+                    _maintenanceMessage.value = "자원이 바뀌었어요. 다시 눌러 주세요"
                 // 그 사이 이미 정비됐거나 행성이 없어짐 — 다이얼로그만 닫는다
                 MaintainPlanetUseCase.Result.NotBroken -> {
                     _maintenanceMessage.value = null

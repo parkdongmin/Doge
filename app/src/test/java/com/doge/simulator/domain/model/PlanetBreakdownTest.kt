@@ -71,9 +71,9 @@ class PlanetBreakdownTest {
     }
 
     @Test
-    fun `maintenance cost is two hours of normal production and ignores the loss`() {
+    fun `maintenance cost is 90 minutes of normal production and ignores the loss`() {
         val broken = planet().copy(lossMultiplier = 1.7)
-        assertEquals(1080L, broken.maintenanceCost)
+        assertEquals(810L, broken.maintenanceCost)
         assertEquals(9.0, broken.copy(lossMultiplier = 0.0).preciseProduction, 1e-9)
     }
 }

@@ -64,9 +64,51 @@ fun Planet.normalProductionAtLevel(level: Int): Double =
 val Planet.normalProduction: Double
     get() = normalProductionAtLevel(level)
 
-// 정비 비용 — 정상일 때 생산량의 2시간치
+val Planet.rarity: RarityTier
+    get() = PlanetMetaDataTable.data[type]?.rarity ?: RarityTier.COMMON
+
+// 현재 레벨에서 다음 레벨로 1회 강화 시도할 때의 비용 (코인, 자원)
+val Planet.upgradeCost: Pair<Long, Map<ResourceType, Int>>
+    get() = GameConstants.planetUpgradeCost(level, rarity)
+
+// 정비 코인 비용 — 정상일 때 생산량의 90분치
 val Planet.maintenanceCost: Long
     get() = (normalProduction * GameConstants.PLANET_MAINTENANCE_COST_MINUTES).toLong().coerceAtLeast(1L)
+
+// 정비 자원 비용 — 등급별 기본량 × 강화 레벨 배율²
+val Planet.maintenanceResourceCost: Map<ResourceType, Long>
+    get() {
+        val levelMultiplier = GameConstants.planetLevelMultiplier(level)
+        return GameConstants.PLANET_MAINTENANCE_RESOURCE_BASE[rarity].orEmpty()
+            .mapValues { (_, base) -> (base * levelMultiplier * levelMultiplier).roundToLong() }
+    }
+
+// 보유 자원 기준 정비 계산. 있는 만큼은 자원으로 쓰고, 모자란 몫은 (판매 단가 × 대체 배율) 코인으로 낸다
+data class MaintenancePlan(
+    val resourcesUsed: Map<ResourceType, Long>,
+    val shortfall: Map<ResourceType, Long>,
+    val baseCoins: Long,
+    val substituteCoins: Long
+) {
+    val totalCoins: Long get() = baseCoins + substituteCoins
+}
+
+fun Planet.maintenancePlan(owned: (ResourceType) -> Long): MaintenancePlan {
+    val used = mutableMapOf<ResourceType, Long>()
+    val shortfall = mutableMapOf<ResourceType, Long>()
+    var substitute = 0L
+    for ((type, need) in maintenanceResourceCost) {
+        val use = minOf(need, owned(type).coerceAtLeast(0L))
+        if (use > 0) used[type] = use
+        val missing = need - use
+        if (missing > 0) {
+            shortfall[type] = missing
+            val unitPrice = GameConstants.RESOURCE_SELL_PRICE[type] ?: 0L
+            substitute += (missing * unitPrice * GameConstants.PLANET_MAINTENANCE_RESOURCE_COIN_RATE).roundToLong()
+        }
+    }
+    return MaintenancePlan(used, shortfall, maintenanceCost, substitute)
+}
 
 // 마지막 수령 이후 정산 대상인 경과 분(정수). 오래 비워도 MAX_OFFLINE_MINUTES까지만 쳐준다.
 fun Planet.elapsedProfitMinutes(now: Long): Long =

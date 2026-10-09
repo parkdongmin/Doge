@@ -18,6 +18,8 @@ import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.AstronautStatus
 import com.doge.simulator.domain.model.RecruitmentPool
 import com.doge.simulator.domain.repository.AstronautRepository
+import com.doge.simulator.domain.model.ResourceType
+import com.doge.simulator.domain.repository.ResourceRepository
 import com.doge.simulator.domain.repository.UserRepository
 import com.doge.simulator.domain.usecase.CompleteTrainingUseCase
 import com.doge.simulator.domain.usecase.EnsureRecruitmentPoolFreshUseCase
@@ -34,6 +36,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -50,6 +53,7 @@ class AstronautViewModel @Inject constructor(
     private val completeTrainingUseCase: CompleteTrainingUseCase,
     private val astronautRepository: AstronautRepository,
     private val userRepository: UserRepository,
+    private val resourceRepository: ResourceRepository,
     private val rewardedAdManager: RewardedAdManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
@@ -66,6 +70,11 @@ class AstronautViewModel @Inject constructor(
 
     val coins: StateFlow<Long> = userRepository.getCoins()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
+
+    // 훈련 버튼 활성 판단·자원 비용 표시용
+    val resources: StateFlow<Map<ResourceType, Long>> = resourceRepository.getAll()
+        .map { list -> list.associate { it.type to it.amount } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()

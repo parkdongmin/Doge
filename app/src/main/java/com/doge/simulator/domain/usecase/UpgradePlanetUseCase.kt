@@ -4,6 +4,7 @@ import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.Planet
 import com.doge.simulator.domain.model.ResourceType
 import com.doge.simulator.domain.model.isBroken
+import com.doge.simulator.domain.model.upgradeCost
 import com.doge.simulator.domain.repository.PlanetRepository
 import com.doge.simulator.domain.repository.ResourceRepository
 import com.doge.simulator.domain.repository.UserRepository
@@ -36,7 +37,7 @@ class UpgradePlanetUseCase @Inject constructor(
         if (planet.isBroken) return Result.NeedsMaintenance
         if (planet.level >= GameConstants.PLANET_MAX_LEVEL) return Result.MaxLevel
 
-        val (coinCost, resourceCost) = GameConstants.planetUpgradeCost(planet.level)
+        val (coinCost, resourceCost) = planet.upgradeCost
 
         // 코인·자원 차감은 원자적 연산으로 수행 — 잔액/잔량 확인과 차감을 한 번에 처리해
         // 동시 요청(연타)이 있어도 이중 차감이나 음수 잔액이 발생하지 않는다
@@ -64,11 +65,13 @@ class UpgradePlanetUseCase @Inject constructor(
             planetRepository.upgradePlanet(planet.id, newLevel, totalInvestment)
             Result.Success(newLevel)
         } else {
-            val isDangerZone = planet.level >= GameConstants.DANGER_ZONE_START
-            val newLevel = if (isDangerZone) maxOf(1, planet.level - 1) else planet.level
+            // 위험 구간 실패는 레벨별 하락 확률로 한 번 더 굴려 떨어질지 정한다(실패 = 무조건 하락 아님)
+            val dropChance = GameConstants.UPGRADE_DROP_CHANCES[planet.level] ?: 0f
+            val dropped = planet.level >= GameConstants.DANGER_ZONE_START && Random.nextFloat() < dropChance
+            val newLevel = if (dropped) maxOf(1, planet.level - 1) else planet.level
             planetRepository.upgradePlanet(planet.id, newLevel, totalInvestment)
             Result.Failed(
-                levelDropped = isDangerZone,
+                levelDropped = dropped,
                 currentLevel = newLevel,
                 previousLevel = planet.level,
                 investment = totalInvestment
