@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -47,6 +48,7 @@ import com.doge.simulator.domain.model.PlanetType
 import com.doge.simulator.domain.model.RarityTier
 import com.doge.simulator.domain.model.effectiveProduction
 import com.doge.simulator.domain.model.isBroken
+import com.doge.simulator.domain.model.rarity
 import com.doge.simulator.domain.model.marketChange
 import com.doge.simulator.domain.model.marketValue
 import com.doge.simulator.domain.model.PlanetEventLog
@@ -179,6 +181,7 @@ private fun PlanetListCard(
 ) {
     val meta = PlanetMetaDataTable.data[planet.type]
     val imageUrl = meta?.variants?.firstOrNull { it.variantId == planet.variantId }?.imageUrl
+    val gradeColor = rarityColor[planet.rarity] ?: TextSecondary
 
     Card(
         modifier = Modifier
@@ -193,43 +196,58 @@ private fun PlanetListCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(Spacing.lg),
+                .padding(Spacing.lg)
+                // 좌우 묶음을 같은 높이로 — 오른쪽을 왼쪽 높이에 맞춰 늘려 위(썸네일·이름)와 아래(등급·생산량 칩)가 딱 맞게
+                .height(IntrinsicSize.Min),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (imageUrl != null) {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(imageUrl)
-                        .memoryCacheKey(imageUrl)
-                        .diskCacheKey(imageUrl)
-                        .build(),
-                    contentDescription = meta?.displayName,
-                    modifier = Modifier
-                        .size(60.dp)
-                        .clip(CircleShape)
-                        .background(SpaceMid),
-                    contentScale = ContentScale.Crop,
-                    filterQuality = FilterQuality.None
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(60.dp)
-                        .clip(CircleShape)
-                        .background(SpaceMid),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        painter = painterResource(R.drawable.ic_ui_planet),
-                        contentDescription = null,
-                        modifier = Modifier.size(IconGlyphSize.large.value.dp)
+            // 등급은 썸네일 바로 아래(행성 그림을 가리지 않게).
+            // 폭을 고정해 등급 글자 길이가 달라도 썸네일 위치가 같게
+            Column(
+                modifier = Modifier.width(72.dp).fillMaxHeight(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                if (imageUrl != null) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(imageUrl)
+                            .memoryCacheKey(imageUrl)
+                            .diskCacheKey(imageUrl)
+                            .build(),
+                        contentDescription = meta?.displayName,
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(CircleShape)
+                            .background(SpaceMid),
+                        contentScale = ContentScale.Crop,
+                        filterQuality = FilterQuality.None
                     )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(CircleShape)
+                            .background(SpaceMid),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Image(
+                            painter = painterResource(R.drawable.ic_ui_planet),
+                            contentDescription = null,
+                            modifier = Modifier.size(IconGlyphSize.large.value.dp)
+                        )
+                    }
                 }
+                Spacer(modifier = Modifier.height(Spacing.xxs))
+                RarityChip(label = rarityLabel[planet.rarity] ?: "", color = gradeColor)
             }
 
             Spacer(modifier = Modifier.width(Spacing.lg))
 
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
                 val planetCode = planet.variantId.substringAfterLast("-")
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -264,7 +282,6 @@ private fun PlanetListCard(
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(Spacing.xs))
                 // 좁은 화면에서 설명이 잘리면 옆으로 천천히 흘러가게(마키). 칸 안에 다 들어가면 움직이지 않는다.
                 Text(
                     text = meta?.description ?: "",
@@ -273,7 +290,6 @@ private fun PlanetListCard(
                     maxLines = 1,
                     modifier = Modifier.basicMarquee(initialDelayMillis = 1500, repeatDelayMillis = 2000)
                 )
-                Spacer(modifier = Modifier.height(Spacing.sm))
                 Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     val productionColor = if (planet.effectiveProduction >= 0) StatusGreen else StatusRed
                     val hourlySign = if (planet.effectiveProduction > 0) "+" else ""
@@ -304,6 +320,25 @@ private fun PlanetListCard(
             Spacer(modifier = Modifier.weight(1f))
             GameButton(text = "매도", onClick = onSellClick, style = GameButtonStyle.Danger)
         }
+    }
+}
+
+// 썸네일 아래 등급 표시. COMMON(회색)도 카드 배경과 구분되도록 옅은 등급색 바탕 + 테두리
+@Composable
+private fun RarityChip(label: String, color: Color, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(4.dp),
+        color = color.copy(alpha = 0.18f).compositeOver(SpaceNavy),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.6f))
+    ) {
+        Text(
+            text = label,
+            color = color,
+            style = NumericXSmall.copy(fontSize = 10.sp, lineHeight = 12.sp),
+            maxLines = 1,
+            modifier = Modifier.padding(horizontal = Spacing.xs, vertical = 2.dp)
+        )
     }
 }
 
