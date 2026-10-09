@@ -57,8 +57,8 @@ class GeneratePlanetsUseCase @Inject constructor() {
         return when {
             roll < 60 -> getRandomCommon()
             roll < 90 -> getRandomUncommon()
-            roll < 95 -> PlanetType.BLACK_HOLE
-            roll < 99 -> PlanetType.GALAXY
+            roll < 95 -> listOf(PlanetType.LAVA_WORLD, PlanetType.ICE_WORLD).random()
+            roll < 99 -> listOf(PlanetType.BLACK_HOLE, PlanetType.GALAXY).random()
             else -> PlanetType.STAR
         }
     }
@@ -70,6 +70,6 @@ class GeneratePlanetsUseCase @Inject constructor() {
 
     private fun getRandomUncommon(): PlanetType = listOf(
         PlanetType.GAS_GIANT_1, PlanetType.GAS_GIANT_2,
-        PlanetType.ICE_WORLD, PlanetType.LAVA_WORLD, PlanetType.ASTEROID
+        PlanetType.ASTEROID
     ).random()
 }

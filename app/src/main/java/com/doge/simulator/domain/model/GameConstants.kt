@@ -33,13 +33,13 @@ object GameConstants {
 
     // 강화 자원 비용 등급 배율. 레벨당 이득(생산량 +10%)은 행성 생산량에 비례하는데 비용이 같으면
     // 커먼은 고레벨 강화가 손해(12→13 회수 16일)라, 좋은 행성일수록 재료를 더 먹게 해 등급과 무관하게
-    // 회수 기간을 맞춘다. 레어가 에픽보다 높은 건 블랙홀 생산량(300~600)이 유독 높아서
+    // 회수 기간을 맞춘다 (등급 평균 생산량에 대략 비례)
     val PLANET_UPGRADE_RESOURCE_RARITY_SCALE = mapOf(
         RarityTier.COMMON to 1.0,
         RarityTier.UNCOMMON to 1.5,
-        RarityTier.RARE to 3.0,
-        RarityTier.EPIC to 2.5,
-        RarityTier.LEGENDARY to 3.0
+        RarityTier.RARE to 2.0,
+        RarityTier.EPIC to 3.0,
+        RarityTier.LEGENDARY to 3.5
     )
 
     // 행성 강화 비용 (coins, Map<ResourceType, amount>) — 1회 시도당, 실패해도 소모.
@@ -97,7 +97,7 @@ object GameConstants {
 
     // 좋음/나쁨 판정 확률(나쁠 확률, %). risk(변동성·빈도)와 분리된 축으로, 희귀도가 높을수록
     // 유리해지되 최상위 등급도 완전 무결점은 아니도록 천장을 둠(LEGENDARY도 최소 25%는 나쁠 수 있음).
-    // PlanetMetaDataTable의 eventRateMin/Max에 그대로 반영됨(타입이 아니라 희귀도 기준)
+    // PlanetMetaDataTable의 eventRateMin/Max에 그대로 반영됨(타입이 아니라 희귀도 기준 — 블랙홀만 예외로 COMMON 범위)
     val PLANET_EVENT_BAD_CHANCE_RANGE: Map<RarityTier, IntRange> = mapOf(
         RarityTier.COMMON to 45..55,
         RarityTier.UNCOMMON to 40..48,
@@ -280,21 +280,22 @@ object GameConstants {
     const val PLANET_DISCOVERY_CELESTIAL_BONUS_PER_LEVEL = 0.03f
 
     // 발견된 행성이 어느 등급(rarity)으로 나올지의 티어별 가중치(%, 등급 총합 100).
-    // 티어가 오를수록 희귀 등급 비중은 커지지만 무제한으로 오르지 않도록 상한을 둠 —
-    // LEGENDARY 최대 5%, EPIC 최대 10% (T10에서도 "가끔 터지는 잭팟" 이상은 아니게),
-    // COMMON은 T10에서도 최소 28% 유지 (고티어만 돌려도 저등급이 아예 안 나오는 역피라미드 방지).
+    // 티어가 오를수록 COMMON을 덜고 상위 등급 비중을 키움 — LEGENDARY 최대 12%, EPIC 최대 18%,
+    // COMMON은 T10에서도 12%는 남김 (고티어만 돌려도 저등급이 아예 안 나오는 역피라미드 방지).
+    // EPIC/LEGENDARY는 T9/T10 해금 조건이라, 예전 상한(5%/10%)으로는 우주선 1척 기준 T10 해금까지
+    // 약 12일이 걸려 진행이 막혔음(2026-10-09) — 현재 값으로 약 6.5일.
     // 등급 내 개별 행성 확률은 해당 등급 소속 종류 수로 균등 분배 (rollPlanetType 참고)
     val PLANET_RARITY_WEIGHTS: Map<Int, Map<RarityTier, Float>> = mapOf(
-        1  to mapOf(RarityTier.COMMON to 90f, RarityTier.UNCOMMON to 10f),
-        2  to mapOf(RarityTier.COMMON to 70f, RarityTier.UNCOMMON to 30f),
-        3  to mapOf(RarityTier.COMMON to 55f, RarityTier.UNCOMMON to 42f, RarityTier.RARE to 3f),
-        4  to mapOf(RarityTier.COMMON to 45f, RarityTier.UNCOMMON to 45f, RarityTier.RARE to 8f, RarityTier.EPIC to 2f),
-        5  to mapOf(RarityTier.COMMON to 40f, RarityTier.UNCOMMON to 43f, RarityTier.RARE to 12f, RarityTier.EPIC to 4f, RarityTier.LEGENDARY to 1f),
-        6  to mapOf(RarityTier.COMMON to 36f, RarityTier.UNCOMMON to 40f, RarityTier.RARE to 16f, RarityTier.EPIC to 6f, RarityTier.LEGENDARY to 2f),
-        7  to mapOf(RarityTier.COMMON to 32f, RarityTier.UNCOMMON to 38f, RarityTier.RARE to 19f, RarityTier.EPIC to 8f, RarityTier.LEGENDARY to 3f),
-        8  to mapOf(RarityTier.COMMON to 30f, RarityTier.UNCOMMON to 36f, RarityTier.RARE to 21f, RarityTier.EPIC to 9f, RarityTier.LEGENDARY to 4f),
-        9  to mapOf(RarityTier.COMMON to 28f, RarityTier.UNCOMMON to 34f, RarityTier.RARE to 23f, RarityTier.EPIC to 10f, RarityTier.LEGENDARY to 5f),
-        10 to mapOf(RarityTier.COMMON to 28f, RarityTier.UNCOMMON to 32f, RarityTier.RARE to 25f, RarityTier.EPIC to 10f, RarityTier.LEGENDARY to 5f)
+        1  to mapOf(RarityTier.COMMON to 85f, RarityTier.UNCOMMON to 15f),
+        2  to mapOf(RarityTier.COMMON to 65f, RarityTier.UNCOMMON to 35f),
+        3  to mapOf(RarityTier.COMMON to 50f, RarityTier.UNCOMMON to 43f, RarityTier.RARE to 7f),
+        4  to mapOf(RarityTier.COMMON to 40f, RarityTier.UNCOMMON to 44f, RarityTier.RARE to 12f, RarityTier.EPIC to 4f),
+        5  to mapOf(RarityTier.COMMON to 33f, RarityTier.UNCOMMON to 42f, RarityTier.RARE to 16f, RarityTier.EPIC to 7f, RarityTier.LEGENDARY to 2f),
+        6  to mapOf(RarityTier.COMMON to 27f, RarityTier.UNCOMMON to 38f, RarityTier.RARE to 22f, RarityTier.EPIC to 10f, RarityTier.LEGENDARY to 3f),
+        7  to mapOf(RarityTier.COMMON to 22f, RarityTier.UNCOMMON to 35f, RarityTier.RARE to 25f, RarityTier.EPIC to 13f, RarityTier.LEGENDARY to 5f),
+        8  to mapOf(RarityTier.COMMON to 18f, RarityTier.UNCOMMON to 32f, RarityTier.RARE to 28f, RarityTier.EPIC to 15f, RarityTier.LEGENDARY to 7f),
+        9  to mapOf(RarityTier.COMMON to 15f, RarityTier.UNCOMMON to 30f, RarityTier.RARE to 29f, RarityTier.EPIC to 17f, RarityTier.LEGENDARY to 9f),
+        10 to mapOf(RarityTier.COMMON to 12f, RarityTier.UNCOMMON to 28f, RarityTier.RARE to 30f, RarityTier.EPIC to 18f, RarityTier.LEGENDARY to 12f)
     )
 
     // 발견한 행성이 이미 도감에 있는 베리언트(스킨)와 겹치는데, 행성 슬롯도 가득 차 구매할 수 없을 때

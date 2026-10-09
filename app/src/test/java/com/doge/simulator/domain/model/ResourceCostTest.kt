@@ -31,7 +31,7 @@ class ResourceCostTest {
         assertEquals(mapOf(ResourceType.IRON_ORE to 150, ResourceType.CRYSTAL to 90, ResourceType.NANOBOT to 8), uncommon)
 
         val star = planet(PlanetType.STAR, level = 16)
-        assertEquals(240, star.upgradeCost.second[ResourceType.ENERGY_CORE])
+        assertEquals(280, star.upgradeCost.second[ResourceType.ENERGY_CORE])
     }
 
     @Test

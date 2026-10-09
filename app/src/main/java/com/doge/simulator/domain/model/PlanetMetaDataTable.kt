@@ -128,13 +128,13 @@ object PlanetMetaDataTable {
             type = PlanetType.ICE_WORLD,
             displayName = "빙하 행성",
             description = "혹한의 행성. 극저온 자원이 풍부하다.",
-            productionMin = 70, productionMax = 110,
+            productionMin = 190, productionMax = 270,
             riskMin = 15, riskMax = 25,
             investmentMin = 1600, investmentMax = 2200,
-            eventRateMin = 40, eventRateMax = 48, // 희귀도 기준(UNCOMMON)
+            eventRateMin = 35, eventRateMax = 42, // 희귀도 기준(RARE)
             baseMaintenanceCostMin = 14, baseMaintenanceCostMax = 22,
-            rarity = RarityTier.UNCOMMON,
-            basePrice = 4000,
+            rarity = RarityTier.RARE,
+            basePrice = 15000,
             variants = generateVariants("ICE_WORLD", 12),
             // 극저온 행성 → 드라이아이스/냉동 메탄(냉각재), 빙하 결정
             resourceDrops = mapOf(
@@ -147,13 +147,13 @@ object PlanetMetaDataTable {
             type = PlanetType.LAVA_WORLD,
             displayName = "용암 행성",
             description = "격렬한 화산 활동이 지속되는 행성. 고위험·고수익.",
-            productionMin = 180, productionMax = 300,
+            productionMin = 240, productionMax = 360,
             riskMin = 40, riskMax = 60,
             investmentMin = 2000, investmentMax = 3000,
-            eventRateMin = 40, eventRateMax = 48, // 희귀도 기준(UNCOMMON)
+            eventRateMin = 35, eventRateMax = 42, // 희귀도 기준(RARE)
             baseMaintenanceCostMin = 20, baseMaintenanceCostMax = 35,
-            rarity = RarityTier.UNCOMMON,
-            basePrice = 4000,
+            rarity = RarityTier.RARE,
+            basePrice = 15000,
             variants = generateVariants("LAVA_WORLD", 10),
             // 화산 행성 → 용암석/마그마 코어(마그마석), 불꽃 결정
             resourceDrops = mapOf(
@@ -166,7 +166,7 @@ object PlanetMetaDataTable {
             type = PlanetType.ASTEROID,
             displayName = "소행성",
             description = "작은 자원 덩어리. 빠른 회전 투자.",
-            productionMin = 30, productionMax = 60,
+            productionMin = 100, productionMax = 160,
             riskMin = 2, riskMax = 10,
             investmentMin = 200, investmentMax = 400,
             eventRateMin = 40, eventRateMax = 48, // 희귀도 기준(UNCOMMON)
@@ -188,9 +188,9 @@ object PlanetMetaDataTable {
             productionMin = 300, productionMax = 600,
             riskMin = 80, riskMax = 100,
             investmentMin = 4000, investmentMax = 6000,
-            eventRateMin = 35, eventRateMax = 42, // 희귀도 기준(RARE)
+            eventRateMin = 45, eventRateMax = 55, // 예외: EPIC이지만 COMMON과 같은 반반 확률 — 위험도(이벤트 빈도) 최상위와 겹쳐 진짜 고위험·고수익이 되게
             baseMaintenanceCostMin = 40, baseMaintenanceCostMax = 70,
-            rarity = RarityTier.RARE,
+            rarity = RarityTier.EPIC,
             basePrice = 50000,
             variants = generateVariants("BLACK_HOLE", 5),
             // 예측불가 초고위험 → 호킹 에너지, 다크매터(미지의 물질 - 정확히 매칭), 특이점(퀀텀 코어)
@@ -205,7 +205,7 @@ object PlanetMetaDataTable {
             type = PlanetType.GALAXY,
             displayName = "은하",
             description = "은하 전체에 투자하는 최고급 자산. 안정적이며 고급 투자처.",
-            productionMin = 200, productionMax = 300,
+            productionMin = 300, productionMax = 420,
             riskMin = 5, riskMax = 15,
             investmentMin = 8000, investmentMax = 12000,
             eventRateMin = 30, eventRateMax = 37, // 희귀도 기준(EPIC)
@@ -225,7 +225,7 @@ object PlanetMetaDataTable {
             type = PlanetType.STAR,
             displayName = "항성",
             description = "항성의 에너지를 직접 수확하는 고급 자원원.",
-            productionMin = 250, productionMax = 350,
+            productionMin = 450, productionMax = 650,
             riskMin = 8, riskMax = 20,
             investmentMin = 7000, investmentMax = 10000,
             eventRateMin = 25, eventRateMax = 32, // 희귀도 기준(LEGENDARY)
