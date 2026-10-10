@@ -562,11 +562,12 @@ private fun CategoryCard(
                 .padding(horizontal = Spacing.sm, vertical = Spacing.lg),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 상단: 카테고리 이름
+            // 상단: 카테고리 이름. 4칸 한 줄이라 labelMedium(12sp)에선 "외계 문명 탐사"가 잘려서 네 칸 모두
+            // labelSmall(10sp)로 — 한 칸만 줄이면 크기가 들쭉날쭉하고, " 탐사"를 빼면 이름이 어색했다
             Text(
                 category.displayName,
                 color = if (isUnlocked) identityColor else TextDisabled,
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1
             )

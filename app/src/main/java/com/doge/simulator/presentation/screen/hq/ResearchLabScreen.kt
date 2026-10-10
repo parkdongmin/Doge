@@ -175,7 +175,9 @@ private fun ResearchFieldCard(
                     Text("최대 레벨 달성", color = GoldAccent, style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold)
                 } else {
-                    Column {
+                    // 남는 폭만 쓰고 넘치면 줄바꿈 — 자원이 4종(Lv.9~)이면 비용 줄이 길어져 "연구" 버튼이
+                    // 찌그러져 글자가 세로로 꺾이고 비용 글자가 버튼에 붙었다
+                    Column(modifier = Modifier.weight(1f).padding(end = Spacing.sm)) {
                         Text("Lv.${currentLevel} → Lv.${currentLevel + 1} 비용",
                             color = TextSecondary, style = MaterialTheme.typography.labelSmall)
                         Text("%,d 코인".format(coinCost),
