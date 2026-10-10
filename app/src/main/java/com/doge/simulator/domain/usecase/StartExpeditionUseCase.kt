@@ -10,7 +10,6 @@ import com.doge.simulator.domain.repository.ResearchLabRepository
 import com.doge.simulator.domain.repository.SpaceshipRepository
 import com.doge.simulator.domain.repository.UserRepository
 import kotlinx.coroutines.flow.first
-import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 class StartExpeditionUseCase @Inject constructor(
@@ -64,13 +63,13 @@ class StartExpeditionUseCase @Inject constructor(
         val astronauts = astronautRepository.getAstronauts().first()
             .filter { it.id in astronautIds }
         val allIdle = astronauts.all { it.status == AstronautStatus.IDLE }
-        if (!allIdle) return Result.AstronautNotAvailable
+        // 탐사 화면에서 골라둔 우주인이 그사이 방출됐으면 목록에서 빠져 있다
+        if (!allIdle || astronauts.size != astronautIds.size) return Result.AstronautNotAvailable
 
         // 탐사 소요 시간 계산 (ship speed가 높을수록 단축)
         val baseMinutes = GameConstants.EXPEDITION_BASE_MINUTES[tier] ?: 20L
-        val speedReduction = spaceship.speed / 200.0
-        val durationMs = (baseMinutes * 60_000L * (1.0 - speedReduction)).toLong()
-            .coerceAtLeast(TimeUnit.MINUTES.toMillis(5))
+        val durationMs = (baseMinutes * 60_000L * (1.0 - spaceship.durationReduction)).toLong()
+            .coerceAtLeast(GameConstants.EXPEDITION_MIN_DURATION_MS)
 
         val now = System.currentTimeMillis()
         val expedition = Expedition(

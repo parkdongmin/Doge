@@ -121,6 +121,12 @@ class ExploreViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ExploreUiState())
     val uiState: StateFlow<ExploreUiState> = _uiState.asStateFlow()
 
+    // 전면광고 빈도 카운트에 이미 반영한 탐사 결과 — 같은 결과를 두 번 세지 않기 위함
+    private var lastCountedExpeditionId: String? = null
+    // 전면광고 흐름이 시작된 시각(0 = 없음). 콜백이 어떤 이유로든 안 오면 결과 창이 영영 안 닫히므로
+    // 불리언 대신 시각으로 두고 일정 시간이 지나면 막지 않는다
+    private var interstitialStartedAt = 0L
+
     init {
         // 앱 복귀 시점의 최초 수집(오프라인 수익 2배 다이얼로그 포함)은 AppSessionViewModel이 전담하므로
         // 여기서 즉시 1회 수집하지 않는다 — 안 그러면 같은 경과시간이 중복 적립될 수 있다
@@ -211,7 +217,7 @@ class ExploreViewModel @Inject constructor(
                     isSlotFull = true
                     val rate = if (isDuplicateVariant) GameConstants.DUPLICATE_PLANET_VARIANT_COIN_RATE
                                else GameConstants.SLOT_FULL_DISCOVERY_COIN_RATE
-                    slotFullCoins = (buyPrice * rate).toLong()
+                    slotFullCoins = (buyPrice * rate * GameConstants.slotFullCoinTierScale(expedition.tier)).toLong()
                     discoveredPlanet to false
                 }
             }.getOrNull()
@@ -380,13 +386,23 @@ class ExploreViewModel @Inject constructor(
         }
     }
 
-    // 탐사 결과 dismiss 시 빈도 제한(첫 N회 제외, 쿨다운)을 통과하면 전면광고를 먼저 보여주고
+    // 탐사 결과 dismiss 시 빈도 제한(첫 N회 제외, N회마다 1회)을 통과하면 전면광고를 먼저 보여주고
     // 닫힌 후 실제 dismiss 로직(after)을 실행. 통과 못하면 바로 실행
     private fun maybeShowInterstitial(activity: Activity, after: () -> Unit) {
-        adFrequencyGate.recordExpeditionCompleted()
+        // 광고가 떠 있는 동안 들어온 연타는 무시 — 안 그러면 두 번째 탭이 (광고를 첫 탭이 가져가
+        // 비어 있으니) 곧바로 after()를 실행해 광고 뒤에서 결과 창이 먼저 닫혔다
+        if (System.currentTimeMillis() - interstitialStartedAt < INTERSTITIAL_REENTRY_GUARD_MS) return
+        // 연타나 구매 실패 후 확인처럼 같은 결과에서 여러 번 불려도 결과 1건으로만 센다
+        val expeditionId = _uiState.value.completionResult?.expeditionId
+        if (expeditionId != lastCountedExpeditionId) {
+            lastCountedExpeditionId = expeditionId
+            adFrequencyGate.recordExpeditionCompleted()
+        }
         if (adFrequencyGate.shouldShowInterstitial()) {
-            interstitialAdManager.show(activity) {
-                adFrequencyGate.recordInterstitialShown()
+            interstitialStartedAt = System.currentTimeMillis()
+            interstitialAdManager.show(activity) { shown ->
+                interstitialStartedAt = 0L
+                if (shown) adFrequencyGate.recordInterstitialShown()
                 after()
             }
         } else {
@@ -407,6 +423,9 @@ class ExploreViewModel @Inject constructor(
     }
 
     companion object {
+        // 광고 영상은 길어야 30초대라 그보다 넉넉히 — 이 안에 들어온 재진입만 연타로 보고 무시한다
+        private const val INTERSTITIAL_REENTRY_GUARD_MS = 90_000L
+
         // 발견한 행성의 희귀도가 높을수록 리빌까지 더 오래 끌어 기대감을 키운다
         private val DISCOVERY_REVEAL_DELAY_MS = mapOf(
             RarityTier.COMMON to 400L,

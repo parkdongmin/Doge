@@ -213,11 +213,20 @@ object GameConstants {
     const val UPGRADE_SUCCESS_RATE_PER_GRADE = 0.04f
 
     // ── 탐사 ──────────────────────────────────────────────────────────
-    // 티어별 기본 탐사 시간 (분)
+    // 티어별 기본 탐사 시간 (분). 초반(1~5)은 첫 세션에서 결과를 몇 번 바로 받아보게 짧게 잡고
+    // (예전 10/20/40/60/90분은 시작하자마자 10분 대기라 이탈 우려), 기다림은 중반(6~)부터 늘림.
+    // 코인·자원 보상은 이 시간에 비례하므로 분당 수입은 티어 간 그대로 유지된다
     val EXPEDITION_BASE_MINUTES = mapOf(
-        1 to 10L, 2 to 20L, 3 to 40L,  4 to 60L,  5 to 90L,
+        1 to 4L, 2 to 8L, 3 to 15L,  4 to 30L,  5 to 60L,
         6 to 120L, 7 to 180L, 8 to 240L, 9 to 360L, 10 to 480L
     )
+
+    // 탐사 자원량 배율의 기준 시간(분) — 이 시간짜리 탐사가 배율 1(기본 랜덤 1~5개). 1티어 시간에
+    // 묶어두면 1티어 시간을 바꿀 때마다 전 티어 자원량이 같이 출렁여서 고정값으로 분리
+    const val EXPEDITION_RESOURCE_REFERENCE_MINUTES = 10.0
+
+    // 우주선 속도로 줄어든 탐사 시간의 하한
+    val EXPEDITION_MIN_DURATION_MS = TimeUnit.MINUTES.toMillis(1)
 
     // 티어별 지역 이름
     val TIER_LABELS = mapOf(
@@ -309,6 +318,14 @@ object GameConstants {
     // "완전히 처음 보는 스킨"이라 중복(30%)보다는 후하게 잡음
     const val SLOT_FULL_DISCOVERY_COIN_RATE = 0.5f
 
+    // "코인으로 받기" 금액의 티어별 배율. 발견 확률은 탐사 1회당 고정이라 짧은 탐사일수록 시간당 발견이
+    // 잦아, 슬롯이 꽉 찬 뒤엔 저티어 반복이 코인 농사가 됐다(1티어 3분대: 분당 ~54코인, 기본 보상의 5배).
+    // 짧은 티어만 깎아 티어별 분당 총수입(기본 보상 + 코인으로 받기)이 비슷하고 상위 티어가 조금 더 낫게
+    // 맞춤 — 1등급 우주선 기준 T1 24 · T2 24 · T3 25 · T4 27 · T5 30 코인/분 (ExpeditionEconomyTest가 검증).
+    // 발견 빈도 자체는 그대로라 초반에 행성을 자주 만나는 경험은 유지된다
+    private val SLOT_FULL_COIN_TIER_SCALE = mapOf(1 to 0.25, 2 to 0.35, 3 to 0.5, 4 to 0.7)
+    fun slotFullCoinTierScale(tier: Int): Double = SLOT_FULL_COIN_TIER_SCALE[tier] ?: 1.0
+
     // 전문 분야 일치 시 보너스 (숙련도 기반)
     // 성공률: 매칭되는 전문가 중 최고 숙련도(MAX) 1명 기준 — 숙련도 100이면 최대치 보너스
     const val SPECIALTY_PROFICIENCY_SUCCESS_COEFFICIENT = 0.25f
@@ -320,9 +337,10 @@ object GameConstants {
     // 티어가 오를수록 보상 단가가 완만히 상승하도록 하는 공통 배율. 코인 보상과 탐사 성공 시
     // 자원 드랍량이 이 배율을 공유해, 고티어 탐사(오래 걸림)가 저티어보다 시간당 효율이 떨어지는
     // 역전이 생기지 않게 한다. 티어10은 소요 시간(480분) 자체가 커서 선형 배율(1.9배)까지 얹으면
-    // 보상이 과도하게 튀어, 9티어 대비 완만하게만 더 받도록 배율을 낮춰서 고정
+    // 보상이 과도하게 튀어 9티어와 같은 1.8로 묶음 — 예전 1.5는 1회 보상만 보고 잡아 분당 효율이
+    // 9티어보다 낮아지는 역전이 있었다(ExpeditionEconomyTest가 검증)
     fun expeditionTierMultiplier(tier: Int): Double =
-        if (tier >= 10) 1.5 else 1.0 + (tier - 1) * 0.1
+        if (tier >= 10) 1.8 else 1.0 + (tier - 1) * 0.1
 
     // 탐사 성공 시 행성 발견 여부와 무관하게 지급되는 기본 코인 보상.
     // 초반에 코인을 다 쓰고 행성도 못 찾았을 때 완전히 무수입 상태가 되는 것을 막기 위한 안전망.
@@ -354,10 +372,12 @@ object GameConstants {
     // ── 연구소 ────────────────────────────────────────────────────────
     // 레벨이 무한히 오르는 만큼 자원 종류를 다양하게 분배해 한쪽만 과다 소모되지 않게 함.
     // 단계가 오를수록 흔한 자원 → 보통 → 희귀 순. 요구 자원은 그 레벨에 열려 있는 탐사로 구할 수 있게
-    // 맞춤(데이터 코어는 유적 탐사가 열리는 탐사 기술 3 이후, 외계 자원은 6 이후부터 요구)
+    // 맞춤(데이터 코어는 유적 탐사가 열리는 탐사 기술 3 이후, 외계 자원은 6 이후부터 요구).
+    // 1~2단계 바이오매스는 스타터 행성(무대기)에서 안 나와 행성 탐사로만 모아야 해서 초반 병목이 됐음
+    // (50/120 → 30/60). 습지·해양 행성을 얻고 나면 오히려 남는 자원이라 초반 요구량만 낮춤
     fun researchUpgradeCost(currentLevel: Int): Pair<Long, Map<ResourceType, Int>> = when (currentLevel) {
-        1 -> 1_000L to mapOf(ResourceType.BIOMASS to 50)
-        2 -> 3_000L to mapOf(ResourceType.BIOMASS to 120, ResourceType.COOLANT to 80)
+        1 -> 1_000L to mapOf(ResourceType.BIOMASS to 30)
+        2 -> 3_000L to mapOf(ResourceType.BIOMASS to 60, ResourceType.COOLANT to 80)
         3 -> 6_000L to mapOf(ResourceType.COOLANT to 200, ResourceType.IRON_ORE to 200)
         4 -> 10_000L to mapOf(ResourceType.ENERGY_CORE to 300, ResourceType.CRYSTAL to 200)
         5 -> 15_000L to mapOf(ResourceType.LIFE_CRYSTAL to 200, ResourceType.MAGMA_STONE to 200)
@@ -383,9 +403,11 @@ object GameConstants {
     // 대기시간 스킵 광고 1회당 당길 수 있는 최대 시간 (전체 스킵이 아니라 상한을 둬서 밸런스 보호)
     val AD_SKIP_MAX_MS = TimeUnit.HOURS.toMillis(4)
 
-    // 전면광고(탐사 결과 dismiss) 빈도 제한: 첫 N회는 노출 안 함, 이후엔 쿨다운 경과해야 노출
-    const val INTERSTITIAL_GRACE_COMPLETIONS = 3
-    val INTERSTITIAL_COOLDOWN_MS = TimeUnit.MINUTES.toMillis(3)
+    // 전면광고(탐사 결과 dismiss) 빈도 제한: 첫 N회는 노출 안 함, 이후엔 결과 INTERVAL번마다 1회
+    // (예전 3분 쿨다운은 짧은 탐사를 연달아 돌리면 너무 자주 떠서 횟수 기준으로 바꿈).
+    // 초반 탐사가 2~5분대라 첫 세션엔 광고 없이 루프를 익히게 유예를 넉넉히 둠
+    const val INTERSTITIAL_GRACE_COMPLETIONS = 10
+    const val INTERSTITIAL_INTERVAL_COMPLETIONS = 5
 
     // ── ORBIT 카드게임 (휴게실) ──────────────────────────────────────
     // 고정 4단계 베팅 금액. 위험도(배율) 티어는 별도 축(OrbitRiskTier)이며 재화 규모와

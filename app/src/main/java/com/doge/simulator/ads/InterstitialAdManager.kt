@@ -42,11 +42,12 @@ class InterstitialAdManager @Inject constructor(
         )
     }
 
-    fun show(activity: Activity, onDismiss: () -> Unit) {
+    // shown: 광고가 실제로 노출됐는지 — 준비 안 됐거나 표시 실패면 false라 호출부가 노출 기록을 남기지 않는다
+    fun show(activity: Activity, onDismiss: (shown: Boolean) -> Unit) {
         val ad = loadedAd
         if (ad == null) {
             preload()
-            onDismiss()
+            onDismiss(false)
             return
         }
         loadedAd = null
@@ -54,13 +55,13 @@ class InterstitialAdManager @Inject constructor(
             override fun onAdDismissedFullScreenContent() {
                 bgmPlayer.resumeAfterAd()
                 preload()
-                onDismiss()
+                onDismiss(true)
             }
 
             override fun onAdFailedToShowFullScreenContent(error: AdError) {
                 bgmPlayer.resumeAfterAd()
                 preload()
-                onDismiss()
+                onDismiss(false)
             }
         }
         // 광고 영상 소리와 BGM이 오디오 포커스를 두고 다투지 않게 광고 동안은 BGM을 확실히 멈춘다
