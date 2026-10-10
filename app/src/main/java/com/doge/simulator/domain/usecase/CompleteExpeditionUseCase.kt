@@ -8,6 +8,8 @@ import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.PlanetMetaDataTable
 import com.doge.simulator.domain.model.PlanetType
 import com.doge.simulator.domain.model.ResourceType
+import com.doge.simulator.domain.model.expeditionDiscoveryChance
+import com.doge.simulator.domain.model.expeditionResourceMultiplier
 import com.doge.simulator.domain.model.expeditionSuccessChance
 import com.doge.simulator.domain.repository.AstronautRepository
 import com.doge.simulator.domain.repository.ExpeditionRepository
@@ -44,7 +46,6 @@ class CompleteExpeditionUseCase @Inject constructor(
         val spaceship = spaceshipRepository.getSpaceships().first()
             .firstOrNull { it.id == expedition.spaceshipId }
 
-        val matchingAstronauts = astronauts.filter { it.specialty.relatedCategory == expedition.category }
         val successChance = expeditionSuccessChance(spaceship, astronauts, expedition.category)
         val isSuccess = Random.nextFloat() < successChance
 
@@ -56,31 +57,15 @@ class CompleteExpeditionUseCase @Inject constructor(
             // 소요 시간이 길수록 더 많이). 코인 보상과 같은 방식(소요 시간 비례 + 티어당 완만한
             // 추가 배율)으로 스케일링해, 고티어(오래 걸림)가 저티어보다 시간당 자원 효율이
             // 떨어지는 역전이 생기지 않게 한다 — 기준 시간(10분)짜리 탐사가 배율 1로, 기본 랜덤 범위(1~5)
-            val cargoMultiplier = 1.0 + (spaceship?.cargoBonus ?: 0.0)
-            val crewMultiplier = 1.0 + (astronauts.size - 1).coerceAtLeast(0) * GameConstants.CREW_SIZE_RESOURCE_BONUS_PER_HEAD
-            val proficiencySum = matchingAstronauts.sumOf { it.proficiency }
-            val specialtyMultiplier = 1.0 + (proficiencySum / 100.0) * GameConstants.SPECIALTY_PROFICIENCY_RESOURCE_COEFFICIENT
-            val tierMinutes = GameConstants.EXPEDITION_BASE_MINUTES[expedition.tier]
-                ?: GameConstants.EXPEDITION_BASE_MINUTES.getValue(GameConstants.EXPEDITION_BASE_MINUTES.keys.max())
-            val durationMultiplier = tierMinutes / GameConstants.EXPEDITION_RESOURCE_REFERENCE_MINUTES
-            val tierMultiplier = GameConstants.expeditionTierMultiplier(expedition.tier)
+            val multiplier = expeditionResourceMultiplier(expedition.tier, spaceship, astronauts, expedition.category)
             val categoryResources = ResourceType.entries.filter { it.category == expedition.category }
 
             categoryResources.forEach { resourceType ->
                 val baseAmount = Random.nextLong(1, 6)
-                val amount = (baseAmount * durationMultiplier * tierMultiplier *
-                        cargoMultiplier * crewMultiplier * specialtyMultiplier).roundToLong().coerceAtLeast(1L)
-                resources[resourceType] = amount
+                resources[resourceType] = (baseAmount * multiplier).roundToLong().coerceAtLeast(1L)
             }
 
-            // 행성 발견 확률
-            val baseChance = GameConstants.PLANET_DISCOVERY_BASE_CHANCE +
-                    if (expedition.category == ExpeditionCategory.PLANET)
-                        GameConstants.PLANET_DISCOVERY_PLANET_CATEGORY_BONUS else 0f
-            val celestialBonus = lab.celestialAnalysisLevel * GameConstants.PLANET_DISCOVERY_CELESTIAL_BONUS_PER_LEVEL
-            val discoveryChance = (baseChance + celestialBonus).coerceIn(0f, 0.8f)
-
-            if (Random.nextFloat() < discoveryChance) {
+            if (Random.nextFloat() < expeditionDiscoveryChance(lab, expedition.category)) {
                 discoveredPlanetType = rollPlanetType(expedition.tier)
             }
         } else {

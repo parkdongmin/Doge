@@ -1,7 +1,10 @@
 package com.doge.simulator.domain
 
 import com.doge.simulator.domain.model.GameConstants
-import com.doge.simulator.domain.model.PlanetMetaDataTable
+import com.doge.simulator.domain.model.ExpeditionCategory
+import com.doge.simulator.domain.model.ResearchLab
+import com.doge.simulator.domain.model.expectedDiscoveredPlanetPrice
+import com.doge.simulator.domain.model.expeditionDiscoveryChance
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -15,28 +18,17 @@ class ExpeditionEconomyTest {
         val totalPerMin get() = basePerMin + slotPerMin
     }
 
-    // 티어별 발견 행성 기대 구매가 — 등급 가중치 × 등급 내 종류 균등(rollPlanetType과 동일),
-    // 가격식은 basePrice + production×20 + risk×10(ExploreViewModel.presentExpeditionResult와 동일)
-    private fun expectedPrice(tier: Int): Double {
-        val byRarity = PlanetMetaDataTable.data.values.groupBy { it.rarity }
-        return GameConstants.PLANET_RARITY_WEIGHTS.getValue(tier).entries.sumOf { (rarity, weight) ->
-            val avg = byRarity[rarity].orEmpty().map { m ->
-                m.basePrice + (m.productionMin + m.productionMax) / 2.0 * 20 + (m.riskMin + m.riskMax) / 2.0 * 10
-            }.average()
-            weight / 100.0 * avg
-        }
-    }
 
     // 우주선 등급별(강화 결과와 같은 증가량), 전문가 보너스 없는 보수적 기준
     private fun table(shipGrade: Int, coinRate: Float): List<Row> {
         val speed = minOf(100, GameConstants.SCOUT_SPEED_BASE + (shipGrade - 1) * GameConstants.UPGRADE_SPEED_PER_GRADE)
         val success = minOf(0.95, GameConstants.SCOUT_SUCCESS_RATE_BASE + (shipGrade - 1) * GameConstants.UPGRADE_SUCCESS_RATE_PER_GRADE.toDouble())
-        val discoveryPerRun = success * minOf(0.8f, GameConstants.PLANET_DISCOVERY_BASE_CHANCE + GameConstants.PLANET_DISCOVERY_PLANET_CATEGORY_BONUS)
+        val discoveryPerRun = success * expeditionDiscoveryChance(ResearchLab(), ExpeditionCategory.PLANET)
         return (1..10).map { tier ->
             val minutes = (GameConstants.EXPEDITION_BASE_MINUTES.getValue(tier) * (1 - speed / 200.0))
                 .coerceAtLeast(GameConstants.EXPEDITION_MIN_DURATION_MS / 60_000.0)
             val base = success * GameConstants.expeditionSuccessCoinReward(tier)
-            val slot = discoveryPerRun * expectedPrice(tier) * coinRate * GameConstants.slotFullCoinTierScale(tier)
+            val slot = discoveryPerRun * expectedDiscoveredPlanetPrice(tier) * coinRate * GameConstants.slotFullCoinTierScale(tier)
             Row(tier, minutes, base / minutes, slot / minutes)
         }
     }

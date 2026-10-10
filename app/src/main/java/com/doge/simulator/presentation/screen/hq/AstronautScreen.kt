@@ -81,6 +81,7 @@ private fun AstronautContent(viewModel: AstronautViewModel, modifier: Modifier) 
     val coins by viewModel.coins.collectAsState()
     val resources by viewModel.resources.collectAsState()
     val message by viewModel.message.collectAsState()
+    val skipAdsRemaining by viewModel.skipAdsRemaining.collectAsState()
     val activity = LocalContext.current.findActivity()
     var pendingDismiss by remember { mutableStateOf<Astronaut?>(null) }
 
@@ -164,6 +165,7 @@ private fun AstronautContent(viewModel: AstronautViewModel, modifier: Modifier) 
                         onTrainBasic = { viewModel.train(astronaut, false) },
                         onTrainAdvanced = { viewModel.train(astronaut, true) },
                         onSkipWaitAd = { viewModel.skipTrainingWait(astronaut, activity) },
+                        skipAdsRemaining = skipAdsRemaining,
                         // 마지막 1명은 남겨야 탐사를 보낼 수 있어 방출 버튼 자체를 숨긴다
                         onDismiss = if (astronauts.size > 1) ({ pendingDismiss = astronaut }) else null
                     )
@@ -280,6 +282,7 @@ private fun AstronautCard(
     onTrainBasic: () -> Unit,
     onTrainAdvanced: () -> Unit,
     onSkipWaitAd: () -> Unit,
+    skipAdsRemaining: Int,
     onDismiss: (() -> Unit)?
 ) {
     val (statusColor, statusLabel) = when (astronaut.status) {
@@ -339,8 +342,10 @@ private fun AstronautCard(
                         style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
                     if (remaining > 60_000L) {
                         GameButton(
-                            text = if (remaining <= GameConstants.AD_SKIP_MAX_MS) "광고로 바로 완료" else "광고로 4시간 당기기",
+                            text = (if (remaining <= GameConstants.AD_SKIP_MAX_MS) "광고로 바로 완료" else "광고로 4시간 당기기") +
+                                " $skipAdsRemaining/${GameConstants.SKIP_WAIT_AD_DAILY_MAX}",
                             onClick = onSkipWaitAd,
+                            enabled = skipAdsRemaining > 0,
                             style = GameButtonStyle.Primary,
                             leadingIcon = R.drawable.ic_ui_ad
                         )

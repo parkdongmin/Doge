@@ -24,4 +24,10 @@ interface ExpeditionRepository {
 
     // 대기시간 스킵 광고 시청 시 종료 시각을 앞당기기 위함
     suspend fun updateEndTime(id: String, endTime: Long)
+
+    // 코인 단축: 진행 중인 탐사를 지금 끝나게. 이미 끝났거나 완료 처리됐으면 false
+    suspend fun finishWaitNow(id: String, now: Long): Boolean
+
+    // 광고 단축: 진행 중인 탐사를 byMs만큼 당긴다. 이미 끝났거나 완료 처리됐으면 false
+    suspend fun shortenWaitBy(id: String, byMs: Long, now: Long): Boolean
 }

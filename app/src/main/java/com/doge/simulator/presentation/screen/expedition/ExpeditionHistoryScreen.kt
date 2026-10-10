@@ -25,6 +25,9 @@ import com.doge.simulator.domain.model.Expedition
 import com.doge.simulator.domain.model.ExpeditionReport
 import com.doge.simulator.domain.model.ExpeditionStatus
 import com.doge.simulator.domain.model.GameConstants
+import com.doge.simulator.domain.model.coinSkipCost
+import com.doge.simulator.presentation.component.GameDialog
+import com.doge.simulator.presentation.component.GameDialogButtons
 import com.doge.simulator.domain.model.StoryEvent
 import com.doge.simulator.domain.model.representativeIconRes
 import com.doge.simulator.presentation.viewmodel.ExpeditionHistoryViewModel
@@ -51,7 +54,38 @@ fun ExpeditionLogPanel(
     val allReports by viewModel.allReports.collectAsState()
     val unreadReports by viewModel.unreadReports.collectAsState()
     val actionMessage by viewModel.actionMessage.collectAsState()
+    val skipAdsRemaining by viewModel.skipAdsRemaining.collectAsState()
+    val coinSkipUnits by viewModel.coinSkipUnits.collectAsState()
+    val coins by viewModel.coins.collectAsState()
     val activity = LocalContext.current.findActivity()
+    // 코인 단축은 금액이 클 수 있어 한 번 더 확인 — 확인 창에 본 금액보다 더 받지 않는다(유스케이스에서 보장)
+    var pendingCoinSkip by remember { mutableStateOf<Pair<Expedition, Long>?>(null) }
+
+    pendingCoinSkip?.let { (expedition, cost) ->
+        GameDialog(
+            title = "코인으로 바로 완료",
+            onDismissRequest = { pendingCoinSkip = null },
+            buttons = {
+                GameDialogButtons(
+                    confirmText = "완료",
+                    onConfirm = {
+                        viewModel.skipExpeditionWithCoins(expedition, cost)
+                        pendingCoinSkip = null
+                    },
+                    confirmStyle = GameButtonStyle.Gold,
+                    confirmEnabled = coins >= cost,
+                    dismissText = "취소",
+                    onDismiss = { pendingCoinSkip = null }
+                )
+            }
+        ) {
+            Text(
+                "${"%,d".format(cost)}코인을 써서 바로 완료할까요?",
+                color = TextSecondary,
+                style = BodyReading
+            )
+        }
+    }
 
     FacilityPanel(
         visible = visible,
@@ -114,7 +148,11 @@ fun ExpeditionLogPanel(
                         ActiveExpeditionCard(
                             expedition = expedition,
                             astronauts = astronauts,
-                            onSkipWaitAd = { viewModel.skipExpeditionWait(expedition, activity) }
+                            skipAdsRemaining = skipAdsRemaining,
+                            coinSkipUnit = coinSkipUnits[expedition.id],
+                            coins = coins,
+                            onSkipWaitAd = { viewModel.skipExpeditionWait(expedition, activity) },
+                            onSkipWithCoins = { cost -> pendingCoinSkip = expedition to cost }
                         )
                     }
                     item { HorizontalDivider(color = SpaceMid, modifier = Modifier.padding(vertical = Spacing.xs)) }
@@ -194,7 +232,11 @@ private fun formatDuration(ms: Long): String {
 private fun ActiveExpeditionCard(
     expedition: Expedition,
     astronauts: List<Astronaut>,
-    onSkipWaitAd: () -> Unit
+    skipAdsRemaining: Int,
+    coinSkipUnit: Double?,
+    coins: Long,
+    onSkipWaitAd: () -> Unit,
+    onSkipWithCoins: (cost: Long) -> Unit
 ) {
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
@@ -285,13 +327,34 @@ private fun ActiveExpeditionCard(
             // 2dp 간격으로 붙어 있어 위아래가 답답했다.
             if (!isComplete && remaining > 60_000L) {
                 Spacer(modifier = Modifier.height(Spacing.md))
-                GameButton(
-                    text = if (remaining <= GameConstants.AD_SKIP_MAX_MS) "광고로 바로 완료" else "광고로 4시간 당기기",
-                    onClick = onSkipWaitAd,
-                    modifier = Modifier.fillMaxWidth(),
-                    style = GameButtonStyle.Primary,
-                    leadingIcon = R.drawable.ic_ui_ad
-                )
+                // 광고(하루 횟수 제한)와 코인 두 갈래 — 광고만 봐야 빨리 크는 구조라는 피드백 대응.
+                // 카드당 강조색 버튼은 하나라 코인 쪽은 남색 + 금액만 금색
+                val coinCost = coinSkipUnit?.let { coinSkipCost(remaining, it) }
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    GameButton(
+                        text = "광고 $skipAdsRemaining/${GameConstants.SKIP_WAIT_AD_DAILY_MAX}",
+                        onClick = onSkipWaitAd,
+                        enabled = skipAdsRemaining > 0,
+                        modifier = Modifier.weight(1f),
+                        style = GameButtonStyle.Primary,
+                        leadingIcon = R.drawable.ic_ui_ad,
+                        subText = when {
+                            skipAdsRemaining <= 0 -> "오늘은 끝"
+                            remaining <= GameConstants.AD_SKIP_MAX_MS -> "바로 완료"
+                            else -> "4시간 당기기"
+                        }
+                    )
+                    if (coinCost != null) {
+                        GameButton(
+                            text = "바로 완료",
+                            onClick = { onSkipWithCoins(coinCost) },
+                            enabled = coins >= coinCost,
+                            modifier = Modifier.weight(1f),
+                            style = GameButtonStyle.Neutral,
+                            subCoinAmount = coinCost
+                        )
+                    }
+                }
             }
         }
     }

@@ -37,4 +37,8 @@ class ExpeditionRepositoryImpl(
     override suspend fun markResultHandled(id: String) = dao.markResultHandled(id)
 
     override suspend fun updateEndTime(id: String, endTime: Long) = dao.updateEndTime(id, endTime)
+
+    override suspend fun finishWaitNow(id: String, now: Long): Boolean = dao.finishWaitNow(id, now) > 0
+
+    override suspend fun shortenWaitBy(id: String, byMs: Long, now: Long): Boolean = dao.shortenWaitBy(id, byMs, now) > 0
 }

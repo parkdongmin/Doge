@@ -11,6 +11,7 @@ import androidx.work.workDataOf
 import com.doge.simulator.ads.RewardPlacement
 import com.doge.simulator.ads.RewardedAdManager
 import com.doge.simulator.ads.RewardedAdResult
+import com.doge.simulator.ads.SkipWaitAdGate
 import com.doge.simulator.data.worker.TrainingCompleteWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.doge.simulator.domain.model.Astronaut
@@ -57,6 +58,7 @@ class AstronautViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val resourceRepository: ResourceRepository,
     private val rewardedAdManager: RewardedAdManager,
+    private val skipWaitAdGate: SkipWaitAdGate,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -80,6 +82,9 @@ class AstronautViewModel @Inject constructor(
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
+
+    // 오늘 남은 광고 단축 횟수(탐사 일지의 탐사 단축과 공유)
+    val skipAdsRemaining: StateFlow<Int> = skipWaitAdGate.remaining
 
     init {
         viewModelScope.launch { ensureRecruitmentPoolFreshUseCase() }
@@ -155,6 +160,11 @@ class AstronautViewModel @Inject constructor(
 
     fun skipTrainingWait(astronaut: Astronaut, activity: Activity) {
         val endTime = astronaut.trainingEndTime ?: return
+        skipWaitAdGate.refresh()
+        if (skipWaitAdGate.remaining.value <= 0) {
+            viewModelScope.launch { showMessage("오늘 광고 단축을 모두 썼어요") }
+            return
+        }
         rewardedAdManager.show(activity, RewardPlacement.SKIP_WAIT) { result ->
             viewModelScope.launch {
                 if (result is RewardedAdResult.Earned) {
@@ -167,6 +177,8 @@ class AstronautViewModel @Inject constructor(
                         astronaut.id, newEndTime, astronaut.trainingType
                     )
                     if (extended) {
+                        // 광고 도중 훈련이 끝나 반영이 안 됐으면 횟수도 차감하지 않는다
+                        skipWaitAdGate.recordUse()
                         scheduleTrainingWorkerAt(astronaut.id, newEndTime)
                         if (newEndTime <= now) checkTrainingCompletions()
                         showMessage("훈련 대기시간이 단축되었습니다!")

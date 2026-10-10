@@ -4,6 +4,7 @@ import com.doge.simulator.domain.model.AstronautStatus
 import com.doge.simulator.domain.model.Expedition
 import com.doge.simulator.domain.model.ExpeditionCategory
 import com.doge.simulator.domain.model.GameConstants
+import com.doge.simulator.domain.model.expeditionDurationMs
 import com.doge.simulator.domain.repository.AstronautRepository
 import com.doge.simulator.domain.repository.ExpeditionRepository
 import com.doge.simulator.domain.repository.ResearchLabRepository
@@ -67,9 +68,7 @@ class StartExpeditionUseCase @Inject constructor(
         if (!allIdle || astronauts.size != astronautIds.size) return Result.AstronautNotAvailable
 
         // 탐사 소요 시간 계산 (ship speed가 높을수록 단축)
-        val baseMinutes = GameConstants.EXPEDITION_BASE_MINUTES[tier] ?: 20L
-        val durationMs = (baseMinutes * 60_000L * (1.0 - spaceship.durationReduction)).toLong()
-            .coerceAtLeast(GameConstants.EXPEDITION_MIN_DURATION_MS)
+        val durationMs = expeditionDurationMs(tier, spaceship)
 
         val now = System.currentTimeMillis()
         val expedition = Expedition(
