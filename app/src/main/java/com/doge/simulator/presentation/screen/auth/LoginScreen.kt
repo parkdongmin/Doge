@@ -1,6 +1,5 @@
 package com.doge.simulator.presentation.screen.auth
 
-import android.app.Activity
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -33,10 +32,21 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.os.SystemClock
+import androidx.activity.ComponentActivity
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.credentials.CredentialManager
+import androidx.credentials.CredentialOption
+import androidx.credentials.CustomCredential
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import com.doge.simulator.util.findActivity
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
+import kotlinx.coroutines.CoroutineScope
 import androidx.credentials.GetCredentialRequest
-import androidx.credentials.exceptions.GetCredentialCancellationException
-import androidx.credentials.exceptions.GetCredentialException
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.doge.simulator.BuildConfig
 import com.doge.simulator.R
@@ -62,6 +72,7 @@ fun LoginScreen(
     val state by authViewModel.state.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    var signInInProgress by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         authViewModel.checkAuthState()
@@ -122,11 +133,22 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(48.dp))
 
-            when (state) {
-                is AuthViewModel.AuthState.Loading -> {
+            // 계정 선택·전체 화면 로그인이 진행되는 동안엔 버튼 대신 로딩 — 예전엔 버튼이 살아 있어
+            // 연타하면 로그인 요청이 겹쳐 서로를 취소시킬 수 있었다
+            val startSignIn = {
+                if (!signInInProgress) {
+                    signInInProgress = true
+                    authViewModel.clearError()
+                    launchGoogleSignIn(context.findActivity() as ComponentActivity, scope, authViewModel) {
+                        signInInProgress = false
+                    }
+                }
+            }
+            when {
+                state is AuthViewModel.AuthState.Loading || signInInProgress -> {
                     PixelLoading()
                 }
-                is AuthViewModel.AuthState.Error -> {
+                state is AuthViewModel.AuthState.Error -> {
                     Text(
                         text = (state as AuthViewModel.AuthState.Error).message,
                         color = StatusRed,
@@ -134,19 +156,10 @@ fun LoginScreen(
                         textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(16.dp))
-                    GoogleSignInButton(
-                        onClick = {
-                            authViewModel.clearError()
-                            launchGoogleSignIn(context as Activity, scope, authViewModel)
-                        }
-                    )
+                    GoogleSignInButton(onClick = startSignIn)
                 }
                 else -> {
-                    GoogleSignInButton(
-                        onClick = {
-                            launchGoogleSignIn(context as Activity, scope, authViewModel)
-                        }
-                    )
+                    GoogleSignInButton(onClick = startSignIn)
                 }
             }
 
@@ -182,34 +195,76 @@ private fun GoogleSignInButton(onClick: () -> Unit) {
     }
 }
 
+// 하단 시트 → (창 없이 실패하면) 전체 화면 순서로 시도한다 — 순서·판정은 GoogleSignInFlow 참고.
+// onFinished는 어떤 경로로 끝나든(성공·취소·실패·화면 이탈) 정확히 한 번 불려 버튼을 다시 살린다
 private fun launchGoogleSignIn(
-    activity: Activity,
-    scope: kotlinx.coroutines.CoroutineScope,
-    authViewModel: AuthViewModel
+    activity: ComponentActivity,
+    scope: CoroutineScope,
+    authViewModel: AuthViewModel,
+    onFinished: () -> Unit
 ) {
     scope.launch {
-        val credentialManager = CredentialManager.create(activity)
-        val googleIdOption = GetGoogleIdOption.Builder()
-            .setFilterByAuthorizedAccounts(false)
-            .setServerClientId(BuildConfig.GOOGLE_WEB_CLIENT_ID)
-            .build()
-        val request = GetCredentialRequest.Builder()
-            .addCredentialOption(googleIdOption)
-            .build()
-
         try {
-            val result = credentialManager.getCredential(activity, request)
-            val googleCredential = GoogleIdTokenCredential.createFrom(result.credential.data)
-            authViewModel.signInWithGoogle(googleCredential.idToken)
-        } catch (e: GetCredentialCancellationException) {
-            // 사용자가 계정 선택창을 직접 취소한 것이므로 에러 표시 없이 조용히 무시
-        } catch (e: GetCredentialException) {
-            authViewModel.setError(e.message ?: "Google 로그인을 사용할 수 없습니다")
-        } catch (e: Exception) {
-            // GoogleIdTokenCredential.createFrom()이 던지는 GoogleIdTokenParsingException 등은
-            // GetCredentialException이 아니라서 위 catch에 안 걸림 — 여기서 못 잡으면 코루틴이
-            // 죽으면서 앱이 크래시된다
-            authViewModel.setError("Google 로그인 처리 중 오류가 발생했습니다")
+            val credentialManager = CredentialManager.create(activity)
+            val clientId = BuildConfig.GOOGLE_WEB_CLIENT_ID
+            val flow = GoogleSignInFlow(
+                uiMonitor = ActivityPauseMonitor(activity.lifecycle),
+                clock = SystemClock::elapsedRealtime,
+                bottomSheet = {
+                    val option = GetGoogleIdOption.Builder()
+                        .setFilterByAuthorizedAccounts(false)
+                        .setServerClientId(clientId)
+                        .build()
+                    requestIdToken(credentialManager, activity, option)
+                },
+                fullScreen = {
+                    requestIdToken(credentialManager, activity, GetSignInWithGoogleOption.Builder(clientId).build())
+                }
+            )
+            when (val outcome = flow.run()) {
+                is GoogleSignInFlow.Outcome.Token -> authViewModel.signInWithGoogle(outcome.idToken)
+                GoogleSignInFlow.Outcome.UserCancelled -> Unit
+                is GoogleSignInFlow.Outcome.Failed -> authViewModel.setError(
+                    "Google 로그인 창을 열지 못했어요. 잠시 후 다시 시도해 주세요.\n오류 코드: ${outcome.code}"
+                )
+            }
+        } finally {
+            onFinished()
         }
+    }
+}
+
+private suspend fun requestIdToken(
+    credentialManager: CredentialManager,
+    activity: ComponentActivity,
+    option: CredentialOption
+): String {
+    val request = GetCredentialRequest.Builder().addCredentialOption(option).build()
+    val credential = credentialManager.getCredential(activity, request).credential
+    if (credential !is CustomCredential || credential.type != GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+        throw GoogleSignInFlow.CredentialParseException("UNEXPECTED_CREDENTIAL")
+    }
+    return try {
+        GoogleIdTokenCredential.createFrom(credential.data).idToken
+    } catch (e: GoogleIdTokenParsingException) {
+        throw GoogleSignInFlow.CredentialParseException("TOKEN_PARSE")
+    }
+}
+
+// 로그인 창(별도 화면)이 뜨면 우리 Activity가 ON_PAUSE를 받는다 — 시도 도중 그런 적이 있으면 "창이 떴다"
+private class ActivityPauseMonitor(private val lifecycle: Lifecycle) : GoogleSignInFlow.UiShownMonitor {
+    private var paused = false
+    private val observer = LifecycleEventObserver { _, event ->
+        if (event == Lifecycle.Event.ON_PAUSE) paused = true
+    }
+
+    override fun begin() {
+        paused = false
+        lifecycle.addObserver(observer)
+    }
+
+    override fun end(): Boolean {
+        lifecycle.removeObserver(observer)
+        return paused
     }
 }
