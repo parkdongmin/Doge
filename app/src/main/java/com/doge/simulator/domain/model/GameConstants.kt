@@ -354,6 +354,8 @@ object GameConstants {
     // 자원 판매 단가 (코인/개) — 행성이 없어 방치 수익이 없을 때 자원을 코인으로 바꿀 수 있는 최소한의 환금 수단.
     // 행성 드랍 출처 개수·확률과 역전되지 않도록 보정 후 전체 +15% 반영
     // (크리스탈: 8개 행성에서 나오는 흔한 자원인데 마그마석보다 비쌌던 것 보정 / 에너지 코어: 초반 가스자이언트로 쉽게 확보되는데 희토류급으로 비쌌던 것 보정)
+    // 외계 자원은 69/75/81 → 60/65/70: 탐사 시간은 카테고리와 무관하게 티어로만 정해지는데 판매가만 높아, 외계 문명이
+    // 열리면 분당 판매 수입이 광물의 약 2.4배였다. 연구 투자 보상으로 가장 비싸게는 두되 약 1.9배(유적의 약 1.3배)로 낮춤
     val RESOURCE_SELL_PRICE: Map<ResourceType, Long> = mapOf(
         ResourceType.IRON_ORE to 9L, ResourceType.MAGMA_STONE to 14L,
         ResourceType.CRYSTAL to 12L, ResourceType.RARE_EARTH to 29L,
@@ -361,8 +363,8 @@ object GameConstants {
         ResourceType.ENERGY_CORE to 18L, ResourceType.LIFE_CRYSTAL to 40L,
         ResourceType.NANOBOT to 32L, ResourceType.DATA_CORE to 35L,
         ResourceType.ANCIENT_ARTIFACT to 58L,
-        ResourceType.QUANTUM_CORE to 69L, ResourceType.UNKNOWN_MATTER to 75L,
-        ResourceType.ALIEN_TECH to 81L
+        ResourceType.QUANTUM_CORE to 60L, ResourceType.UNKNOWN_MATTER to 65L,
+        ResourceType.ALIEN_TECH to 70L
     )
 
     // 탐사 마무리 선택에서 "자원을 더 싣는다"를 골랐을 때 성공할 확률.
