@@ -375,11 +375,10 @@ object GameConstants {
     // 레벨이 무한히 오르는 만큼 자원 종류를 다양하게 분배해 한쪽만 과다 소모되지 않게 함.
     // 단계가 오를수록 흔한 자원 → 보통 → 희귀 순. 요구 자원은 그 레벨에 열려 있는 탐사로 구할 수 있게
     // 맞춤(데이터 코어는 유적 탐사가 열리는 탐사 기술 3 이후, 외계 자원은 6 이후부터 요구).
-    // 1~2단계 바이오매스는 스타터 행성(무대기)에서 안 나와 행성 탐사로만 모아야 해서 초반 병목이 됐음
-    // (50/120 → 30/60). 습지·해양 행성을 얻고 나면 오히려 남는 자원이라 초반 요구량만 낮춤
+    // 1~2단계 바이오매스는 v1.4.0에서 30/60으로 낮췄다가 v1.5.0에서 원래 50/120으로 되돌림
     fun researchUpgradeCost(currentLevel: Int): Pair<Long, Map<ResourceType, Int>> = when (currentLevel) {
-        1 -> 1_000L to mapOf(ResourceType.BIOMASS to 30)
-        2 -> 3_000L to mapOf(ResourceType.BIOMASS to 60, ResourceType.COOLANT to 80)
+        1 -> 1_000L to mapOf(ResourceType.BIOMASS to 50)
+        2 -> 3_000L to mapOf(ResourceType.BIOMASS to 120, ResourceType.COOLANT to 80)
         3 -> 6_000L to mapOf(ResourceType.COOLANT to 200, ResourceType.IRON_ORE to 200)
         4 -> 10_000L to mapOf(ResourceType.ENERGY_CORE to 300, ResourceType.CRYSTAL to 200)
         5 -> 15_000L to mapOf(ResourceType.LIFE_CRYSTAL to 200, ResourceType.MAGMA_STONE to 200)
