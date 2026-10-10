@@ -276,8 +276,6 @@ class OrbitViewModel @Inject constructor(
         return when {
             mustPlayAiCore && card.type != OrbitCardType.AI_CORE ->
                 "AI CORE와 EMP/WARP GATE를 같이 들고 있으면 AI CORE부터 내야 해요"
-            card.type == OrbitCardType.EMP && round.deck.remainingCount < 1 ->
-                "덱에 카드가 없어서 EMP를 쓸 수 없어요"
             else -> "지금은 낼 수 없는 카드예요"
         }
     }
@@ -298,6 +296,9 @@ class OrbitViewModel @Inject constructor(
         // 아직 방금 끝난 라운드 결과를 보여주는 배너가 떠 있는 동안에도 화면에 이미 다음
         // 라운드의 새 덱 장수·새 손패가 섞여 보이는 문제가 있었다(실기기 리포트).
         match.startNextRoundIfNotOver()
+        // 새 라운드는 덱·손패를 새로 섞으니 지난 라운드에 본 플레이어 카드는 의미가 없다. 예전엔 매치
+        // 시작 때만 초기화해서, 지난 라운드 기억으로 엉뚱한 SCOUT 추측·PROBE 비교를 하곤 했다
+        b01Memory = B01Memory()
         publishSnapshot()
         viewModelScope.launch { advanceUntilPlayerTurnOrPause(roundJustStarted = true) }
     }
@@ -365,8 +366,8 @@ class OrbitViewModel @Inject constructor(
             publishSnapshot()
             delay(B01_THINK_DELAY_MS)
 
-            val mistakeRate = match.bet?.riskTier?.aiMistakeRate ?: OrbitRiskTier.LOWEST.aiMistakeRate
-            val decision = B01OrbitAi.decide(match.currentRound, b01Memory, mistakeRate)
+            val tier = match.bet?.riskTier ?: OrbitRiskTier.LOWEST
+            val decision = B01OrbitAi.decide(match.currentRound, b01Memory, tier.aiMistakeRate, maxMistakeGap = tier.aiMaxMistakeGap)
             val result = playOrbitCardUseCase(
                 match.currentRound, PlayerSide.B01, decision.card, decision.input, b01Memory
             )

@@ -106,6 +106,7 @@ private fun CardRuleRow(type: OrbitCardType) {
 // 게임 화면과 같은 한 줄 설명 + 규칙 창에서만 덧붙이는 예외(게임 중엔 어기려 할 때 경고로 안내되는 것들)
 private fun cardRuleText(type: OrbitCardType): String = when (type) {
     OrbitCardType.SCOUT_DRONE -> cardShortDescription(type) + " 1은 지목할 수 없어요."
+    OrbitCardType.EMP -> cardShortDescription(type) + " 덱이 비어 있으면 효과가 없어요."
     OrbitCardType.AI_CORE -> cardShortDescription(type) + " EMP·WARP GATE와 같이 들면 꼭 내야 해요."
     else -> cardShortDescription(type)
 }

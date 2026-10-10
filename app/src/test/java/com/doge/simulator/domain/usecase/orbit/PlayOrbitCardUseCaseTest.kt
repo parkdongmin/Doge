@@ -250,17 +250,21 @@ class PlayOrbitCardUseCaseTest {
     }
 
     @Test
-    fun `emp cannot be played when the deck is empty`() {
+    fun `emp with an empty deck is playable but has no effect`() {
+        // 예전엔 낼 수 없게 막아 EMP 2장을 든 채 덱이 비면 판이 멈췄다
         val round = OrbitRoundState.forTest(
-            playerHand = listOf(OrbitCardType.EMP),
+            playerHand = listOf(OrbitCardType.EMP, OrbitCardType.EMP),
             b01Hand = listOf(OrbitCardType.CAPTAIN),
             remainingDeck = emptyList()
         )
         val result = useCase(
             round, PlayerSide.PLAYER, OrbitCard(OrbitCardType.EMP),
             OrbitCardEffectInput.EmpTarget(PlayerSide.B01), B01Memory()
-        )
-        assertEquals(PlayOrbitCardUseCase.Result.InvalidMove, result)
+        ) as PlayOrbitCardUseCase.Result.Applied
+
+        assertEquals("덱이 비어 아무 일도 없었어요", result.summary.noEffectNote)
+        assertFalse(round.player(PlayerSide.B01).isOut)
+        assertEquals(OrbitCardType.CAPTAIN, round.player(PlayerSide.B01).hand.single().type)
     }
 
     @Test
@@ -347,5 +351,48 @@ class PlayOrbitCardUseCaseTest {
             PlayOrbitCardUseCase.Result.InvalidMove,
             useCase(round, PlayerSide.PLAYER, OrbitCard(OrbitCardType.CAPTAIN), b01Memory = B01Memory())
         )
+    }
+
+    // ── B-01 기억 갱신 ───────────────────────────────────────────────
+
+    // 플레이어가 알려진 카드(SENSOR로 본 CAPTAIN)가 아닌 다른 카드를 냈다면 남은 카드는 여전히 CAPTAIN
+    @Test
+    fun `b01 keeps knowing the player's card when the player plays a different card`() {
+        val round = OrbitRoundState.forTest(
+            playerHand = listOf(OrbitCardType.CAPTAIN, OrbitCardType.SHIELD),
+            b01Hand = listOf(OrbitCardType.SENSOR),
+            remainingDeck = List(5) { OrbitCardType.SENSOR }
+        )
+        val memory = B01Memory().apply { reveal(OrbitCard(OrbitCardType.CAPTAIN)) }
+        useCase(round, PlayerSide.PLAYER, OrbitCard(OrbitCardType.SHIELD), b01Memory = memory)
+
+        assertEquals(OrbitCardType.CAPTAIN, memory.knownPlayerCard?.type)
+    }
+
+    // 알려진 카드와 같은 종류를 냈다면 남은 건 새로 뽑은 카드라 더는 모른다
+    @Test
+    fun `b01 forgets when the player plays the known card's type`() {
+        val round = OrbitRoundState.forTest(
+            playerHand = listOf(OrbitCardType.SHIELD, OrbitCardType.SENSOR),
+            b01Hand = listOf(OrbitCardType.SENSOR),
+            remainingDeck = List(5) { OrbitCardType.SENSOR }
+        )
+        val memory = B01Memory().apply { reveal(OrbitCard(OrbitCardType.SHIELD)) }
+        useCase(round, PlayerSide.PLAYER, OrbitCard(OrbitCardType.SHIELD), b01Memory = memory)
+
+        assertNull(memory.knownPlayerCard)
+    }
+
+    @Test
+    fun `probe tie tells b01 the player's card`() {
+        val round = OrbitRoundState.forTest(
+            playerHand = listOf(OrbitCardType.PROBE, OrbitCardType.SENSOR),
+            b01Hand = listOf(OrbitCardType.SENSOR),
+            remainingDeck = List(5) { OrbitCardType.SHIELD }
+        )
+        val memory = B01Memory()
+        useCase(round, PlayerSide.PLAYER, OrbitCard(OrbitCardType.PROBE), b01Memory = memory)
+
+        assertEquals(OrbitCardType.SENSOR, memory.knownPlayerCard?.type)
     }
 }

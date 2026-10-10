@@ -59,9 +59,6 @@ class PlayOrbitCardUseCase @Inject constructor() {
             actor.hand.any { it.type == OrbitCardType.EMP || it.type == OrbitCardType.WARP_GATE }
         if (mustPlayAiCore && card.type != OrbitCardType.AI_CORE) return Result.InvalidMove
 
-        // EMP는 덱에 최소 1장 남아있어야 사용 가능
-        if (card.type == OrbitCardType.EMP && round.deck.remainingCount < 1) return Result.InvalidMove
-
         actor.hand.remove(card)
         actor.cardsUsedThisRound.add(card)
         round.deck.markUsed(card)
@@ -113,7 +110,12 @@ class PlayOrbitCardUseCase @Inject constructor() {
                     when {
                         myPower < oppPower -> { actor.markOut(); outSide = actingSide }
                         oppPower < myPower -> { opponent.markOut(); outSide = opponentSide }
-                        else -> noEffectNote = "동점이라 아무 일도 없었어요"
+                        else -> {
+                            noEffectNote = "동점이라 아무 일도 없었어요"
+                            // 동점이면 상대 카드가 내 카드와 같은 Power(=같은 종류)라는 게 공개된 셈 —
+                            // 누가 냈든 B-01은 플레이어 카드를 정확히 알게 된다
+                            b01Memory.reveal(round.player(PlayerSide.PLAYER).hand.first())
+                        }
                     }
                 }
             }
@@ -125,6 +127,11 @@ class PlayOrbitCardUseCase @Inject constructor() {
                 val targetShielded = round.player(target).shieldActive
                 if (target != actingSide && targetShielded) {
                     blockedByShield = true
+                } else if (round.deck.remainingCount < 1) {
+                    // 덱이 비면 새로 받을 카드가 없어 효과 없이 소모만 된다. 예전엔 아예 낼 수 없게 막아서
+                    // EMP 2장을 든 채 덱이 비면 낼 카드가 없어 판이 멈췄고, EMP+CAPTAIN이면 CAPTAIN을
+                    // 낼 수밖에 없어 강제로 자멸했다
+                    noEffectNote = "덱이 비어 아무 일도 없었어요"
                 } else {
                     val targetState = round.player(target)
                     val discarded = targetState.hand.firstOrNull()
@@ -174,10 +181,14 @@ class PlayOrbitCardUseCase @Inject constructor() {
             round.finishWithOut(loser = outSide)
         } else {
             round.endTurnAndSwitchIfNotOver()
-            // 플레이어가 정상적으로 턴을 마치면(WARP_GATE 제외 — 그 경우는 위에서 이미 정확히
-            // 알게 됨) 남은 손패 구성을 더 이상 확신할 수 없다 — "카드가 변경됐는지 여부"를
-            // 보수적으로(항상 모른다로) 취급한다.
-            if (actingSide == PlayerSide.PLAYER && card.type != OrbitCardType.WARP_GATE) {
+            // 플레이어는 "알려진 카드 + 새로 뽑은 카드" 중 하나를 냈다. 알려진 카드와 다른 종류를 냈다면
+            // 남은 카드는 여전히 그 알려진 카드다 — 예전엔 무조건 잊어서 SENSOR로 본 정보를 한 턴 만에
+            // 버렸다. 같은 종류를 냈으면 남은 건 새로 뽑은 카드라 모른다. WARP_GATE는 위에서 교환 결과로
+            // 이미 정확히 기억해 뒀으니 건드리지 않는다
+            val known = b01Memory.knownPlayerCard
+            if (actingSide == PlayerSide.PLAYER && card.type != OrbitCardType.WARP_GATE &&
+                (known == null || known.type == card.type)
+            ) {
                 b01Memory.forget()
             }
         }

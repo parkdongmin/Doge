@@ -7,6 +7,7 @@ import com.doge.simulator.domain.model.orbit.PlayerSide
 import com.doge.simulator.domain.usecase.orbit.OrbitCardEffectInput
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.random.Random
 
@@ -69,14 +70,110 @@ class B01OrbitAiTest {
     }
 
     @Test
-    fun `mistake rate of 1 picks a genuine alternative, never captain`() {
+    fun `mistake rate of 1 picks a genuine alternative when it is not suicidal`() {
         val round = OrbitRoundState.forTest(
             playerHand = listOf(OrbitCardType.SENSOR),
             b01Hand = listOf(OrbitCardType.SCOUT_DRONE, OrbitCardType.SHIELD),
             turn = PlayerSide.B01
         )
-        val decision = B01OrbitAi.decide(round, B01Memory(), mistakeRate = 1f, random = Random(0))
+        val best = B01OrbitAi.decide(round, B01Memory(), mistakeRate = 0f, random = Random(0))
+        val mistake = B01OrbitAi.decide(round, B01Memory(), mistakeRate = 1f, random = Random(0))
+        assertNotEquals(best.card.type, mistake.card.type)
+    }
+
+    // ── 판단 품질 (고위험 = 실수 0에서 이상한 수를 두지 않는지) ─────────────────────
+
+    // 피드백: SCOUT(1)+PROBE(3)에서 PROBE를 내면 남은 Power 1로 비교해 거의 확실히 진다
+    @Test
+    fun `never probes while keeping a power 1 card`() {
+        val round = OrbitRoundState.forTest(
+            playerHand = listOf(OrbitCardType.SENSOR),
+            b01Hand = listOf(OrbitCardType.SCOUT_DRONE, OrbitCardType.PROBE),
+            remainingDeck = List(8) { OrbitCardType.SHIELD },
+            turn = PlayerSide.B01
+        )
+        repeat(20) { seed ->
+            val decision = B01OrbitAi.decide(round, B01Memory(), mistakeRate = 0f, random = Random(seed))
+            assertEquals(OrbitCardType.SCOUT_DRONE, decision.card.type)
+        }
+    }
+
+    // 피드백: WARP_GATE(6)+SCOUT(1)에서 교환하면 상대가 SCOUT를 받아 B-01이 가져간 자기 카드를 맞힌다
+    @Test
+    fun `never warps away a scout drone`() {
+        val round = OrbitRoundState.forTest(
+            playerHand = listOf(OrbitCardType.SENSOR),
+            b01Hand = listOf(OrbitCardType.WARP_GATE, OrbitCardType.SCOUT_DRONE),
+            remainingDeck = List(8) { OrbitCardType.SHIELD },
+            turn = PlayerSide.B01
+        )
+        val decision = B01OrbitAi.decide(round, B01Memory(), mistakeRate = 0f, random = Random(3))
         assertEquals(OrbitCardType.SCOUT_DRONE, decision.card.type)
+    }
+
+    @Test
+    fun `suicidal alternatives are not chosen even as mistakes`() {
+        val round = OrbitRoundState.forTest(
+            playerHand = listOf(OrbitCardType.SENSOR),
+            b01Hand = listOf(OrbitCardType.SCOUT_DRONE, OrbitCardType.PROBE),
+            remainingDeck = List(8) { OrbitCardType.SHIELD },
+            turn = PlayerSide.B01
+        )
+        repeat(20) { seed ->
+            val decision = B01OrbitAi.decide(round, B01Memory(), mistakeRate = 1f, random = Random(seed))
+            assertEquals(OrbitCardType.SCOUT_DRONE, decision.card.type)
+        }
+    }
+
+    @Test
+    fun `emps the player when it knows they hold the captain`() {
+        val memory = B01Memory().apply { reveal(OrbitCard(OrbitCardType.CAPTAIN)) }
+        val round = OrbitRoundState.forTest(
+            playerHand = listOf(OrbitCardType.CAPTAIN),
+            b01Hand = listOf(OrbitCardType.EMP, OrbitCardType.SHIELD),
+            remainingDeck = List(5) { OrbitCardType.SENSOR },
+            turn = PlayerSide.B01
+        )
+        val decision = B01OrbitAi.decide(round, memory, mistakeRate = 0f)
+        assertEquals(OrbitCardType.EMP, decision.card.type)
+        assertEquals(OrbitCardEffectInput.EmpTarget(PlayerSide.PLAYER), decision.input)
+    }
+
+    @Test
+    fun `probes when holding the captain since nothing beats it`() {
+        val round = OrbitRoundState.forTest(
+            playerHand = listOf(OrbitCardType.SENSOR),
+            b01Hand = listOf(OrbitCardType.PROBE, OrbitCardType.CAPTAIN),
+            remainingDeck = List(5) { OrbitCardType.SHIELD },
+            turn = PlayerSide.B01
+        )
+        val decision = B01OrbitAi.decide(round, B01Memory(), mistakeRate = 0f)
+        assertEquals(OrbitCardType.PROBE, decision.card.type)
+    }
+
+    @Test
+    fun `keeps the higher card when the deck is about to run out`() {
+        // 덱이 비어 이번 턴 뒤 바로 Power 비교 — SENSOR(2)를 내고 AI_CORE(7)를 남겨야 한다
+        val round = OrbitRoundState.forTest(
+            playerHand = listOf(OrbitCardType.PROBE),
+            b01Hand = listOf(OrbitCardType.SENSOR, OrbitCardType.AI_CORE),
+            remainingDeck = emptyList(),
+            turn = PlayerSide.B01
+        )
+        val decision = B01OrbitAi.decide(round, B01Memory(), mistakeRate = 0f)
+        assertEquals(OrbitCardType.SENSOR, decision.card.type)
+    }
+
+    @Test
+    fun `never emps itself while holding the captain`() {
+        val round = OrbitRoundState.forTest(
+            playerHand = listOf(OrbitCardType.SENSOR),
+            b01Hand = listOf(OrbitCardType.EMP, OrbitCardType.CAPTAIN),
+            remainingDeck = List(5) { OrbitCardType.SHIELD },
+            turn = PlayerSide.B01
+        ).apply { player(PlayerSide.PLAYER).shieldActive = true }
+        val decision = B01OrbitAi.decide(round, B01Memory(), mistakeRate = 0f)
+        assertEquals(OrbitCardEffectInput.EmpTarget(PlayerSide.PLAYER), decision.input)
     }
 
     // CAPTAIN을 내면 즉시 자멸(OUT)이므로, 실수 메커니즘이라 해도 다른 카드가 하나라도
@@ -108,22 +205,22 @@ class B01OrbitAiTest {
         assertEquals(8, (decision.input as OrbitCardEffectInput.ScoutGuess).guessedPower)
     }
 
-    // 회귀 테스트: 예전에는 덱이 비어 실제로 낼 수 없는 EMP를 "실수"로라도 골라버려서
-    // PlayOrbitCardUseCase가 InvalidMove를 반환 → 턴이 안 넘어가 무한 반복하다 손패가
-    // 늘어나 check(hand.size==2)가 터지는 크래시로 이어졌다. 덱이 비어 있으면 mistakeRate가
-    // 1이어도 EMP를 절대 고르면 안 된다.
+    // 회귀 테스트: AI가 고른 수는 항상 규칙상 낼 수 있어야 한다 — 예전엔 낼 수 없는 수를 고르면
+    // InvalidMove로 턴이 안 넘어가 크래시로 이어졌고, EMP 2장 + 빈 덱에선 낼 수 있는 수가 아예 없었다
     @Test
-    fun `never chooses emp when the deck is empty even at maximum mistake rate`() {
-        val round = OrbitRoundState.forTest(
-            playerHand = listOf(OrbitCardType.SENSOR),
-            b01Hand = listOf(OrbitCardType.EMP, OrbitCardType.SHIELD),
-            remainingDeck = emptyList(),
-            turn = PlayerSide.B01
-        )
-
+    fun `chosen move is always legal even with two emps and an empty deck`() {
         repeat(20) { seed ->
+            val round = OrbitRoundState.forTest(
+                playerHand = listOf(OrbitCardType.SENSOR),
+                b01Hand = listOf(OrbitCardType.EMP, OrbitCardType.EMP),
+                remainingDeck = emptyList(),
+                turn = PlayerSide.B01
+            )
             val decision = B01OrbitAi.decide(round, B01Memory(), mistakeRate = 1f, random = Random(seed))
-            assertNotEquals(OrbitCardType.EMP, decision.card.type)
+            val result = com.doge.simulator.domain.usecase.orbit.PlayOrbitCardUseCase()(
+                round, PlayerSide.B01, decision.card, decision.input, B01Memory()
+            )
+            assertTrue(result is com.doge.simulator.domain.usecase.orbit.PlayOrbitCardUseCase.Result.Applied)
         }
     }
 
