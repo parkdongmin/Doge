@@ -71,7 +71,7 @@ fun TutorialOverlay(
             else -> OverlaySpec(
                 body = "여기서 탐사할 종류를 고르세요.\n\n" +
                     "정찰선과 대원을 배치하고 파견하면 탐사가 시작됩니다. " +
-                    "완료되면 알림으로 알려드릴게요. 어떤 탐사에서 뭐가 나오는지는 ⓘ 를 눌러 보세요.",
+                    "완료되면 알림으로 알려드릴게요. 어떤 탐사에서 뭐가 나오는지는 '도움말'을 눌러 보세요.",
                 buttonLabel = "알겠어요",
                 target = TutorialTarget.EXPLORE_FIRST_CATEGORY,
                 onPrimary = { onDismiss(step) }

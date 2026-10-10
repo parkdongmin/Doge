@@ -39,7 +39,10 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.doge.simulator.R
 import com.doge.simulator.domain.model.*
+import com.doge.simulator.presentation.component.HelpChip
 import com.doge.simulator.presentation.component.CrewInfoContent
+import com.doge.simulator.presentation.component.GradePips
+import com.doge.simulator.presentation.component.effectSummary
 import com.doge.simulator.presentation.component.InfoDialog
 import com.doge.simulator.presentation.component.ShipInfoContent
 import com.doge.simulator.presentation.component.rarityColor
@@ -66,6 +69,7 @@ import com.doge.simulator.util.vibrateDiscoveryReveal
 import com.doge.simulator.util.vibrateUpgradeResult
 import com.doge.simulator.presentation.component.PixelIcons
 import java.util.concurrent.TimeUnit
+import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.random.Random
 
@@ -144,15 +148,7 @@ fun ExploreScreen(
         ) {
             // 섹션 제목 — 예전엔 페이지 제목 크기(titleLarge)라 이게 화면 제목처럼 읽혔다.
             TabSectionHeader("탐험 종류 선택")
-            Icon(
-                imageVector = PixelIcons.Info,
-                contentDescription = "탐사 정보",
-                tint = TextSecondary,
-                modifier = Modifier
-                    .size(18.dp)
-                    .clip(CircleShape)
-                    .clickable { showExpeditionInfo = true }
-            )
+            HelpChip(onClick = { showExpeditionInfo = true }, contentDescription = "탐사 정보")
         }
         CategoryGrid(
             researchLab = researchLab,
@@ -678,9 +674,16 @@ private fun TeamBuilderContent(
     modifier: Modifier = Modifier
 ) {
     val unlockedCategories = researchLab.unlockedCategories()
+    // 고른 탐사와 분야가 맞는 대원을 앞으로 — 맞는 대원을 태워야 보너스가 붙는다는 걸 바로 보이게
+    val isSpecialtyMatch = { a: Astronaut -> a.specialty.relatedCategory == uiState.selectedCategory }
     val idleAstronauts = astronauts.filter { it.status == AstronautStatus.IDLE }
+        .sortedByDescending { isSpecialtyMatch(it) }
     val selectedShip = spaceships.firstOrNull { it.id == uiState.selectedSpaceshipId }
     val maxCrew = selectedShip?.crewCapacity ?: 0
+    // 실제 판정(CompleteExpeditionUseCase)과 같은 식 — 우주선·대원 선택이 결과를 바꾼다는 걸 숫자로 보여준다
+    val successChance = selectedShip?.let { ship ->
+        expeditionSuccessChance(ship, idleAstronauts.filter { it.id in uiState.selectedAstronautIds }, uiState.selectedCategory)
+    }
 
     // 제목·ⓘ·✕는 창 명판(FacilityPanel)이 맡고, 여기는 스크롤 본문 + 아래 고정 파견 버튼.
     Column(modifier) {
@@ -922,7 +925,7 @@ private fun TeamBuilderContent(
                                 Spacer(modifier = Modifier.height(Spacing.xxs))
                                 Text(
                                     if (isBusy) "탐사 중 — 복귀 후 사용 가능"
-                                    else "탑승 ${ship.crewCapacity}명 · 속도 ${ship.speed} · 적재 ${ship.cargo}",
+                                    else "탑승 ${ship.crewCapacity}명 · ${ship.effectSummary}",
                                     color = if (isBusy) StatusRed else TextSecondary,
                                     style = MaterialTheme.typography.labelSmall
                                 )
@@ -940,6 +943,12 @@ private fun TeamBuilderContent(
             trailing = if (selectedShip == null) "우주선을 먼저 고르세요"
             else "${uiState.selectedAstronautIds.size}/${maxCrew}명"
         )
+        if (idleAstronauts.any(isSpecialtyMatch)) {
+            Text(
+                "초록색 분야 대원은 이번 탐사 보너스를 받아요",
+                color = StatusGreen, style = MaterialTheme.typography.labelSmall
+            )
+        }
         Spacer(modifier = Modifier.height(Spacing.sm))
         if (idleAstronauts.isEmpty()) {
             Text(
@@ -976,8 +985,12 @@ private fun TeamBuilderContent(
                                         fontWeight = FontWeight.Bold,
                                         maxLines = 1
                                     )
+                                    Spacer(modifier = Modifier.height(Spacing.xxs))
+                                    GradePips(astronaut.grade)
+                                    Spacer(modifier = Modifier.height(Spacing.xxs))
                                     Text(
-                                        astronaut.specialty.displayName, color = SpaceAccent,
+                                        astronaut.specialty.displayName,
+                                        color = if (isSpecialtyMatch(astronaut)) StatusGreen else SpaceAccent,
                                         style = MaterialTheme.typography.labelSmall, maxLines = 1
                                     )
                                     Text(
@@ -999,6 +1012,13 @@ private fun TeamBuilderContent(
     Column(Modifier.fillMaxWidth().padding(horizontal = Spacing.xl, vertical = Spacing.md)) {
         uiState.dispatchError?.let {
             Text(it, color = StatusRed, style = MaterialTheme.typography.bodySmall)
+            Spacer(modifier = Modifier.height(Spacing.sm))
+        }
+        successChance?.let {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("예상 성공률", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+                Text("${(it * 100).roundToInt()}%", color = StatusGreen, style = MaterialTheme.typography.labelMedium)
+            }
             Spacer(modifier = Modifier.height(Spacing.sm))
         }
         GameButton(

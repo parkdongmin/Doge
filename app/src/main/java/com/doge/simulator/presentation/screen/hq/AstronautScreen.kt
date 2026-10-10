@@ -27,24 +27,23 @@ import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.ResourceType
 import com.doge.simulator.domain.model.RecruitmentCandidate
 import com.doge.simulator.domain.model.RecruitmentPool
+import com.doge.simulator.presentation.component.AutoShowInfoOnce
 import com.doge.simulator.presentation.component.CrewInfoContent
+import com.doge.simulator.presentation.component.GradeBadge
+import com.doge.simulator.presentation.component.color
+import com.doge.simulator.presentation.component.spawnPercent
 import com.doge.simulator.presentation.component.InfoDialog
 import com.doge.simulator.presentation.viewmodel.AstronautViewModel
 import com.doge.simulator.ui.theme.*
 import com.doge.simulator.presentation.component.GameButton
 import com.doge.simulator.presentation.component.GameButtonStyle
+import com.doge.simulator.presentation.component.GameDialog
+import com.doge.simulator.presentation.component.GameDialogButtons
 import com.doge.simulator.util.findActivity
 import com.doge.simulator.presentation.component.FacilityPanel
 import com.doge.simulator.presentation.component.PanelSectionHeader
 import kotlinx.coroutines.delay
 
-private val gradeColor = mapOf(
-    AstronautGrade.INTERN to Color(0xFF9EA3A8),
-    AstronautGrade.REGULAR to Color(0xFF5DBF7A),
-    AstronautGrade.SENIOR to Color(0xFF5B9CF6),
-    AstronautGrade.VETERAN to Color(0xFFB07FE0),
-    AstronautGrade.LEGEND to Color(0xFFE8A84C)
-)
 
 // 정거장 화면 위에 띄우는 우주인 센터 창(FacilityPanel 참고).
 @Composable
@@ -55,6 +54,7 @@ fun AstronautPanel(
 ) {
     val coins by viewModel.coins.collectAsState()
     var showInfo by remember { mutableStateOf(false) }
+    AutoShowInfoOnce("astronaut_center", active = visible) { showInfo = true }
 
     if (showInfo) {
         InfoDialog(title = "우주인 안내", onDismiss = { showInfo = false }) {
@@ -82,6 +82,29 @@ private fun AstronautContent(viewModel: AstronautViewModel, modifier: Modifier) 
     val resources by viewModel.resources.collectAsState()
     val message by viewModel.message.collectAsState()
     val activity = LocalContext.current.findActivity()
+    var pendingDismiss by remember { mutableStateOf<Astronaut?>(null) }
+
+    pendingDismiss?.let { target ->
+        GameDialog(
+            title = "우주인 방출",
+            onDismissRequest = { pendingDismiss = null },
+            buttons = {
+                GameDialogButtons(
+                    confirmText = "방출",
+                    onConfirm = { viewModel.dismiss(target); pendingDismiss = null },
+                    confirmStyle = GameButtonStyle.Danger,
+                    dismissText = "취소",
+                    onDismiss = { pendingDismiss = null }
+                )
+            }
+        ) {
+            Text(
+                "${target.grade.displayName} ${target.name} 대원을 방출할까요? 영입비는 돌려받지 못하고, 되돌릴 수 없어요.",
+                color = TextSecondary,
+                style = BodyReading
+            )
+        }
+    }
 
     Column(modifier = modifier) {
         // 상태 메시지
@@ -140,7 +163,9 @@ private fun AstronautContent(viewModel: AstronautViewModel, modifier: Modifier) 
                         trainingSlotAvailable = astronauts.count { it.status == AstronautStatus.TRAINING } < researchLab.maxTrainingSlots,
                         onTrainBasic = { viewModel.train(astronaut, false) },
                         onTrainAdvanced = { viewModel.train(astronaut, true) },
-                        onSkipWaitAd = { viewModel.skipTrainingWait(astronaut, activity) }
+                        onSkipWaitAd = { viewModel.skipTrainingWait(astronaut, activity) },
+                        // 마지막 1명은 남겨야 탐사를 보낼 수 있어 방출 버튼 자체를 숨긴다
+                        onDismiss = if (astronauts.size > 1) ({ pendingDismiss = astronaut }) else null
                     )
                 }
             }
@@ -202,7 +227,7 @@ private fun RecruitmentCandidateCard(
     Card(
         shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-        border = BorderStroke(1.dp, candidate?.let { gradeColor.getValue(it.grade) }?.copy(alpha = 0.5f) ?: SpaceMid),
+        border = BorderStroke(1.dp, candidate?.grade?.color?.copy(alpha = 0.5f) ?: SpaceMid),
         modifier = Modifier.fillMaxWidth().textured(shape = RoundedCornerShape(10.dp), baseColor = SpaceNavy)
     ) {
         if (candidate == null) {
@@ -227,14 +252,11 @@ private fun RecruitmentCandidateCard(
                 Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
                     Text(candidate.name, color = TextPrimary, style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold)
-                    Surface(shape = RoundedCornerShape(4.dp), color = gradeColor.getValue(candidate.grade).copy(alpha = 0.18f)) {
-                        Text(candidate.grade.displayName, color = gradeColor.getValue(candidate.grade),
-                            style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.xxs))
-                    }
+                    GradeBadge(candidate.grade)
                 }
                 Spacer(modifier = Modifier.height(Spacing.xxs))
-                Text("${candidate.specialty.displayName} · 숙련도 ${candidate.proficiency}",
+                // 출현 확률을 같이 보여줘 좋은 등급이 떴을 때 잡아야 한다는 걸 바로 알게
+                Text("${candidate.specialty.displayName} · 숙련도 ${candidate.proficiency} · 출현 ${candidate.grade.spawnPercent}%",
                     color = TextSecondary, style = MaterialTheme.typography.labelSmall)
             }
             // 코인을 쓰는 영입 — 격납고 구매 버튼과 같은 금색, 금액은 코인 아이콘 + 숫자.
@@ -257,7 +279,8 @@ private fun AstronautCard(
     trainingSlotAvailable: Boolean,
     onTrainBasic: () -> Unit,
     onTrainAdvanced: () -> Unit,
-    onSkipWaitAd: () -> Unit
+    onSkipWaitAd: () -> Unit,
+    onDismiss: (() -> Unit)?
 ) {
     val (statusColor, statusLabel) = when (astronaut.status) {
         AstronautStatus.IDLE -> StatusGreen to "대기 중"
@@ -290,19 +313,21 @@ private fun AstronautCard(
                             Text(statusLabel, color = statusColor, style = MaterialTheme.typography.labelSmall,
                                 modifier = Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.xxs))
                         }
+                        // 등급 칸·방출 버튼이 들어오며 아랫줄이 넘쳐 숙련도가 두 줄로 꺾였다 — 분야는 윗줄로 올림
+                        Text(astronaut.specialty.displayName, color = SpaceAccent,
+                            style = MaterialTheme.typography.labelSmall, maxLines = 1)
                     }
                     Spacer(modifier = Modifier.height(Spacing.xxs))
                     Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
-                        Surface(shape = RoundedCornerShape(4.dp), color = gradeColor.getValue(astronaut.grade).copy(alpha = 0.18f)) {
-                            Text(astronaut.grade.displayName, color = gradeColor.getValue(astronaut.grade),
-                                style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.xxs))
-                        }
-                        Text(astronaut.specialty.displayName, color = SpaceAccent,
-                            style = MaterialTheme.typography.labelSmall)
+                        GradeBadge(astronaut.grade)
                         Text("숙련도 ${astronaut.proficiency}/${astronaut.grade.proficiencyCap}", color = GoldAccent,
-                            style = MaterialTheme.typography.labelSmall)
+                            style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false)
                     }
+                }
+                // 탐사·훈련 중엔 방출 불가라 대기 중일 때만. 빨강은 확인 창의 최종 버튼에만 쓰고 여기는 남색
+                if (astronaut.status == AstronautStatus.IDLE && onDismiss != null) {
+                    Spacer(modifier = Modifier.width(Spacing.sm))
+                    GameButton(text = "방출", onClick = onDismiss, style = GameButtonStyle.Neutral)
                 }
             }
 
@@ -314,7 +339,7 @@ private fun AstronautCard(
                         style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
                     if (remaining > 60_000L) {
                         GameButton(
-                            text = "광고로 4시간 당기기",
+                            text = if (remaining <= GameConstants.AD_SKIP_MAX_MS) "광고로 바로 완료" else "광고로 4시간 당기기",
                             onClick = onSkipWaitAd,
                             style = GameButtonStyle.Primary,
                             leadingIcon = R.drawable.ic_ui_ad

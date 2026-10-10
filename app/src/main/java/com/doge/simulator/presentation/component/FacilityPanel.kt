@@ -137,9 +137,8 @@ internal fun GameNameplate(
                 Text("%,d".format(coins), color = GoldAccent, style = NumericXSmall)
             }
             if (onInfo != null) {
-                IconButton(onClick = onInfo) {
-                    Icon(PixelIcons.Info, contentDescription = infoDescription, tint = TextSecondary, modifier = Modifier.size(18.dp))
-                }
+                Spacer(Modifier.width(Spacing.sm))
+                HelpChip(onClick = onInfo, contentDescription = infoDescription)
             } else {
                 Spacer(Modifier.width(Spacing.sm))
             }

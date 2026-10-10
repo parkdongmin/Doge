@@ -22,6 +22,7 @@ import com.doge.simulator.domain.model.ResourceType
 import com.doge.simulator.domain.repository.ResourceRepository
 import com.doge.simulator.domain.repository.UserRepository
 import com.doge.simulator.domain.usecase.CompleteTrainingUseCase
+import com.doge.simulator.domain.usecase.DismissAstronautUseCase
 import com.doge.simulator.domain.usecase.EnsureRecruitmentPoolFreshUseCase
 import com.doge.simulator.domain.usecase.GetAstronautsUseCase
 import com.doge.simulator.domain.usecase.GetRecruitmentPoolUseCase
@@ -51,6 +52,7 @@ class AstronautViewModel @Inject constructor(
     private val refreshRecruitmentPoolUseCase: RefreshRecruitmentPoolUseCase,
     private val trainAstronautUseCase: TrainAstronautUseCase,
     private val completeTrainingUseCase: CompleteTrainingUseCase,
+    private val dismissAstronautUseCase: DismissAstronautUseCase,
     private val astronautRepository: AstronautRepository,
     private val userRepository: UserRepository,
     private val resourceRepository: ResourceRepository,
@@ -123,6 +125,17 @@ class AstronautViewModel @Inject constructor(
                 HireFromPoolUseCase.Result.InsufficientCoins -> showMessage("코인이 부족합니다")
                 HireFromPoolUseCase.Result.MaxLimitReached -> showMessage("고용 한도에 도달했습니다")
                 HireFromPoolUseCase.Result.SlotEmpty -> showMessage("이미 영입된 후보입니다")
+            }
+        }
+    }
+
+    fun dismiss(astronaut: Astronaut) {
+        viewModelScope.launch {
+            when (dismissAstronautUseCase(astronaut)) {
+                DismissAstronautUseCase.Result.Success -> showMessage("${astronaut.name} 대원을 방출했어요")
+                DismissAstronautUseCase.Result.NotIdle -> showMessage("대기 중인 우주인만 방출할 수 있어요")
+                DismissAstronautUseCase.Result.LastAstronaut -> showMessage("마지막 우주인은 방출할 수 없어요")
+                DismissAstronautUseCase.Result.NotFound -> Unit
             }
         }
     }

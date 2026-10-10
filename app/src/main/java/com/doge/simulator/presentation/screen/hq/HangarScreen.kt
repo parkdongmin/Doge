@@ -22,6 +22,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.Resource
 import com.doge.simulator.domain.model.Spaceship
+import com.doge.simulator.presentation.component.cargoEffectLabel
+import com.doge.simulator.presentation.component.durationEffectLabel
+import com.doge.simulator.presentation.component.effectSummary
+import com.doge.simulator.presentation.component.AutoShowInfoOnce
 import com.doge.simulator.presentation.component.InfoDialog
 import com.doge.simulator.presentation.component.ShipInfoContent
 import com.doge.simulator.presentation.viewmodel.SpaceshipViewModel
@@ -40,6 +44,7 @@ fun HangarPanel(
 ) {
     val coins by viewModel.coins.collectAsState()
     var showInfo by remember { mutableStateOf(false) }
+    AutoShowInfoOnce("hangar", active = visible) { showInfo = true }
 
     if (showInfo) {
         InfoDialog(title = "우주선 스탯", onDismiss = { showInfo = false }) { ShipInfoContent() }
@@ -104,7 +109,7 @@ private fun HangarContent(viewModel: SpaceshipViewModel, modifier: Modifier) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text("정찰선", color = TextPrimary, style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold)
-                            Text("탑승 ${GameConstants.SCOUT_CREW_BASE}명 · 속도 ${GameConstants.SCOUT_SPEED_BASE} · 적재 ${GameConstants.SCOUT_CARGO_BASE}",
+                            Text("탑승 ${GameConstants.SCOUT_CREW_BASE}명 · ${scoutPreview.effectSummary}",
                                 color = TextSecondary, style = MaterialTheme.typography.labelSmall)
                             // 가득 찼을 때 버튼만 회색으로 꺼지면 코인이 모자란 건지 헷갈린다 — 이유와 늘리는 곳을 알려준다
                             if (isHangarFull) {
@@ -178,8 +183,8 @@ private fun SpaceshipCard(
                     Spacer(modifier = Modifier.height(Spacing.xxs))
                     Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                         MiniStat("탑승", "${ship.crewCapacity}명", TextPrimary)
-                        MiniStat("속도", "${ship.speed}", SpaceAccent)
-                        MiniStat("적재", "${ship.cargo}", GoldAccent)
+                        MiniStat("시간", durationEffectLabel(ship.durationReduction), SpaceAccent)
+                        MiniStat("자원", cargoEffectLabel(ship.cargoGainOverScout), GoldAccent)
                         MiniStat("성공률", "${(ship.successRate * 100).toInt()}%", StatusGreen)
                     }
                 }
@@ -224,3 +229,12 @@ private fun MiniStat(label: String, value: String, color: androidx.compose.ui.gr
         Text(value, color = color, style = MaterialTheme.typography.labelSmall)
     }
 }
+
+// 구매 전 정찰선 스탯 미리보기 — BuySpaceshipUseCase가 만드는 정찰선과 같은 기본값
+private val scoutPreview = Spaceship(
+    name = "",
+    crewCapacity = GameConstants.SCOUT_CREW_BASE,
+    speed = GameConstants.SCOUT_SPEED_BASE,
+    cargo = GameConstants.SCOUT_CARGO_BASE,
+    successRate = GameConstants.SCOUT_SUCCESS_RATE_BASE
+)

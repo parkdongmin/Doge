@@ -1,6 +1,16 @@
 package com.doge.simulator.presentation.component
 
+import android.content.Context
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import com.doge.simulator.ui.theme.SpaceAccent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -17,6 +27,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.edit
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -46,6 +59,21 @@ fun InfoDialog(
     )
 }
 
+// 화면을 처음 열었을 때 ⓘ 설명을 한 번 자동으로 띄운다 — 설명은 다 있는데 ⓘ를 눌러보지 않아
+// "어떻게 하는 거지?" 반응이 많았다. active가 true가 되는 첫 순간에만(창이 실제로 열렸을 때) 띄우고 기록
+@Composable
+fun AutoShowInfoOnce(key: String, active: Boolean = true, show: () -> Unit) {
+    val context = LocalContext.current
+    LaunchedEffect(key, active) {
+        if (!active) return@LaunchedEffect
+        val prefs = context.getSharedPreferences("info_auto_shown", Context.MODE_PRIVATE)
+        if (!prefs.getBoolean(key, false)) {
+            prefs.edit { putBoolean(key, true) }
+            show()
+        }
+    }
+}
+
 @Composable
 fun InfoEntry(term: String, description: String) {
     Column(Modifier.padding(bottom = Spacing.sm)) {
@@ -65,8 +93,8 @@ private fun InfoSectionHeader(text: String) {
 @Composable
 fun ColumnScope.ShipInfoContent() {
     InfoSectionHeader("우주선")
-    InfoEntry("속도", "높을수록 탐사에 걸리는 시간이 줄어요.")
-    InfoEntry("적재", "높을수록 한 번에 가져오는 자원이 늘어요.")
+    InfoEntry("시간", "탐사에 걸리는 시간이 이만큼 줄어요. 격납고에서 강화하면 더 줄어요.")
+    InfoEntry("자원", "기본 정찰선보다 한 번에 가져오는 자원이 이만큼 많아요. 강화하면 더 늘어요.")
     InfoEntry("성공률", "탐사 성공 확률이에요. 격납고에서 강화하면 올라요.")
     InfoEntry("탑승 인원", "태울 수 있는 대원 수예요. 강화로 늘고, 많이 태울수록 자원을 더 가져와요.")
 }
@@ -93,7 +121,7 @@ fun ColumnScope.CrewInfoContent(showGrades: Boolean) {
         AstronautGrade.entries.forEach { grade ->
             InfoEntry(
                 grade.displayName,
-                "시작 숙련도 ${grade.startProficiencyRange.first}~${grade.startProficiencyRange.last} · 숙련도 상한 ${grade.proficiencyCap}"
+                "출현 ${grade.spawnPercent}% · 시작 숙련도 ${grade.startProficiencyRange.first}~${grade.startProficiencyRange.last} · 숙련도 상한 ${grade.proficiencyCap}"
             )
         }
         Text(
@@ -101,5 +129,25 @@ fun ColumnScope.CrewInfoContent(showGrades: Boolean) {
             color = TextSecondary,
             style = BodyReading
         )
+    }
+}
+
+// ⓘ 설명을 여는 버튼. 회색 아이콘만 있을 땐 남색 배경에 묻혀 거의 안 보였고 터치 영역도 아이콘 크기뿐이라,
+// "도움말" 글자를 붙인 파란(안내 역할색) 테두리 버튼으로 통일 — 탐험·자산·행성 상세·시설 창·상단 바 공용
+@Composable
+fun HelpChip(onClick: () -> Unit, contentDescription: String, modifier: Modifier = Modifier) {
+    val shape = RoundedCornerShape(6.dp)
+    Row(
+        modifier
+            .clip(shape)
+            .background(SpaceAccent.copy(alpha = 0.12f))
+            .border(1.dp, SpaceAccent.copy(alpha = 0.5f), shape)
+            .clickable(onClickLabel = contentDescription, role = Role.Button, onClick = onClick)
+            .padding(horizontal = Spacing.sm, vertical = Spacing.xs),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
+    ) {
+        Icon(PixelIcons.Info, contentDescription = null, tint = SpaceAccent, modifier = Modifier.size(14.dp))
+        Text("도움말", color = SpaceAccent, style = MaterialTheme.typography.labelSmall)
     }
 }

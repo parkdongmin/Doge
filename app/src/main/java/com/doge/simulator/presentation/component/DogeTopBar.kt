@@ -1,6 +1,7 @@
 package com.doge.simulator.presentation.component
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -31,9 +32,7 @@ fun DogeTopBar(
             },
             actions = {
                 if (onInfo != null) {
-                    IconButton(onClick = onInfo) {
-                        Icon(PixelIcons.Info, contentDescription = infoDescription, tint = TextSecondary, modifier = Modifier.size(TOP_BAR_ICON_SIZE))
-                    }
+                    HelpChip(onClick = onInfo, contentDescription = infoDescription, modifier = Modifier.padding(end = Spacing.sm))
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),

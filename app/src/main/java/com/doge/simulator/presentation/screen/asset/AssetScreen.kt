@@ -28,6 +28,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.doge.simulator.R
 import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.Resource
+import com.doge.simulator.presentation.component.HelpChip
+import com.doge.simulator.presentation.component.AutoShowInfoOnce
 import com.doge.simulator.presentation.component.InfoDialog
 import com.doge.simulator.presentation.component.InfoEntry
 import com.doge.simulator.presentation.component.SettingsDialog
@@ -65,6 +67,7 @@ fun AssetScreen(
     val resources = state.resources
     var sellDialogResource by remember { mutableStateOf<Resource?>(null) }
     var showAssetInfo by remember { mutableStateOf(false) }
+    AutoShowInfoOnce("asset") { showAssetInfo = true }
     var showSignOutConfirm by remember { mutableStateOf(false) }
     var isSigningOut by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
@@ -257,17 +260,9 @@ fun AssetScreen(
         Spacer(modifier = Modifier.height(Spacing.xl))
 
         // ── 보유 자산 섹션 ─────────────────────────────────────────────
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             TabSectionHeader(title = "보유 자산")
-            Icon(
-                imageVector = PixelIcons.Info,
-                contentDescription = "자산 항목 설명",
-                tint = TextSecondary,
-                modifier = Modifier
-                    .size(18.dp)
-                    .clip(CircleShape)
-                    .clickable { showAssetInfo = true }
-            )
+            HelpChip(onClick = { showAssetInfo = true }, contentDescription = "자산 항목 설명")
         }
         Spacer(modifier = Modifier.height(Spacing.md))
 

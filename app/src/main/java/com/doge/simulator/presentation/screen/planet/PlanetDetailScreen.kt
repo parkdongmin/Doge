@@ -49,6 +49,7 @@ import com.doge.simulator.domain.model.maintenanceResourceCost
 import com.doge.simulator.domain.model.upgradeCost
 import com.doge.simulator.domain.model.marketChange
 import com.doge.simulator.domain.model.normalProduction
+import com.doge.simulator.presentation.component.HelpChip
 import com.doge.simulator.presentation.component.PlanetLevelBadge
 import com.doge.simulator.presentation.component.rememberLiveCoinDisplay
 import com.doge.simulator.presentation.viewmodel.PlanetViewModel
@@ -208,14 +209,7 @@ fun PlanetDetailScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text("스탯", color = TextSecondary, style = MaterialTheme.typography.labelMedium)
-                            Icon(
-                                imageVector = PixelIcons.Info,
-                                contentDescription = "스탯 설명 보기",
-                                tint = TextSecondary,
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .clickable { showStatsInfo = true }
-                            )
+                            HelpChip(onClick = { showStatsInfo = true }, contentDescription = "스탯 설명 보기")
                         }
                         Spacer(modifier = Modifier.height(Spacing.md))
                         val hourlyEarnings = planet.effectiveProduction * 60L

@@ -24,6 +24,7 @@ import com.doge.simulator.domain.model.Astronaut
 import com.doge.simulator.domain.model.Expedition
 import com.doge.simulator.domain.model.ExpeditionReport
 import com.doge.simulator.domain.model.ExpeditionStatus
+import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.StoryEvent
 import com.doge.simulator.domain.model.representativeIconRes
 import com.doge.simulator.presentation.viewmodel.ExpeditionHistoryViewModel
@@ -285,7 +286,7 @@ private fun ActiveExpeditionCard(
             if (!isComplete && remaining > 60_000L) {
                 Spacer(modifier = Modifier.height(Spacing.md))
                 GameButton(
-                    text = "광고로 4시간 당기기",
+                    text = if (remaining <= GameConstants.AD_SKIP_MAX_MS) "광고로 바로 완료" else "광고로 4시간 당기기",
                     onClick = onSkipWaitAd,
                     modifier = Modifier.fillMaxWidth(),
                     style = GameButtonStyle.Primary,
