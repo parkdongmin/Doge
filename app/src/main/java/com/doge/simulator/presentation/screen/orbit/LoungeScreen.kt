@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import com.doge.simulator.R
 import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.presentation.component.AutoShowInfoOnce
+import com.doge.simulator.presentation.component.DailyResetEffect
 import com.doge.simulator.presentation.component.FacilityPanel
 import com.doge.simulator.presentation.viewmodel.OrbitViewModel
 import com.doge.simulator.ui.theme.*
@@ -54,8 +55,8 @@ fun LoungePanel(
     var showRules by remember { mutableStateOf(false) }
     AutoShowInfoOnce("orbit_rules", active = visible) { showRules = true }
 
-    // 창은 닫혀 있어도 정거장 화면에 늘 올라가 있으므로, 열릴 때마다 남은 광고 횟수를 갱신한다.
-    LaunchedEffect(visible) { if (visible) viewModel.refreshDailyAdRemaining() }
+    // 창은 닫혀 있어도 정거장 화면에 늘 올라가 있으므로, 열릴 때·앱 복귀·자정마다 남은 광고 횟수를 갱신한다.
+    DailyResetEffect(active = visible, onRefresh = viewModel::refreshDailyAdRemaining)
 
     // 베팅 모달에서 매치가 시작되면(uiSnapshot 생성) 게임 화면으로.
     val snapshot by viewModel.uiSnapshot.collectAsState()

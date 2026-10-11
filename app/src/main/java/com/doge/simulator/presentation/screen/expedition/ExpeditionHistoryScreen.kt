@@ -26,6 +26,7 @@ import com.doge.simulator.domain.model.ExpeditionReport
 import com.doge.simulator.domain.model.ExpeditionStatus
 import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.coinSkipCost
+import com.doge.simulator.presentation.component.DailyResetEffect
 import com.doge.simulator.presentation.component.GameDialog
 import com.doge.simulator.presentation.component.GameDialogButtons
 import com.doge.simulator.domain.model.StoryEvent
@@ -55,6 +56,7 @@ fun ExpeditionLogPanel(
     val unreadReports by viewModel.unreadReports.collectAsState()
     val actionMessage by viewModel.actionMessage.collectAsState()
     val skipAdsRemaining by viewModel.skipAdsRemaining.collectAsState()
+    DailyResetEffect(onRefresh = viewModel::refreshSkipAdsRemaining)
     val coinSkipUnits by viewModel.coinSkipUnits.collectAsState()
     val coins by viewModel.coins.collectAsState()
     val activity = LocalContext.current.findActivity()

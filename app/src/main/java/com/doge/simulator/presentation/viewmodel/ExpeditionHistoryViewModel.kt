@@ -123,6 +123,8 @@ class ExpeditionHistoryViewModel @Inject constructor(
         }
     }
 
+    fun refreshSkipAdsRemaining() = skipWaitAdGate.refresh()
+
     fun skipExpeditionWait(expedition: Expedition, activity: Activity) {
         skipWaitAdGate.refresh()
         if (skipWaitAdGate.remaining.value <= 0) {

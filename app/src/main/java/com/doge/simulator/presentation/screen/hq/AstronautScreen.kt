@@ -28,6 +28,7 @@ import com.doge.simulator.domain.model.ResourceType
 import com.doge.simulator.domain.model.RecruitmentCandidate
 import com.doge.simulator.domain.model.RecruitmentPool
 import com.doge.simulator.presentation.component.AutoShowInfoOnce
+import com.doge.simulator.presentation.component.DailyResetEffect
 import com.doge.simulator.presentation.component.CrewInfoContent
 import com.doge.simulator.presentation.component.GradeBadge
 import com.doge.simulator.presentation.component.color
@@ -82,6 +83,7 @@ private fun AstronautContent(viewModel: AstronautViewModel, modifier: Modifier) 
     val resources by viewModel.resources.collectAsState()
     val message by viewModel.message.collectAsState()
     val skipAdsRemaining by viewModel.skipAdsRemaining.collectAsState()
+    DailyResetEffect(onRefresh = viewModel::refreshSkipAdsRemaining)
     val activity = LocalContext.current.findActivity()
     var pendingDismiss by remember { mutableStateOf<Astronaut?>(null) }
 

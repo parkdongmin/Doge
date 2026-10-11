@@ -158,6 +158,8 @@ class AstronautViewModel @Inject constructor(
         }
     }
 
+    fun refreshSkipAdsRemaining() = skipWaitAdGate.refresh()
+
     fun skipTrainingWait(astronaut: Astronaut, activity: Activity) {
         val endTime = astronaut.trainingEndTime ?: return
         skipWaitAdGate.refresh()
