@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.doge.simulator.BuildConfig
 import com.doge.simulator.R
+import com.doge.simulator.presentation.component.GameButton
+import com.doge.simulator.presentation.component.GameButtonSize
 import com.doge.simulator.presentation.viewmodel.AuthViewModel
 import com.doge.simulator.presentation.viewmodel.BootstrapViewModel
 import com.doge.simulator.ui.theme.BodyReading
@@ -74,11 +76,21 @@ fun SplashScreen(
         if (bootstrapPhase == BootstrapViewModel.Phase.DONE) onNavigateToMain()
     }
 
-    SplashContent(isSyncing = bootstrapPhase == BootstrapViewModel.Phase.RESTORING)
+    SplashContent(
+        isSyncing = bootstrapPhase == BootstrapViewModel.Phase.RESTORING,
+        failure = bootstrapPhase.takeIf {
+            it == BootstrapViewModel.Phase.FAILED_NETWORK || it == BootstrapViewModel.Phase.NEEDS_UPDATE
+        },
+        onRetry = bootstrapViewModel::retry
+    )
 }
 
 @Composable
-private fun SplashContent(isSyncing: Boolean) {
+private fun SplashContent(
+    isSyncing: Boolean,
+    failure: BootstrapViewModel.Phase?,
+    onRetry: () -> Unit
+) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -117,7 +129,24 @@ private fun SplashContent(isSyncing: Boolean) {
             )
 
             Spacer(modifier = Modifier.height(44.dp))
-            PixelLoadingDots()
+            if (failure != null) {
+                // 이 기기에 게임이 없는데 클라우드 세이브를 못 불러온 경우 — 그대로 들어가면 새 게임이
+                // 기존 세이브를 덮어쓸 수 있어 여기서 멈춘다(BootstrapViewModel 참고)
+                Text(
+                    text = if (failure == BootstrapViewModel.Phase.NEEDS_UPDATE)
+                        "저장된 기록이 더 최신 버전에서 만들어졌어요.\n앱을 업데이트한 뒤 다시 시도해 주세요."
+                    else
+                        "저장된 기록을 불러오지 못했어요.\n인터넷 연결을 확인하고 다시 시도해 주세요.",
+                    style = BodyReading,
+                    color = TextSecondary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 40.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                GameButton(text = "다시 시도", onClick = onRetry, size = GameButtonSize.Large)
+            } else {
+                PixelLoadingDots()
+            }
             if (isSyncing) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(

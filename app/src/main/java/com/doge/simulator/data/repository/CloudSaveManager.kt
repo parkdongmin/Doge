@@ -69,10 +69,17 @@ class CloudSaveManager @Inject constructor(
         CloudRestoreResult.LOCAL_KEPT
     }
 
+    /** 이 기기에 게임이 하나라도 있는지 — 스플래시가 복원 실패 시 진입을 막을지 판단할 때 쓴다 */
+    suspend fun hasLocalGame(): Boolean = snapshotSource.hasLocalGame()
+
     private suspend fun pushLocked(): Boolean {
         val uid = authRepository.getCurrentUser()?.uid ?: return false
-        syncPrefs.lastPushAttemptAt = System.currentTimeMillis()
         val snapshot = snapshotSource.export()
+        // 로컬이 비어 있으면(신규 설치·로그아웃 직후·복원 실패로 스플래시에 막혀 있는 중 ON_STOP 등)
+        // 절대 올리지 않는다 — push는 rev 비교 없이 문서를 통째로 덮어써서, 빈 스냅샷이 그 계정의
+        // 기존 세이브를 지워버릴 수 있다(2026-10-12)
+        if (snapshot.user == null) return false
+        syncPrefs.lastPushAttemptAt = System.currentTimeMillis()
         val nextRev = maxOf(syncPrefs.lastAppliedRev, 0L) + 1
         val save = CloudSave(
             rev = nextRev,

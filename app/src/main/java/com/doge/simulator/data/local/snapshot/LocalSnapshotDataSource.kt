@@ -15,6 +15,9 @@ class LocalSnapshotDataSource @Inject constructor(
     private val dao: SnapshotDao
 ) {
 
+    /** 이 기기에 게임이 하나라도 있는지(유저 행 존재). 비어 있으면 신규 설치·로그아웃 직후 상태 */
+    suspend fun hasLocalGame(): Boolean = withContext(Dispatchers.IO) { dao.user() != null }
+
     suspend fun export(): GameSnapshot = withContext(Dispatchers.IO) {
         val expeditions = dao.recentExpeditions(GameSnapshot.HISTORY_CAP)
         val reports = dao.recentReports(GameSnapshot.HISTORY_CAP)
