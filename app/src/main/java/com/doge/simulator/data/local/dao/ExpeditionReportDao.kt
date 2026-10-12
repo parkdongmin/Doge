@@ -22,8 +22,15 @@ interface ExpeditionReportDao {
     @Query("SELECT * FROM expedition_report_table WHERE isRead = 0 ORDER BY completedAt DESC")
     fun getUnreadReports(): Flow<List<ExpeditionReportEntity>>
 
+    @Query("SELECT COUNT(*) FROM expedition_report_table WHERE isRead = 1")
+    fun getReadCount(): Flow<Int>
+
     @Query("SELECT COUNT(*) FROM expedition_report_table WHERE isRead = 0")
     fun getUnreadCount(): Flow<Int>
+
+    // 챕터 전환·완주 기록을 뺀, 이 챕터의 일반 기록 수 — 챕터 기록 제목 풀을 어디까지 썼는지 계산용
+    @Query("SELECT COUNT(*) FROM expedition_report_table WHERE chapter = :chapter AND isChapterEnding = 0 AND isStoryEnding = 0")
+    suspend fun countRegularRecordsInChapter(chapter: Int): Int
 
     @Query("UPDATE expedition_report_table SET isRead = 1 WHERE expeditionId = :expeditionId")
     suspend fun markAsRead(expeditionId: String)

@@ -12,6 +12,15 @@ data class StoryProgress(
     val firstT10Completed: Boolean = false,
     val storyCompleted: Boolean = false
 ) {
+    // 지금 챕터를 빠져나갈 조건을 이미 채웠는지 — 채웠으면 다음 탐사 기록에서 바로 이야기가 이어진다
+    val isCurrentChapterExitMet: Boolean get() = when (currentChapter) {
+        1 -> firstRuinsCompleted
+        2 -> firstAlienCivCompleted
+        3 -> firstT3Completed
+        4 -> firstT5Completed
+        else -> firstT10Completed
+    }
+
     val chapterTitle: String get() = when (currentChapter) {
         1 -> "태양계의 끝에서"
         2 -> "첫 번째 신호"

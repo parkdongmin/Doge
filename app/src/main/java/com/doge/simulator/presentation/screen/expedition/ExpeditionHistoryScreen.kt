@@ -29,7 +29,9 @@ import com.doge.simulator.domain.model.coinSkipCost
 import com.doge.simulator.presentation.component.DailyResetEffect
 import com.doge.simulator.presentation.component.GameDialog
 import com.doge.simulator.presentation.component.GameDialogButtons
+import com.doge.simulator.domain.model.StoryContent
 import com.doge.simulator.domain.model.StoryEvent
+import com.doge.simulator.domain.model.StoryProgress
 import com.doge.simulator.domain.model.representativeIconRes
 import com.doge.simulator.presentation.viewmodel.ExpeditionHistoryViewModel
 import com.doge.simulator.ui.theme.*
@@ -54,6 +56,7 @@ fun ExpeditionLogPanel(
     val astronauts by viewModel.astronauts.collectAsState()
     val allReports by viewModel.allReports.collectAsState()
     val unreadReports by viewModel.unreadReports.collectAsState()
+    val storyProgress by viewModel.storyProgress.collectAsState()
     val actionMessage by viewModel.actionMessage.collectAsState()
     val skipAdsRemaining by viewModel.skipAdsRemaining.collectAsState()
     DailyResetEffect(onRefresh = viewModel::refreshSkipAdsRemaining)
@@ -192,7 +195,10 @@ fun ExpeditionLogPanel(
 
                 // ── 완료된 기록 ───────────────────────────────────────
                 val completed = allReports.filter { it.isRead && !it.hasPendingChoices }
-                if (completed.isNotEmpty()) {
+                // 완주 전이면 기록 목록(최신순) 맨 위에 "다음 챕터" 칸 — 이야기가 왜 안 넘어가는지
+                // 조건이 앱 어디에도 안 보여서, 같은 기록만 반복된다고 느끼는 문제가 있었다(2026-10-12)
+                val nextStory = storyProgress?.takeIf { !it.storyCompleted }
+                if (completed.isNotEmpty() || nextStory != null) {
                     item {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Image(
@@ -208,6 +214,12 @@ fun ExpeditionLogPanel(
                                 fontWeight = FontWeight.Bold
                             )
                         }
+                    }
+                    nextStory?.let { progress ->
+                        val seenInChapter = allReports.count {
+                            it.chapter == progress.currentChapter && !it.isChapterEnding && !it.isStoryEnding
+                        }
+                        item(key = "next_story") { NextStoryCard(progress, seenInChapter) }
                     }
                     items(completed, key = { "done_${it.expeditionId}" }) { report ->
                         ReportCard(report = report, isPending = false)
@@ -358,6 +370,57 @@ private fun ActiveExpeditionCard(
                     }
                 }
             }
+        }
+    }
+}
+
+// 다음 챕터로 넘어가는 조건을 보여주는 잠금 칸. 큰 글씨는 이야기 말투, 작은 글씨는 실제 조건.
+// 조건을 이미 채웠으면 잠금 대신 언제 이어지는지만 알려준다 — 챕터는 이야기를 끝까지 봐야
+// 넘어가므로, 남은 챕터 기록이 있으면 그 개수를 보여준다
+@Composable
+private fun NextStoryCard(progress: StoryProgress, seenInChapter: Int) {
+    val hint = StoryContent.nextStoryHints[progress.currentChapter] ?: return
+    val ready = progress.isCurrentChapterExitMet
+    val remaining = ((StoryContent.recordTitlePool[progress.currentChapter]?.size ?: 0) - seenInChapter)
+        .coerceAtLeast(0)
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = SpaceDark,
+        border = BorderStroke(1.dp, if (ready) SpaceAccent.copy(alpha = 0.6f) else SpaceMid.copy(alpha = 0.4f))
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(Spacing.lg)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
+            ) {
+                Image(
+                    painter = painterResource(if (ready) R.drawable.ic_ui_star else R.drawable.ic_ui_lock),
+                    contentDescription = null,
+                    modifier = Modifier.size(IconGlyphSize.small.value.dp)
+                )
+                Text(
+                    if (progress.currentChapter < 5) "다음 챕터" else "완주",
+                    color = if (ready) SpaceAccent else TextSecondary,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Spacer(modifier = Modifier.height(Spacing.sm))
+            Text(
+                if (ready) "신호가 잡혔다" else hint.teaser,
+                color = TextPrimary.copy(alpha = 0.75f),
+                style = MaterialTheme.typography.bodySmall
+            )
+            Spacer(modifier = Modifier.height(Spacing.xxs))
+            Text(
+                when {
+                    !ready -> hint.condition
+                    remaining > 0 -> "남은 기록 ${remaining}개 뒤에 이어져요"
+                    else -> "다음 탐사 기록에서 이어져요"
+                },
+                color = SpaceAccent,
+                style = MaterialTheme.typography.labelSmall
+            )
         }
     }
 }

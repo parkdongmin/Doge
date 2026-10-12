@@ -13,6 +13,9 @@ interface StoryRepository {
     fun getAllReports(): Flow<List<ExpeditionReport>>
     fun getUnreadReports(): Flow<List<ExpeditionReport>>
     fun getUnreadCount(): Flow<Int>
+    fun getReadCount(): Flow<Int>
+    // 챕터 전환·완주 기록을 뺀, 이 챕터의 일반 기록 수
+    suspend fun countRegularRecordsInChapter(chapter: Int): Int
     suspend fun saveReport(report: ExpeditionReport)
     suspend fun markReportAsRead(expeditionId: String)
     // 반환값이 false면 이미 선택이 끝난 이벤트(중복 처리 방지)라는 뜻

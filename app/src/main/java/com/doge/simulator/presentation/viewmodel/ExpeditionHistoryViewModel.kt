@@ -25,6 +25,7 @@ import com.doge.simulator.domain.model.Expedition
 import com.doge.simulator.domain.model.ExpeditionReport
 import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.StoryEvent
+import com.doge.simulator.domain.model.StoryProgress
 import com.doge.simulator.domain.repository.ExpeditionRepository
 import com.doge.simulator.domain.usecase.ChooseStoryEventUseCase
 import com.doge.simulator.domain.usecase.GetActiveExpeditionsUseCase
@@ -71,6 +72,10 @@ class ExpeditionHistoryViewModel @Inject constructor(
 
     val unreadReports: StateFlow<List<ExpeditionReport>> = getReportsUseCase.unread()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // 기록 목록 맨 위 "다음 이야기" 칸용 — null이면 아직 불러오기 전
+    val storyProgress: StateFlow<StoryProgress?> = storyRepository.getProgress()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     private val _actionMessage = MutableStateFlow<String?>(null)
     val actionMessage: StateFlow<String?> = _actionMessage.asStateFlow()

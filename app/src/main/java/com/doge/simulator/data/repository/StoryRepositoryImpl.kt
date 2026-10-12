@@ -48,6 +48,11 @@ class StoryRepositoryImpl @Inject constructor(
 
     override fun getUnreadCount(): Flow<Int> = reportDao.getUnreadCount()
 
+    override fun getReadCount(): Flow<Int> = reportDao.getReadCount()
+
+    override suspend fun countRegularRecordsInChapter(chapter: Int): Int =
+        reportDao.countRegularRecordsInChapter(chapter)
+
     override suspend fun saveReport(report: ExpeditionReport) {
         reportDao.insertReport(report.toEntity())
         reportDao.insertEvents(report.events.map { it.toEntity() })
