@@ -17,6 +17,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -24,6 +28,8 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -80,21 +86,23 @@ fun TutorialOverlay(
         is TutorialStep.Part2 -> OverlaySpec(
             body = "'행성' 탭이에요. 방금 지급된 첫 행성이 여기 있습니다.\n\n" +
                 "행성은 가만히 둬도 분당 코인을 생산해요. 앱을 꺼 둬도 쌓입니다. " +
-                "가끔 악재가 생기면 생산이 흔들리기도 하니, 상태는 '소식' 탭에서 확인하세요.",
+                "악재가 뜨면 생산이 줄고, 큰 악재면 행성이 고장 나서 정비할 때까지 오히려 코인이 줄어요. " +
+                "행성 소식은 '소식' 탭에서 확인하세요.",
             buttonLabel = "확인",
             target = null,
             onPrimary = { onDismiss(step) }
         )
         is TutorialStep.HqIntro -> OverlaySpec(
             body = "'정거장'이에요. 여기서 대원을 더 고용하고, 우주선을 늘리거나 강화하고, " +
-                "연구로 새 탐사 지역과 행성 슬롯을 엽니다.\n\n" +
+                "연구로 새 탐사 지역과 행성 슬롯을 엽니다. " +
+                "휴게실에선 ORBIT 카드 게임에 코인을 걸 수 있어요. 이기면 불어나고, 지면 잃어요.\n\n" +
                 "탐사가 막히면 대부분 여기서 풀려요.",
             buttonLabel = "확인",
             target = null,
             onPrimary = { onDismiss(step) }
         )
         is TutorialStep.UpgradeIntro -> OverlaySpec(
-            body = "행성 상세 화면이에요. '강화'하면 생산량이 오릅니다 — 코인·자원이 들어요.\n\n" +
+            body = "행성 상세 화면이에요. '강화'하면 생산량이 오릅니다. 코인·자원이 들어요.\n\n" +
                 "레벨 ${GameConstants.DANGER_ZONE_START}부터는 강화 실패 위험이 커지니 무리하지 마세요. " +
                 "필요 없어진 행성은 '매도'로 정리할 수 있어요.",
             buttonLabel = "확인",
@@ -104,18 +112,26 @@ fun TutorialOverlay(
         is TutorialStep.None -> return
     }
 
-    val holeRect: Rect? = targets.get(spec.target)
+    // 타깃 좌표는 창(window) 기준인데 스크림은 이 오버레이 기준으로 그린다. 폴드 펼침처럼 넓은 화면에선
+    // 앱 화면이 최대 폭 480dp로 가운데 정렬돼(MainActivity) 오버레이 원점이 창 원점보다 오른쪽에 있어,
+    // 그대로 쓰면 노란 상자가 왼쪽 여백만큼 밀렸다(2026-10-12). 오버레이 좌표로 바꿔서 쓴다.
+    var overlayCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    val holeRect: Rect? = targets.get(spec.target)?.let { windowRect ->
+        val coords = overlayCoords?.takeIf { it.isAttached } ?: return@let null
+        Rect(coords.windowToLocal(windowRect.topLeft), coords.windowToLocal(windowRect.bottomRight))
+    }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .onGloballyPositioned { overlayCoords = it }
             .pointerInput(step) { detectTapGestures { spec.onPrimary() } }
     ) {
         ScrimWithHole(holeRect)
 
-        // 버블 위치: 뚫린 영역이 화면 아래쪽이면 버블을 위로, 아니면 아래로.
-        val density = LocalDensity.current
-        val anchorTop = holeRect != null && holeRect.center.y > with(density) { 400.dp.toPx() }
+        // 버블 위치: 뚫린 영역이 오버레이 아래쪽 절반이면 버블을 위로, 아니면 아래로.
+        val overlayHeight = overlayCoords?.size?.height ?: 0
+        val anchorTop = holeRect != null && holeRect.center.y > overlayHeight / 2f
 
         Column(
             modifier = Modifier
