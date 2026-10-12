@@ -44,7 +44,8 @@ data class GameSnapshot(
     companion object {
         // 엔티티 모양을 바꿀 때마다 +1. 이름변경/타입변경/구조변경이면 SnapshotMigrations에 step도 등록.
         // (단순 필드 추가/삭제는 step 불필요 — ignoreUnknownKeys + 기본값이 처리)
-        const val SCHEMA_VERSION = 3
+        // 4: UserEntity에 초보 임무 필드 추가(단순 필드 추가라 step 없음 — 예전 세이브는 대상 아님(-1)으로 채워짐)
+        const val SCHEMA_VERSION = 4
         const val HISTORY_CAP = 200
     }
 }

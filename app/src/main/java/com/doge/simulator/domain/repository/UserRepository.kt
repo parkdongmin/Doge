@@ -1,5 +1,7 @@
 package com.doge.simulator.domain.repository
 
+import com.doge.simulator.domain.model.MissionProgress
+import com.doge.simulator.domain.model.ResourceType
 import kotlinx.coroutines.flow.Flow
 
 interface UserRepository {
@@ -11,4 +13,11 @@ interface UserRepository {
     suspend fun deductCoins(amount: Long): Boolean
     suspend fun deductCoinsClamped(amount: Long): Long
     suspend fun recordVariantDiscovery(variantId: String)
+
+    // ── 초보 임무 ─────────────────────────────────────────────────────
+    fun getMissionProgress(): Flow<MissionProgress>
+    suspend fun markOrbitPlayed()
+    suspend fun markPlanetUpgradeTried()
+    /** [step] 임무 보상을 지급하고 다음 임무로 넘긴다. 이미 넘어갔으면 false(아무것도 안 줌) */
+    suspend fun claimMissionReward(step: Int, coins: Long, resources: Map<ResourceType, Long>): Boolean
 }

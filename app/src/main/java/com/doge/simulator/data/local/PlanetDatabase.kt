@@ -64,7 +64,7 @@ abstract class PlanetDatabase : RoomDatabase() {
     abstract fun snapshotDao(): SnapshotDao
 
     companion object {
-        const val VERSION = 21
+        const val VERSION = 22
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
@@ -482,6 +482,15 @@ abstract class PlanetDatabase : RoomDatabase() {
                         (productionMultiplier - 1.0) * buyPrice +
                         (productionMultiplier - 1.0) * upgradeInvestment * 0.25) AS INTEGER)"""
                 )
+            }
+        }
+
+        val MIGRATION_21_22 = object : Migration(21, 22) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // 초보 임무 — 기존 게임은 대상 아님(-1)으로 채운다(UserEntity.missionStep 참고)
+                database.execSQL("ALTER TABLE user_table ADD COLUMN missionStep INTEGER NOT NULL DEFAULT -1")
+                database.execSQL("ALTER TABLE user_table ADD COLUMN orbitPlayed INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE user_table ADD COLUMN planetUpgradeTried INTEGER NOT NULL DEFAULT 0")
             }
         }
     }

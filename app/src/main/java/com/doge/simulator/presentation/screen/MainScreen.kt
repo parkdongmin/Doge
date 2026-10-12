@@ -21,7 +21,19 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
+import androidx.compose.material3.Text
+import com.doge.simulator.domain.model.BeginnerMission
+import com.doge.simulator.domain.model.MissionDestination
+import com.doge.simulator.presentation.component.BeginnerMissionStrip
+import com.doge.simulator.presentation.component.GameButton
+import com.doge.simulator.presentation.component.GameButtonSize
+import com.doge.simulator.presentation.component.GameDialog
 import com.doge.simulator.presentation.component.OfflineLossDialog
+import com.doge.simulator.presentation.screen.hq.FACILITY_ASTRONAUT
+import com.doge.simulator.presentation.screen.hq.FACILITY_HANGAR
+import com.doge.simulator.presentation.screen.hq.FACILITY_LOUNGE
+import com.doge.simulator.presentation.screen.hq.FACILITY_RESEARCH
+import com.doge.simulator.presentation.viewmodel.BeginnerMissionViewModel
 import com.doge.simulator.presentation.component.OfflineProfitDialog
 import com.doge.simulator.presentation.navigation.BottomNavItem
 import com.doge.simulator.presentation.navigation.NavRoutes
@@ -69,6 +81,14 @@ fun MainScreen(deepLinkFlow: StateFlow<String?>, onSignOut: () -> Unit) {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    // ── 초보 임무 ─────────────────────────────────────────────────────
+    val missionViewModel: BeginnerMissionViewModel = hiltViewModel()
+    val missionStatus by missionViewModel.status.collectAsState()
+    val missionJustClaimed by missionViewModel.justClaimed.collectAsState()
+    // [바로가기] 요청 — 탐사 일지 창 열기 / 정거장 시설 창 열기. 해당 화면이 처리하고 비운다
+    var openExpeditionLogRequest by remember { mutableStateOf(false) }
+    var hqFacilityRequest by remember { mutableStateOf<String?>(null) }
+
     val bottomNavItems = listOf(
         BottomNavItem.Explore,
         BottomNavItem.Planet,
@@ -87,6 +107,21 @@ fun MainScreen(deepLinkFlow: StateFlow<String?>, onSignOut: () -> Unit) {
             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
             launchSingleTop = true
             restoreState = true
+        }
+    }
+
+    fun goToMission(destination: MissionDestination) {
+        when (destination) {
+            MissionDestination.EXPLORE -> navigateToTab(NavRoutes.Explore.route)
+            MissionDestination.EXPEDITION_LOG -> {
+                navigateToTab(NavRoutes.Explore.route)
+                openExpeditionLogRequest = true
+            }
+            MissionDestination.PLANET -> navigateToTab(NavRoutes.Planet.route)
+            MissionDestination.HQ_RESEARCH -> { navigateToTab(NavRoutes.HQ.route); hqFacilityRequest = FACILITY_RESEARCH }
+            MissionDestination.HQ_ASTRONAUT -> { navigateToTab(NavRoutes.HQ.route); hqFacilityRequest = FACILITY_ASTRONAUT }
+            MissionDestination.HQ_LOUNGE -> { navigateToTab(NavRoutes.HQ.route); hqFacilityRequest = FACILITY_LOUNGE }
+            MissionDestination.HQ_HANGAR -> { navigateToTab(NavRoutes.HQ.route); hqFacilityRequest = FACILITY_HANGAR }
         }
     }
 
@@ -130,6 +165,12 @@ fun MainScreen(deepLinkFlow: StateFlow<String?>, onSignOut: () -> Unit) {
                 composable(NavRoutes.Explore.route) {
                     // 탐사 일지는 새 화면 대신 탐험 탭 위에 창으로 연다(FacilityPanel 참고).
                     var expeditionLogOpen by rememberSaveable { mutableStateOf(false) }
+                    LaunchedEffect(openExpeditionLogRequest) {
+                        if (openExpeditionLogRequest) {
+                            expeditionLogOpen = true
+                            openExpeditionLogRequest = false
+                        }
+                    }
                     Box(Modifier.fillMaxSize()) {
                         ExploreScreen(onNavigateToExpeditionHistory = { expeditionLogOpen = true })
                         ExpeditionLogPanel(visible = expeditionLogOpen, onClose = { expeditionLogOpen = false })
@@ -145,7 +186,9 @@ fun MainScreen(deepLinkFlow: StateFlow<String?>, onSignOut: () -> Unit) {
                 composable(NavRoutes.HQ.route) { backStackEntry ->
                     HQScreen(
                         navController = navController,
-                        orbitViewModel = hiltViewModel(backStackEntry)
+                        orbitViewModel = hiltViewModel(backStackEntry),
+                        requestedFacility = hqFacilityRequest,
+                        onFacilityRequestHandled = { hqFacilityRequest = null }
                     )
                 }
                 composable(NavRoutes.Asset.route) {
@@ -204,16 +247,29 @@ fun MainScreen(deepLinkFlow: StateFlow<String?>, onSignOut: () -> Unit) {
                 }
         }
 
-        // 바텀 네비게이션 — bg_main 위에 직접 올려서 배경 없이 렌더링
+        // 바텀 네비게이션 — bg_main 위에 직접 올려서 배경 없이 렌더링.
+        // 초보 임무 띠는 탭 바 바로 위에 붙이고, 둘을 합친 높이만큼 본문을 띄운다(본문이 띠에 가리지 않게)
         if (currentRoute in bottomNavRoutes) {
-            PixelBottomNavBar(
-                navController = navController,
-                items = bottomNavItems,
-                currentRoute = currentRoute,
+            Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .onSizeChanged { navBarHeightPx = it.height }
-            )
+            ) {
+                if (missionStatus != null || missionJustClaimed != null) {
+                    BeginnerMissionStrip(
+                        status = missionStatus,
+                        justClaimed = missionJustClaimed,
+                        onClaim = missionViewModel::claim,
+                        onGo = { missionStatus?.let { goToMission(it.mission.destination) } },
+                        modifier = Modifier.background(SpaceDark)
+                    )
+                }
+                PixelBottomNavBar(
+                    navController = navController,
+                    items = bottomNavItems,
+                    currentRoute = currentRoute
+                )
+            }
         }
 
         // ── 튜토리얼 오버레이 ─────────────────────────────────────────
@@ -228,6 +284,39 @@ fun MainScreen(deepLinkFlow: StateFlow<String?>, onSignOut: () -> Unit) {
             )
         }
       }
+    }
+
+    // ── 초보 임무 모두 완료 ──────────────────────────────────────────
+    // 마지막 보상을 받으면 띠가 사라지는데, 아무 말 없이 사라지면 "끝난 건가?" 싶어서 관제탑이 한 번 알려준다
+    val missionAllDone by missionViewModel.allDone.collectAsState()
+    if (missionAllDone) {
+        val lastMission = BeginnerMission.entries.last()
+        GameDialog(
+            title = "초보 임무 완료",
+            subtitle = "마지막 보상: 코인 ${"%,d".format(lastMission.rewardCoins)}",
+            subtitleColor = GoldAccent,
+            onDismissRequest = missionViewModel::dismissAllDone,
+            dismissOnClickOutside = false,
+            buttons = {
+                GameButton(
+                    text = "탐사 떠나기",
+                    onClick = {
+                        missionViewModel.dismissAllDone()
+                        navigateToTab(NavRoutes.Explore.route)
+                    },
+                    size = GameButtonSize.Large,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        ) {
+            Text(
+                "관제탑입니다. 기본 임무를 모두 마쳤어요!\n\n" +
+                    "이제부터는 자유롭게 탐사하세요. 행성을 모아 더 먼 지역을 열고, " +
+                    "탐사 일지에서 이야기가 어디로 이어지는지 따라가 보세요.",
+                style = BodyReading,
+                color = TextPrimary
+            )
+        }
     }
 
     // ── 오프라인 수익/손실 확인 다이얼로그 (탭과 무관하게 최상단에 노출) ──

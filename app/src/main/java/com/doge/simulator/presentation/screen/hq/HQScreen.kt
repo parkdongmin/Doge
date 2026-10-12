@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -41,11 +42,20 @@ import com.doge.simulator.presentation.component.TabSectionHeader
 fun HQScreen(
     navController: NavController,
     // ORBIT 게임·결과 화면과 같이 쓰는 매치 상태 — 정거장(HQ) 엔트리 스코프(MainScreen에서 넘겨줌).
-    orbitViewModel: OrbitViewModel
+    orbitViewModel: OrbitViewModel,
+    // 초보 임무 [바로가기]로 특정 시설 창을 바로 열 때(FACILITY_* 값). 열고 나면 onFacilityRequestHandled로 비운다
+    requestedFacility: String? = null,
+    onFacilityRequestHandled: () -> Unit = {}
 ) {
     // 우주인 센터·격납고·연구소·휴게실은 새 화면으로 넘기지 않고 정거장 위에 창으로 연다(FacilityPanel 참고).
     // 한 번에 하나만 열리므로 열린 시설 이름 하나로 관리한다.
     var openFacility by rememberSaveable { mutableStateOf<String?>(null) }
+    LaunchedEffect(requestedFacility) {
+        if (requestedFacility != null) {
+            openFacility = requestedFacility
+            onFacilityRequestHandled()
+        }
+    }
 
     // 세로가 짧은 화면(폴드 펼침 등)에선 휴게실 카드가 아래로 잘렸다 — 정거장 그림 높이를 화면 높이에
     // 맞춰 줄이고(최대 250dp), 그래도 넘치면 스크롤되게 한다.
@@ -209,7 +219,7 @@ private fun HQFacilityCard(
     }
 }
 
-private const val FACILITY_ASTRONAUT = "astronaut"
-private const val FACILITY_HANGAR = "hangar"
-private const val FACILITY_RESEARCH = "research"
-private const val FACILITY_LOUNGE = "lounge"
+const val FACILITY_ASTRONAUT = "astronaut"
+const val FACILITY_HANGAR = "hangar"
+const val FACILITY_RESEARCH = "research"
+const val FACILITY_LOUNGE = "lounge"

@@ -56,6 +56,9 @@ class UpgradePlanetUseCase @Inject constructor(
 
         val totalInvestment = planet.upgradeInvestment + coinCost
 
+        // 초보 임무 "행성 강화해 보기"는 성공 여부와 무관하게 시도로 완료 — 비용이 다 빠진 뒤에 기록
+        userRepository.markPlanetUpgradeTried()
+
         // 성공률 계산
         val successRate = GameConstants.UPGRADE_SUCCESS_RATES[planet.level] ?: 0.5f
         val isSuccess = Random.nextFloat() < successRate

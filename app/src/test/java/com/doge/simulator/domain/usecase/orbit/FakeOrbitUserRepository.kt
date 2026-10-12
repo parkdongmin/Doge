@@ -1,5 +1,6 @@
 package com.doge.simulator.domain.usecase.orbit
 
+import com.doge.simulator.domain.model.ResourceType
 import com.doge.simulator.domain.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -28,4 +29,11 @@ class FakeOrbitUserRepository(initialCoins: Long = 0L) : UserRepository {
     }
 
     override suspend fun recordVariantDiscovery(variantId: String) {}
+
+    var orbitPlayed = false
+        private set
+    override fun getMissionProgress() = throw NotImplementedError()
+    override suspend fun markOrbitPlayed() { orbitPlayed = true }
+    override suspend fun markPlanetUpgradeTried() {}
+    override suspend fun claimMissionReward(step: Int, coins: Long, resources: Map<ResourceType, Long>) = false
 }

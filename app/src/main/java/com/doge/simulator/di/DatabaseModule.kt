@@ -42,7 +42,8 @@ object DatabaseModule {
                 PlanetDatabase.MIGRATION_17_18,
                 PlanetDatabase.MIGRATION_18_19,
                 PlanetDatabase.MIGRATION_19_20,
-                PlanetDatabase.MIGRATION_20_21
+                PlanetDatabase.MIGRATION_20_21,
+                PlanetDatabase.MIGRATION_21_22
             )
             .build()
     }

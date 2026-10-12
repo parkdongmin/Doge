@@ -24,6 +24,8 @@ class SettleOrbitBetUseCase @Inject constructor(
             MatchOutcome.LOST -> OrbitBetSettlement(MatchOutcome.LOST, betAmount = bet.amount, netChange = -bet.amount)
         }
         matchState.bet = bet.copy(settlement = settlement)
+        // 초보 임무 "ORBIT 한 판" — 승패와 무관하게 끝까지 둔 판만 친다(이탈은 아래에서 기록 안 함)
+        userRepository.markOrbitPlayed()
         return settlement
     }
 
