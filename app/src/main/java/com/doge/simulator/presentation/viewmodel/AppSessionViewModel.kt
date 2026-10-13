@@ -42,15 +42,17 @@ class AppSessionViewModel @Inject constructor(
         viewModelScope.launch {
             val planets = getOwnedPlanetsUseCase().first()
             if (planets.isEmpty()) return@launch
+            // peek~다이얼로그 표시 사이에 60초 루프가 끼어들어 1배로 가져가지 않도록 미리 막아 둔다
+            collectProfitUseCase.offlineClaimPending = true
             val pending = peekPendingProfitUseCase(planets)
             val longElapsed = pending.maxElapsedMinutes >= GameConstants.OFFLINE_PROFIT_DIALOG_THRESHOLD_MINUTES
-            when {
-                // 이득이 오래 쌓였으면 "2배 보기" 팝업, 짧으면 조용히 자동 수집
-                pending.coins > 0 && longElapsed -> _pendingOfflineProfit.value = pending
-                pending.coins > 0 -> collectProfitUseCase(planets)
-                // 손해도 오래 쌓였으면 알려주고 확인시키되(광고 배율 옵션 없음), 짧으면 조용히 반영
-                pending.coins < 0 && longElapsed -> _pendingOfflineProfit.value = pending
-                pending.coins < 0 -> collectProfitUseCase(planets)
+            if (pending.coins != 0L && longElapsed) {
+                // 이득이 오래 쌓였으면 "2배 보기" 팝업, 손해도 오래 쌓였으면 알려주고 확인시킨다(광고 배율 옵션 없음)
+                _pendingOfflineProfit.value = pending
+            } else {
+                // 짧으면 조용히 자동 수집(이득·손해 모두)
+                collectProfitUseCase.offlineClaimPending = false
+                if (pending.coins != 0L) collectProfitUseCase(planets)
             }
         }
     }
@@ -78,7 +80,12 @@ class AppSessionViewModel @Inject constructor(
     private fun claim(multiplier: Double) {
         viewModelScope.launch {
             val planets = getOwnedPlanetsUseCase().first()
-            collectProfitUseCase(planets, multiplier)
+            try {
+                collectProfitUseCase(planets, multiplier)
+            } finally {
+                // 수령이 실패해도 60초 루프가 영영 멈춰 있지 않도록
+                collectProfitUseCase.offlineClaimPending = false
+            }
             _pendingOfflineProfit.value = null
             _offlineAdNotice.value = null
         }

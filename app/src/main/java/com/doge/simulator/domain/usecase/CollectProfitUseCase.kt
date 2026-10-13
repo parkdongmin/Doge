@@ -31,6 +31,11 @@ class CollectProfitUseCase @Inject constructor(
 ) {
     private val mutex = Mutex()
 
+    // 오프라인 수익 다이얼로그가 수령을 기다리는 동안 true. 이때 60초 루프가 1배로 먼저 수집해
+    // 버리면 광고를 보고 2배로 받으려 해도 남은 적립분이 거의 없어 2배가 사실상 안 들어온다
+    @Volatile
+    var offlineClaimPending = false
+
     // multiplier: 오프라인 수익 2배 리워드 광고 시청 시 코인에만 적용 (자원 드랍은 배율 미적용)
     suspend operator fun invoke(planets: List<Planet>, multiplier: Double = 1.0) = mutex.withLock {
         val now = System.currentTimeMillis()

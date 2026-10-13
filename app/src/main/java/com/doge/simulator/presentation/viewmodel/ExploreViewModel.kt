@@ -144,7 +144,8 @@ class ExploreViewModel @Inject constructor(
             while (true) {
                 kotlinx.coroutines.delay(60_000L)
                 val planets = getOwnedPlanetsUseCase().first()
-                if (planets.isNotEmpty()) collectProfitUseCase(planets)
+                // 오프라인 수익 다이얼로그가 떠 있으면 그쪽 수령(광고 2배 포함)에 맡긴다
+                if (planets.isNotEmpty() && !collectProfitUseCase.offlineClaimPending) collectProfitUseCase(planets)
             }
         }
         // 5초마다 만료된 탐사 자동 완료 (완료 처리만 하고, 결과 표시는 아래 unhandled 결과 관찰에서 담당)
