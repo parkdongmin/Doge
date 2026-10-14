@@ -2,6 +2,7 @@ package com.doge.simulator.domain.model
 
 import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 
 object GameConstants {
 
@@ -63,9 +64,12 @@ object GameConstants {
             currentLevel <= 15 -> mapOf(ResourceType.ENERGY_CORE to 60, ResourceType.LIFE_CRYSTAL to 20, ResourceType.RARE_EARTH to 20, ResourceType.NANOBOT to 20)
             else               -> mapOf(ResourceType.ENERGY_CORE to 80, ResourceType.QUANTUM_CORE to 10, ResourceType.DATA_CORE to 10, ResourceType.UNKNOWN_MATTER to 8)
         }
-        val scale = PLANET_UPGRADE_RESOURCE_RARITY_SCALE[rarity] ?: 1.0
+        val scale = (PLANET_UPGRADE_RESOURCE_RARITY_SCALE[rarity] ?: 1.0) * PLANET_UPGRADE_RESOURCE_DISCOUNT
         return coins to base.mapValues { (_, amount) -> (amount * scale).roundToInt() }
     }
+
+    // 행성 강화 자원 전체 할인(2026-10-13). 2부에서 행성을 더 많이 모으고 키워야 해서 위 기본량에서 10% 낮춤
+    private const val PLANET_UPGRADE_RESOURCE_DISCOUNT = 0.9
 
     // ── 행성 자원 드롭 ────────────────────────────────────────────────
     // 등급이 높을수록 드롭량이 많아지되, 너무 가파르면 흔한 자원(에너지 코어 등)까지
@@ -376,7 +380,19 @@ object GameConstants {
     // 단계가 오를수록 흔한 자원 → 보통 → 희귀 순. 요구 자원은 그 레벨에 열려 있는 탐사로 구할 수 있게
     // 맞춤(데이터 코어는 유적 탐사가 열리는 탐사 기술 3 이후, 외계 자원은 6 이후부터 요구).
     // 1~2단계 바이오매스는 v1.4.0에서 30/60으로 낮췄다가 v1.5.0에서 원래 50/120으로 되돌림
-    fun researchUpgradeCost(currentLevel: Int): Pair<Long, Map<ResourceType, Int>> = when (currentLevel) {
+    fun researchUpgradeCost(currentLevel: Int, field: ResearchField? = null): Pair<Long, Map<ResourceType, Int>> {
+        val (coins, resources) = baseResearchUpgradeCost(currentLevel)
+        if (field != ResearchField.CELESTIAL_ANALYSIS) return coins to resources
+        return (coins * CELESTIAL_RESEARCH_COIN_SCALE).roundToLong() to
+            resources.mapValues { (_, amount) -> (amount * CELESTIAL_RESEARCH_RESOURCE_SCALE).roundToInt() }
+    }
+
+    // 천체 분석은 행성 슬롯을 늘리는 유일한 연구라, 행성을 많이 모아야 하는 2부를 앞두고 자원 비중을 낮추고
+    // 코인 비중을 높여 더 쉽게 올리게 함(2026-10-13, 자원 −20% → 10-14 −15%로 조정). 자원을 판매가 2배로 환산한 총비용 기준 레벨별 약 1~8% 저렴
+    private const val CELESTIAL_RESEARCH_RESOURCE_SCALE = 0.85
+    private const val CELESTIAL_RESEARCH_COIN_SCALE = 1.15
+
+    private fun baseResearchUpgradeCost(currentLevel: Int): Pair<Long, Map<ResourceType, Int>> = when (currentLevel) {
         1 -> 1_000L to mapOf(ResourceType.BIOMASS to 50)
         2 -> 3_000L to mapOf(ResourceType.BIOMASS to 120, ResourceType.COOLANT to 80)
         3 -> 6_000L to mapOf(ResourceType.COOLANT to 200, ResourceType.IRON_ORE to 200)

@@ -84,7 +84,7 @@ private fun ResearchFieldCard(
 ) {
     val maxLevel = ResearchLab.maxLevel(field)
     val isMaxLevel = maxLevel != null && currentLevel >= maxLevel
-    val (coinCost, resourceCost) = GameConstants.researchUpgradeCost(currentLevel)
+    val (coinCost, resourceCost) = GameConstants.researchUpgradeCost(currentLevel, field)
     val canAffordCoins = coins >= coinCost
     val canAffordResources = resourceCost.all { (type, amount) ->
         (resources.firstOrNull { it.type == type }?.amount ?: 0L) >= amount

@@ -27,11 +27,25 @@ class ResourceCostTest {
         val (commonCoins, common) = GameConstants.planetUpgradeCost(9, RarityTier.COMMON)
         val (uncommonCoins, uncommon) = GameConstants.planetUpgradeCost(9, RarityTier.UNCOMMON)
         assertEquals(commonCoins, uncommonCoins)
-        assertEquals(mapOf(ResourceType.IRON_ORE to 100, ResourceType.CRYSTAL to 60, ResourceType.NANOBOT to 5), common)
-        assertEquals(mapOf(ResourceType.IRON_ORE to 150, ResourceType.CRYSTAL to 90, ResourceType.NANOBOT to 8), uncommon)
+        // 기본량(철광석 100·크리스탈 60·나노봇 5) × 등급 배율 × 전체 할인 0.9
+        assertEquals(mapOf(ResourceType.IRON_ORE to 90, ResourceType.CRYSTAL to 54, ResourceType.NANOBOT to 5), common)
+        assertEquals(mapOf(ResourceType.IRON_ORE to 135, ResourceType.CRYSTAL to 81, ResourceType.NANOBOT to 7), uncommon)
 
         val star = planet(PlanetType.STAR, level = 16)
-        assertEquals(280, star.upgradeCost.second[ResourceType.ENERGY_CORE])
+        assertEquals(252, star.upgradeCost.second[ResourceType.ENERGY_CORE])
+    }
+
+    @Test
+    fun `celestial analysis research costs fewer resources and more coins than other fields`() {
+        for (level in 1..12) {
+            val (baseCoins, baseResources) = GameConstants.researchUpgradeCost(level, ResearchField.HR_MANAGEMENT)
+            val (coins, resources) = GameConstants.researchUpgradeCost(level, ResearchField.CELESTIAL_ANALYSIS)
+            assertTrue("Lv.$level coins", coins > baseCoins)
+            assertEquals(baseResources.keys, resources.keys)
+            baseResources.forEach { (type, amount) -> assertTrue("Lv.$level $type", resources.getValue(type) < amount) }
+        }
+        assertEquals(1_150L to mapOf(ResourceType.BIOMASS to 43), GameConstants.researchUpgradeCost(1, ResearchField.CELESTIAL_ANALYSIS))
+        assertEquals(3_450L to mapOf(ResourceType.BIOMASS to 102, ResourceType.COOLANT to 68), GameConstants.researchUpgradeCost(2, ResearchField.CELESTIAL_ANALYSIS))
     }
 
     @Test

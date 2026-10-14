@@ -30,7 +30,7 @@ class UpgradeResearchFieldUseCase @Inject constructor(
         val maxLevel = ResearchLab.maxLevel(field)
         if (maxLevel != null && currentLevel >= maxLevel) return Result.MaxLevelReached
 
-        val (coinCost, resourceCost) = GameConstants.researchUpgradeCost(currentLevel)
+        val (coinCost, resourceCost) = GameConstants.researchUpgradeCost(currentLevel, field)
 
         if (!userRepository.deductCoins(coinCost)) return Result.InsufficientCoins
 
