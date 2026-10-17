@@ -419,11 +419,10 @@ object GameConstants {
     // 낮게 잡은 값이라 2배로 여유를 둠 — 1등급 T1 약 310코인, 중반 T6 방치 2시간 48분치, 후반 T10 9시간치
     const val COIN_SKIP_PREMIUM = 2.0
 
-    // 전면광고(탐사 결과 dismiss) 빈도 제한: 첫 N회는 노출 안 함, 이후엔 결과 INTERVAL번마다 1회
+    // 전면광고(탐사 결과 dismiss) 빈도 제한: 결과 INTERVAL번마다 1회
     // (예전 3분 쿨다운은 짧은 탐사를 연달아 돌리면 너무 자주 떠서 횟수 기준으로 바꿈).
-    // 초반 탐사가 2~5분대라 첫 세션엔 광고 없이 루프를 익히게 유예를 넉넉히 둠
-    const val INTERSTITIAL_GRACE_COMPLETIONS = 10
-    const val INTERSTITIAL_INTERVAL_COMPLETIONS = 5
+    // 첫 10회 유예는 2026-10-17에 뺐다 — 주기만으로 충분히 드물다
+    const val INTERSTITIAL_INTERVAL_COMPLETIONS = 4
 
     // ── ORBIT 카드게임 (휴게실) ──────────────────────────────────────
     // 고정 6단계 베팅 금액. 위험도(배율) 티어는 별도 축(OrbitRiskTier)이며 재화 규모와
