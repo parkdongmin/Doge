@@ -123,9 +123,14 @@ class AstronautViewModel @Inject constructor(
         return training.mapNotNull { it.trainingEndTime }.filter { it > now }.minOrNull()
     }
 
+    // 연타 방지 — 고용·훈련은 코인을 먼저 빼고 처리해, 처리 중 두 번째 탭이 들어오면 두 번 빠질 수 있었다
+    private var paying = false
+
     fun hireFromPool(slotIndex: Int) {
+        if (paying) return
+        paying = true
         viewModelScope.launch {
-            when (hireFromPoolUseCase(slotIndex)) {
+            when (try { hireFromPoolUseCase(slotIndex) } finally { paying = false }) {
                 HireFromPoolUseCase.Result.Success -> showMessage("영입 완료!")
                 HireFromPoolUseCase.Result.InsufficientCoins -> showMessage("코인이 부족합니다")
                 HireFromPoolUseCase.Result.MaxLimitReached -> showMessage("고용 한도에 도달했습니다")
@@ -195,8 +200,10 @@ class AstronautViewModel @Inject constructor(
     }
 
     fun train(astronaut: Astronaut, isAdvanced: Boolean) {
+        if (paying) return
+        paying = true
         viewModelScope.launch {
-            when (trainAstronautUseCase(astronaut, isAdvanced)) {
+            when (try { trainAstronautUseCase(astronaut, isAdvanced) } finally { paying = false }) {
                 TrainAstronautUseCase.Result.Success -> {
                     val duration = if (isAdvanced) GameConstants.ADVANCED_TRAINING_DURATION_MS
                                    else GameConstants.BASIC_TRAINING_DURATION_MS

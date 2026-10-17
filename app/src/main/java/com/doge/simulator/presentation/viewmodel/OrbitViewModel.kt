@@ -217,10 +217,15 @@ class OrbitViewModel @Inject constructor(
         _selectedRiskTier.value = tier
     }
 
+    // 연타 방지 — 베팅 확인을 두 번 누르면 베팅액이 두 번 빠지고 두 번째 판이 첫 판을 덮어썼다
+    private var startingMatch = false
+
     fun startMatch() {
         val amount = _selectedBetAmount.value ?: return
+        if (startingMatch) return
+        startingMatch = true
         viewModelScope.launch {
-            when (val result = startOrbitMatchUseCase(amount, _selectedRiskTier.value)) {
+            when (val result = try { startOrbitMatchUseCase(amount, _selectedRiskTier.value) } finally { startingMatch = false }) {
                 is StartOrbitMatchUseCase.Result.Success -> beginMatch(result.matchState)
                 StartOrbitMatchUseCase.Result.InsufficientCoins -> showMessage("코인이 부족해요")
             }

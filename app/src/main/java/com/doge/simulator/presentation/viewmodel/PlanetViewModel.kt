@@ -123,7 +123,13 @@ class PlanetViewModel @Inject constructor(
         _maintenanceMessage.value = null
     }
 
+    // 연타 방지 — 첫 강화의 비용 차감이 끝나기 전(충전 연출로 버튼이 잠기기 전)에 두 번째 탭이 들어오면
+    // 같은 강화 전 행성으로 비용만 두 번 빠지고 레벨은 한 번만 올랐다
+    private var upgrading = false
+
     fun upgradePlanet(planet: Planet) {
+        if (upgrading) return
+        upgrading = true
         viewModelScope.launch {
             // 새 강화 시도를 시작하면 이전 실패에 대한 되돌리기는 더 이상 유효하지 않음
             _undoableFailure.value = null
@@ -131,7 +137,7 @@ class PlanetViewModel @Inject constructor(
             // 결과는 유스케이스 안에서 바로 DB에 저장돼 화면의 레벨 배지·"Lv.a → Lv.b" 등이 충전 연출
             // 도중에 먼저 바뀌어 버린다(스포). 결과 공개 전까지는 강화 전 모습을 보여주도록 고정해 둔다
             _upgradeDisplayFreeze.value = planet
-            val result = upgradePlanetUseCase(planet)
+            val result = try { upgradePlanetUseCase(planet) } finally { upgrading = false }
             // 코인/자원 부족·최대 레벨 검증 실패는 도박이 아니라 즉시 알려줘야 할 정보라
             // 긴장 연출 없이 바로 처리. 실제로 성공/실패 롤이 일어난 경우에만 연출한다
             val isRoll = result is UpgradePlanetUseCase.Result.Success ||

@@ -45,9 +45,14 @@ class SpaceshipViewModel @Inject constructor(
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
+    // 연타 방지 — 처리 중 두 번째 탭이 들어오면 우주선 한도를 넘겨 두 대가 사질 수 있었다
+    private var buying = false
+
     fun buyShip() {
+        if (buying) return
+        buying = true
         viewModelScope.launch {
-            when (buySpaceshipUseCase()) {
+            when (try { buySpaceshipUseCase() } finally { buying = false }) {
                 BuySpaceshipUseCase.Result.Success -> showMessage("정찰선 구매 완료!")
                 BuySpaceshipUseCase.Result.InsufficientCoins -> showMessage("코인이 부족합니다")
                 BuySpaceshipUseCase.Result.MaxLimitReached -> showMessage("보유 가능한 우주선 수를 초과했습니다")
