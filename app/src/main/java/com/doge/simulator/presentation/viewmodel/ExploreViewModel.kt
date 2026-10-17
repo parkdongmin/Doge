@@ -21,6 +21,7 @@ import com.doge.simulator.domain.model.Planet
 import com.doge.simulator.domain.model.PlanetMetaDataTable
 import com.doge.simulator.domain.model.PlanetType
 import com.doge.simulator.domain.model.RarityTier
+import com.doge.simulator.domain.repository.AstronautRepository
 import com.doge.simulator.domain.repository.ExpeditionRepository
 import com.doge.simulator.domain.repository.UserRepository
 import com.doge.simulator.domain.usecase.BuyPlanetUseCase
@@ -73,6 +74,7 @@ class ExploreViewModel @Inject constructor(
     private val resourceRepository: ResourceRepository,
     private val storyRepository: StoryRepository,
     private val expeditionRepository: ExpeditionRepository,
+    private val astronautRepository: AstronautRepository,
     private val getExpeditionReportsUseCase: GetExpeditionReportsUseCase,
     private val interstitialAdManager: InterstitialAdManager,
     private val adFrequencyGate: AdFrequencyGate,
@@ -139,6 +141,8 @@ class ExploreViewModel @Inject constructor(
                 seedStarterAssetsUseCase()
                 tutorialPrefs.markStartedFresh()
             }
+            // 예전 버전의 반쪽 완료 처리로 "탐사 중"에 묶인 대원을 풀어준다(CompleteExpeditionUseCase 참고)
+            astronautRepository.releaseOrphanedDeployed()
         }
         interstitialAdManager.preload()
         // 60초마다 수익 누적
@@ -173,7 +177,17 @@ class ExploreViewModel @Inject constructor(
         val expired = activeExpeditions.value.filter {
             it.status == ExpeditionStatus.IN_PROGRESS && now >= it.endTime
         }
-        expired.forEach { completeExpeditionUseCase(it) }
+        // 한 탐사의 완료 처리가 오류로 되돌아가도 앱을 죽이지 않고 다음 확인 때 다시 시도한다
+        // (완료 처리는 통째로 되돌아가는 트랜잭션이라, 여기서 터지면 5초마다 같은 크래시가 반복된다)
+        expired.forEach {
+            try {
+                completeExpeditionUseCase(it)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // 다음 폴링에서 재시도
+            }
+        }
     }
 
     private suspend fun presentExpeditionResult(expedition: Expedition) {

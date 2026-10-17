@@ -28,6 +28,14 @@ interface AstronautDao {
     @Query("UPDATE astronaut_table SET proficiency = :proficiency, status = 'IDLE', trainingEndTime = NULL, trainingType = NULL WHERE id = :id AND status = 'TRAINING'")
     suspend fun completeTraining(id: String, proficiency: Int)
 
+    // 진행 중인 탐사 어디에도 없는데 DEPLOYED로 남은 대원을 대기로 되돌린다. 예전엔 탐사 완료 처리가
+    // 트랜잭션이 아니어서, 탐사 행을 완료로 바꾼 직후 취소·종료되면 대원이 영영 "탐사 중"에 묶였다.
+    // astronautIds는 쉼표로 이은 문자열이라 양끝에 쉼표를 붙여 정확히 한 칸만 맞춘다
+    @Query("""UPDATE astronaut_table SET status = 'IDLE' WHERE status = 'DEPLOYED' AND NOT EXISTS (
+        SELECT 1 FROM expedition_table e WHERE e.status = 'IN_PROGRESS'
+        AND ',' || e.astronautIds || ',' LIKE '%,' || astronaut_table.id || ',%')""")
+    suspend fun releaseOrphanedDeployed(): Int
+
     @Query("DELETE FROM astronaut_table WHERE id = :id")
     suspend fun delete(id: String)
 }

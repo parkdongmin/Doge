@@ -9,6 +9,7 @@ import com.doge.simulator.domain.repository.AstronautRepository
 import com.doge.simulator.domain.repository.ExpeditionRepository
 import com.doge.simulator.domain.repository.ResearchLabRepository
 import com.doge.simulator.domain.repository.SpaceshipRepository
+import com.doge.simulator.domain.repository.TransactionRunner
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
@@ -17,7 +18,8 @@ class StartExpeditionUseCase @Inject constructor(
     private val astronautRepository: AstronautRepository,
     private val spaceshipRepository: SpaceshipRepository,
     private val researchLabRepository: ResearchLabRepository,
-    private val getTierProgress: GetTierProgressUseCase
+    private val getTierProgress: GetTierProgressUseCase,
+    private val transactionRunner: TransactionRunner
 ) {
     sealed class Result {
         data class Success(val expedition: Expedition) : Result()
@@ -77,9 +79,12 @@ class StartExpeditionUseCase @Inject constructor(
             endTime = now + durationMs
         )
 
-        expeditionRepository.start(expedition)
-        astronautIds.forEach { id ->
-            astronautRepository.updateStatus(id, AstronautStatus.DEPLOYED)
+        // 탐사 행과 대원 DEPLOYED를 함께 — 중간에 끊기면 탐사 중인 대원이 대기로 보여 또 보내질 수 있다
+        transactionRunner.run {
+            expeditionRepository.start(expedition)
+            astronautIds.forEach { id ->
+                astronautRepository.updateStatus(id, AstronautStatus.DEPLOYED)
+            }
         }
 
         return Result.Success(expedition)

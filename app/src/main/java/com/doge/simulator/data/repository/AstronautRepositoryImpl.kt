@@ -35,4 +35,7 @@ class AstronautRepositoryImpl(
 
     override suspend fun dismiss(id: String) =
         dao.delete(id)
+
+    override suspend fun releaseOrphanedDeployed(): Int =
+        dao.releaseOrphanedDeployed()
 }

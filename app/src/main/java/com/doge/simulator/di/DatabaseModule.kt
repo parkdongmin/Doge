@@ -3,6 +3,7 @@ package com.doge.simulator.di
 import android.content.Context
 import androidx.room.Room
 import com.doge.simulator.data.local.PlanetDatabase
+import com.doge.simulator.data.local.RoomTransactionRunner
 import com.doge.simulator.data.local.dao.*
 import com.doge.simulator.data.repository.*
 import com.doge.simulator.domain.repository.*
@@ -62,6 +63,9 @@ object DatabaseModule {
     @Provides fun provideRecruitmentDao(db: PlanetDatabase): RecruitmentDao = db.recruitmentDao()
     @Provides fun providePlanetEventLogDao(db: PlanetDatabase): PlanetEventLogDao = db.planetEventLogDao()
     @Provides fun provideSnapshotDao(db: PlanetDatabase): SnapshotDao = db.snapshotDao()
+
+    @Provides @Singleton
+    fun provideTransactionRunner(db: PlanetDatabase): TransactionRunner = RoomTransactionRunner(db)
 
     // ── Repositories ──────────────────────────────────────────────────
     @Provides @Singleton

@@ -15,6 +15,7 @@ import com.doge.simulator.domain.repository.ExpeditionRepository
 import com.doge.simulator.domain.repository.ResearchLabRepository
 import com.doge.simulator.domain.repository.ResourceRepository
 import com.doge.simulator.domain.repository.SpaceshipRepository
+import com.doge.simulator.domain.repository.TransactionRunner
 import com.doge.simulator.domain.repository.UserRepository
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
@@ -30,7 +31,8 @@ class CompleteExpeditionUseCase @Inject constructor(
     private val userRepository: UserRepository,
     private val generateReportUseCase: GenerateExpeditionReportUseCase,
     private val generatePlanetsUseCase: GeneratePlanetsUseCase,
-    private val storyRepository: com.doge.simulator.domain.repository.StoryRepository
+    private val storyRepository: com.doge.simulator.domain.repository.StoryRepository,
+    private val transactionRunner: TransactionRunner
 ) {
     data class ExpeditionResult(
         val success: Boolean,
@@ -89,27 +91,40 @@ class CompleteExpeditionUseCase @Inject constructor(
 
         // status가 여전히 IN_PROGRESS일 때만 전환에 성공한다. 포그라운드 폴링과 백그라운드
         // 워커가 같은 탐사를 거의 동시에 처리하려 할 때, 둘 중 하나만 통과시켜 보상·보고서가
-        // 중복 생성되는 것을 막는다
-        val claimed = expeditionRepository.complete(
-            id = expedition.id,
-            status = if (isSuccess) ExpeditionStatus.COMPLETED else ExpeditionStatus.FAILED,
-            resourcesResult = resourcesStr,
-            discoveredPlanet = discoveredPlanet,
-            coinsEarned = coinsEarned
-        )
-        if (!claimed) return ExpeditionResult(success = false, resources = emptyMap(), discoveredPlanetType = null)
+        // 중복 생성되는 것을 막는다.
+        // 선점부터 보상·대원 복귀·보고서까지 한 트랜잭션 — 예전엔 선점 직후 화면을 벗어나 코루틴이 취소되면
+        // 탐사는 끝난 걸로 바뀌었는데 대원은 DEPLOYED로 남아(다시 처리될 길도 없어) 파견 목록에서 사라졌다
+        val claimed = transactionRunner.run {
+            val claimed = expeditionRepository.complete(
+                id = expedition.id,
+                status = if (isSuccess) ExpeditionStatus.COMPLETED else ExpeditionStatus.FAILED,
+                resourcesResult = resourcesStr,
+                discoveredPlanet = discoveredPlanet,
+                coinsEarned = coinsEarned
+            )
+            if (!claimed) return@run false
 
-        resources.forEach { (type, amount) -> resourceRepository.add(type, amount) }
-        if (coinsEarned > 0) userRepository.addCoins(coinsEarned)
+            resources.forEach { (type, amount) -> resourceRepository.add(type, amount) }
+            if (coinsEarned > 0) userRepository.addCoins(coinsEarned)
 
-        // 우주인 IDLE 복구
-        expedition.astronautIds.forEach { id ->
-            astronautRepository.updateStatus(id, AstronautStatus.IDLE)
+            // 우주인 IDLE 복구
+            expedition.astronautIds.forEach { id ->
+                astronautRepository.updateStatus(id, AstronautStatus.IDLE)
+            }
+
+            // 탐사 보고서 생성 및 저장. 여기서 매번 터지는 오류가 있으면 트랜잭션 전체가 되돌아가 탐사가 영영
+            // 안 끝나므로(5초마다 재시도), 보고서만 빠지고 대원 복귀·보상은 저장되게 한다 — 취소는 그대로 올려 되돌린다
+            try {
+                val report = generateReportUseCase(expedition, isSuccess)
+                storyRepository.saveReport(report)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // 보고서 없이 진행
+            }
+            true
         }
-
-        // 탐사 보고서 생성 및 저장
-        val report = generateReportUseCase(expedition, isSuccess)
-        storyRepository.saveReport(report)
+        if (!claimed) return ExpeditionResult(success = false, resources = emptyMap(), discoveredPlanetType = null)
 
         return ExpeditionResult(isSuccess, resources, discoveredPlanet?.type?.name, coinsEarned)
     }
