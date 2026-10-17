@@ -1315,7 +1315,8 @@ private fun DiscoveryRevealContent(
         Text(meta.description, color = TextSecondary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = Spacing.xs))
         Spacer(modifier = Modifier.height(Spacing.sm))
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-            StatChipMini("${planet.production}/분", StatusGreen, iconRes = R.drawable.ic_ui_energy)
+            // 실제 1분 수익(능력치 × 생산 배율 × 특성) — 능력치를 그대로 쓰면 산 뒤 상세 화면 숫자와 달랐다
+            StatChipMini("${planet.effectiveProduction}/분", StatusGreen, iconRes = R.drawable.ic_ui_energy)
             StatChipMini("%,d".format(planet.buyPrice), GoldAccent, iconRes = R.drawable.ic_ui_coin)
             if (result.isDuplicateVariant) {
                 StatChipMini("도감 등록됨", TextSecondary, iconRes = R.drawable.ic_ui_logbook)
