@@ -21,7 +21,8 @@ class BuyPlanetUseCase @Inject constructor(
         if (!success) return false
 
         planetRepository.buyPlanet(planet)
-        userRepository.recordVariantDiscovery(planet.variantId)
+        // 도감 등록 + 특성 행성이면 획득 기록(T12~T15 해금 조건) +1 — 매도해도 줄지 않는다
+        userRepository.recordPlanetAcquisition(planet)
         return true
     }
 }

@@ -5,6 +5,7 @@ import com.doge.simulator.domain.model.Planet
 import com.doge.simulator.domain.model.PlanetMetaDataTable
 import com.doge.simulator.domain.model.elapsedProfitMinutes
 import com.doge.simulator.domain.model.pendingProfitAt
+import com.doge.simulator.domain.model.resourceDropMultiplier
 import com.doge.simulator.domain.repository.PlanetRepository
 import com.doge.simulator.domain.repository.ResourceRepository
 import com.doge.simulator.domain.repository.UserRepository
@@ -71,7 +72,7 @@ class CollectProfitUseCase @Inject constructor(
             val levelMultiplier = GameConstants.planetLevelMultiplier(planet.level)
 
             meta?.resourceDrops.orEmpty().forEach { (type, baseDropChance) ->
-                val amount = rollResourceAmount(elapsedMinutes, baseDropChance, rarityMultiplier, levelMultiplier)
+                val amount = rollResourceAmount(elapsedMinutes, baseDropChance, rarityMultiplier, levelMultiplier, planet.resourceDropMultiplier)
                 if (amount > 0L) resourceRepository.add(type, amount)
             }
 
@@ -96,14 +97,15 @@ class CollectProfitUseCase @Inject constructor(
     // 수령·이벤트 외에 생산량을 바꾸는 작업(정비)이 같은 락 안에서 돌도록
     suspend fun <T> withSettlementLock(block: suspend () -> T): T = mutex.withLock { block() }
 
-    // 분당 dropChance(%) × 등급 배율 × 강화 레벨 배율을 경과 시간에 대한 기댓값으로 환산하여 정수 개수를 산출
+    // 분당 dropChance(%) × 등급 배율 × 강화 레벨 배율 × 특성 배율(풍부한/메마른 자원)을 경과 시간에 대한 기댓값으로 환산하여 정수 개수를 산출
     private fun rollResourceAmount(
         elapsedMinutes: Long,
         baseDropChancePercent: Int,
         rarityMultiplier: Double,
-        levelMultiplier: Double
+        levelMultiplier: Double,
+        traitMultiplier: Double
     ): Long {
-        val effectiveChance = baseDropChancePercent * rarityMultiplier * levelMultiplier
+        val effectiveChance = baseDropChancePercent * rarityMultiplier * levelMultiplier * traitMultiplier
         val expected = elapsedMinutes * effectiveChance / 100.0
         val whole = expected.toLong()
         val fractional = expected - whole

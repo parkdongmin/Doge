@@ -2,9 +2,11 @@ package com.doge.simulator.data.repository
 
 import com.doge.simulator.data.local.dao.ExpeditionDao
 import com.doge.simulator.data.local.mapper.toDomain
+import com.doge.simulator.data.local.mapper.encodeDiscoveredPlanet
 import com.doge.simulator.data.local.mapper.toEntity
 import com.doge.simulator.domain.model.Expedition
 import com.doge.simulator.domain.model.ExpeditionStatus
+import com.doge.simulator.domain.model.Planet
 import com.doge.simulator.domain.repository.ExpeditionRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -26,10 +28,15 @@ class ExpeditionRepositoryImpl(
         id: String,
         status: ExpeditionStatus,
         resourcesResult: String?,
-        discoveredPlanetType: String?,
+        discoveredPlanet: Planet?,
         coinsEarned: Long
     ): Boolean =
-        dao.complete(id, status.name, resourcesResult, discoveredPlanetType, coinsEarned) > 0
+        dao.complete(
+            id, status.name, resourcesResult,
+            discoveredPlanetType = discoveredPlanet?.type?.name,
+            discoveredPlanetJson = encodeDiscoveredPlanet(discoveredPlanet),
+            coinsEarned = coinsEarned
+        ) > 0
 
     override fun getUnhandledResults(): Flow<List<Expedition>> =
         dao.getUnhandledResults().map { list -> list.map { it.toDomain() } }

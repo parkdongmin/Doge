@@ -1,6 +1,8 @@
 package com.doge.simulator.domain.usecase.orbit
 
+import com.doge.simulator.domain.model.Planet
 import com.doge.simulator.domain.model.ResourceType
+import com.doge.simulator.domain.model.TraitAcquisitionCounts
 import com.doge.simulator.domain.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -29,6 +31,8 @@ class FakeOrbitUserRepository(initialCoins: Long = 0L) : UserRepository {
     }
 
     override suspend fun recordVariantDiscovery(variantId: String) {}
+    override suspend fun recordPlanetAcquisition(planet: Planet) {}
+    override fun getTraitAcquisitionCounts() = MutableStateFlow(TraitAcquisitionCounts())
 
     var orbitPlayed = false
         private set

@@ -40,6 +40,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.doge.simulator.R
+import com.doge.simulator.domain.model.hasTraits
 import com.doge.simulator.domain.model.GameConstants
 import com.doge.simulator.domain.model.Planet
 import com.doge.simulator.domain.model.PlanetMetaData
@@ -56,6 +57,7 @@ import com.doge.simulator.presentation.component.PlanetBrokenBadge
 import com.doge.simulator.presentation.component.PlanetLevelBadge
 import com.doge.simulator.presentation.component.rarityColor
 import com.doge.simulator.presentation.component.rarityLabel
+import com.doge.simulator.presentation.component.PlanetTraitChips
 import com.doge.simulator.presentation.component.rarityOrder
 import com.doge.simulator.presentation.viewmodel.PlanetViewModel
 import com.doge.simulator.ui.theme.*
@@ -282,14 +284,19 @@ private fun PlanetListCard(
                         )
                     }
                 }
-                // 좁은 화면에서 설명이 잘리면 옆으로 천천히 흘러가게(마키). 칸 안에 다 들어가면 움직이지 않는다.
-                Text(
-                    text = meta?.description ?: "",
-                    color = TextSecondary,
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1,
-                    modifier = Modifier.basicMarquee(initialDelayMillis = 1500, repeatDelayMillis = 2000)
-                )
+                if (planet.hasTraits) {
+                    // 특성 행성은 같은 종류끼리도 값어치가 갈려서, 종류 설명 대신 특성을 보여 준다(카드 높이는 그대로)
+                    PlanetTraitChips(planet.traits)
+                } else {
+                    // 좁은 화면에서 설명이 잘리면 옆으로 천천히 흘러가게(마키). 칸 안에 다 들어가면 움직이지 않는다.
+                    Text(
+                        text = meta?.description ?: "",
+                        color = TextSecondary,
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        modifier = Modifier.basicMarquee(initialDelayMillis = 1500, repeatDelayMillis = 2000)
+                    )
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     val productionColor = if (planet.effectiveProduction >= 0) StatusGreen else StatusRed
                     val hourlySign = if (planet.effectiveProduction > 0) "+" else ""

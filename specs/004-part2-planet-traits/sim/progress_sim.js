@@ -1,6 +1,7 @@
 // 2부 진행 시뮬레이션 — 티어 해금 조건(특성 발견 이력) × 플레이어 유형 → 해금일·장 전환일·이야기 정체 구간
 const { PL, FINAL } = require("./final.json");
-let s = 777; const R = () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; };
+// mulberry32 — 예전 LCG(s * 1103515245)는 곱이 2^53을 넘어 JS double에서 정밀도가 깨져 난수 품질이 나빴다(2026-10-14 교체)
+let s = 777; const R = () => { s |= 0; s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 const pickW = w => { let x = R() * w.reduce((a, b) => a + b, 0); for (let i = 0; i < w.length; i++) { x -= w[i]; if (x <= 0) return i; } return w.length - 1; };
 
 const TIER = {

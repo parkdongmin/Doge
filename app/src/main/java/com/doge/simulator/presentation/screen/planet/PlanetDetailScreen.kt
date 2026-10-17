@@ -49,7 +49,12 @@ import com.doge.simulator.domain.model.maintenanceResourceCost
 import com.doge.simulator.domain.model.upgradeCost
 import com.doge.simulator.domain.model.marketChange
 import com.doge.simulator.domain.model.normalProduction
+import com.doge.simulator.domain.model.effectiveBadChance
+import com.doge.simulator.domain.model.hasTraits
+import com.doge.simulator.domain.model.resourceDropMultiplier
+import com.doge.simulator.domain.model.upgradeSuccessRate
 import com.doge.simulator.presentation.component.HelpChip
+import com.doge.simulator.presentation.component.PlanetTraitList
 import com.doge.simulator.presentation.component.PlanetLevelBadge
 import com.doge.simulator.presentation.component.rememberLiveCoinDisplay
 import com.doge.simulator.presentation.viewmodel.PlanetViewModel
@@ -240,14 +245,30 @@ fun PlanetDetailScreen(
                             "약 ${eventIntervalHours.toInt()}시간마다"
                         }
                         DetailRow("이벤트 간격", intervalText, StatusYellow)
-                        DetailRow("악재 확률", "${planet.eventRate}%", SpaceAccent)
+                        // 특성(안정된/불안정한 환경)이 반영된 실제 확률
+                        DetailRow("악재 확률", "${planet.effectiveBadChance}%", SpaceAccent)
                         DetailRow("희귀도", meta?.rarity?.name ?: "", GoldAccent)
                     }
                 }
 
                 Spacer(modifier = Modifier.height(Spacing.md))
 
-                // 자원 드롭 카드 — 현재 등급·강화 레벨이 반영된 실제 드롭 확률
+                // 2부 특성 카드 — T11 이상에서 발견한 행성만
+                if (planet.hasTraits) {
+                    Card(
+                        shape = RoundedCornerShape(6.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, SpaceBlue),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .textured(shape = RoundedCornerShape(6.dp), baseColor = SpaceNavy)
+                    ) {
+                        PlanetTraitList(planet, modifier = Modifier.padding(Spacing.lg))
+                    }
+                    Spacer(modifier = Modifier.height(Spacing.md))
+                }
+
+                // 자원 드롭 카드 — 현재 등급·강화 레벨·특성(풍부한/메마른 자원)이 반영된 실제 드롭 확률
                 if (meta != null && meta.resourceDrops.isNotEmpty()) {
                     val rarityMultiplier = GameConstants.RARITY_RESOURCE_MULTIPLIER[meta.rarity] ?: 1.0
                     val levelMultiplier = GameConstants.planetLevelMultiplier(planet.level)
@@ -264,7 +285,7 @@ fun PlanetDetailScreen(
                             Spacer(modifier = Modifier.height(Spacing.md))
                             meta.resourceDrops.entries.forEachIndexed { index, (type, baseChance) ->
                                 if (index > 0) Spacer(modifier = Modifier.height(Spacing.sm))
-                                val effectiveChance = baseChance * rarityMultiplier * levelMultiplier
+                                val effectiveChance = baseChance * rarityMultiplier * levelMultiplier * planet.resourceDropMultiplier
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -482,7 +503,7 @@ private fun PlanetUpgradeDialog(
     val canUpgrade = !isMaxLevel &&
             coins >= upgradeCoinCost &&
             upgradeResourceCost.all { (type, amount) -> resources.ownedAmount(type) >= amount }
-    val successRate = GameConstants.UPGRADE_SUCCESS_RATES[planet.level] ?: 0f
+    val successRate = planet.upgradeSuccessRate()
     val isDangerZone = planet.level >= GameConstants.DANGER_ZONE_START
     val dropChance = GameConstants.UPGRADE_DROP_CHANCES[planet.level] ?: 0f
     // 결과가 나오는 중(Charging)에는 실수로 중복 시도하거나 다이얼로그를 닫지 못하게 막는다

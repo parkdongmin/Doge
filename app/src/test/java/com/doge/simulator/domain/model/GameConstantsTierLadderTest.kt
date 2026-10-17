@@ -24,7 +24,7 @@ class GameConstantsTierLadderTest {
 
     @Test
     fun `도감이 비어있으면 T3에서 막힌다`() {
-        assertEquals(3, GameConstants.firstLockedTier(emptySet()))
+        assertEquals(3, TierProgress(discoveredVariantIds = emptySet()).firstLockedTier())
     }
 
     @Test
@@ -32,7 +32,7 @@ class GameConstantsTierLadderTest {
         // 언커먼도 "커먼 이상" 카운트엔 들어가서 T3(커먼 1개+)는 통과하지만,
         // T4(커먼 이상 3개+)는 1개뿐이라 여전히 막혀야 한다 — T5(언커먼 1개+) 자체 조건은
         // 만족해도 사다리 순서상 T4를 못 넘으므로 T5는 열리면 안 된다
-        val locked = GameConstants.firstLockedTier(setOf(uncommon1))
+        val locked = TierProgress(discoveredVariantIds = setOf(uncommon1)).firstLockedTier()
         assertEquals(4, locked)
     }
 
@@ -40,17 +40,17 @@ class GameConstantsTierLadderTest {
     fun `T4까지 채우면 T5로 넘어가고, 언커먼 발견 기록이 있어야 T5를 통과한다`() {
         val threeCommons = setOf(common1, common2, common3)
         // 커먼만 3개 발견 — T4까지는 통과, T5(언커먼 1개+)에서 막힘
-        assertEquals(5, GameConstants.firstLockedTier(threeCommons))
+        assertEquals(5, TierProgress(discoveredVariantIds = threeCommons).firstLockedTier())
 
         // 커먼 3개 + 언커먼 1개 발견 — T5까지 통과, T6(언커먼 2개+)에서 막힘
         val withUncommon = threeCommons + uncommon1
-        assertEquals(6, GameConstants.firstLockedTier(withUncommon))
+        assertEquals(6, TierProgress(discoveredVariantIds = withUncommon).firstLockedTier())
     }
 
     @Test
     fun `maxTier 안에서 전부 열려 있으면 null`() {
         val threeCommons = setOf(common1, common2, common3)
-        assertNull(GameConstants.firstLockedTier(threeCommons, maxTier = 4))
+        assertNull(TierProgress(discoveredVariantIds = threeCommons).firstLockedTier(maxTier = 4))
     }
 
     @Test
@@ -59,6 +59,47 @@ class GameConstantsTierLadderTest {
         // discoveredVariantIds(도감)는 영향을 안 받으므로 T5는 계속 열려 있어야 한다
         val threeCommons = setOf(common1, common2, common3)
         val discoveredAfterSellingEverything = threeCommons + uncommon1 // 보유는 0개지만 발견 기록은 남음
-        assertEquals(6, GameConstants.firstLockedTier(discoveredAfterSellingEverything))
+        assertEquals(6, TierProgress(discoveredVariantIds = discoveredAfterSellingEverything).firstLockedTier())
+    }
+
+    // ── 2부 (T11~T15) — 1부 완주와 특성 행성 획득 기록(매도해도 줄지 않음) 기준 ─────────────
+    private val allPart1Variants = PlanetMetaDataTable.variantRarity.keys
+
+    private fun part2(
+        part1: Boolean = true, traitPlanets: Int = 0, tier2: Int = 0, tier3: Int = 0
+    ) = TierProgress(allPart1Variants, part1, traitPlanets, tier2, tier3)
+
+    @Test
+    fun `1부를 다 열어도 완주 전엔 T11에서 막힌다`() {
+        assertEquals(11, part2(part1 = false).firstLockedTier())
+        assertEquals(12, part2().firstLockedTier())
+    }
+
+    @Test
+    fun `특성 행성 10개 획득으로 T12가 열린다`() {
+        assertEquals(12, part2(traitPlanets = 9).firstLockedTier())
+        assertEquals(13, part2(traitPlanets = 10).firstLockedTier())
+    }
+
+    @Test
+    fun `T13은 적합도 높음 2등급 이상 2개, T14는 40개, T15는 적합도 높음 3등급 2개`() {
+        assertEquals(13, part2(traitPlanets = 39, tier2 = 1).firstLockedTier())
+        assertEquals(14, part2(traitPlanets = 39, tier2 = 2).firstLockedTier())
+        assertEquals(15, part2(traitPlanets = 40, tier2 = 2, tier3 = 1).firstLockedTier())
+        assertNull(part2(traitPlanets = 40, tier2 = 2, tier3 = 2).firstLockedTier())
+    }
+
+    @Test
+    fun `뒤 티어 조건만 채워도 앞 티어가 막히면 거기서 멈춘다`() {
+        // 40개를 모았지만(T14 조건) 적합도 높음 Ⅱ 이상은 1개뿐(T13 미달) — T13에서 막힘
+        assertEquals(13, part2(traitPlanets = 40, tier2 = 1, tier3 = 1).firstLockedTier())
+    }
+
+    @Test
+    fun `진행도는 필요 수까지만 센다`() {
+        assertEquals(7 to 10, part2(traitPlanets = 7).progressFor(12))
+        assertEquals(10 to 10, part2(traitPlanets = 25).progressFor(12))
+        assertEquals(0 to 1, part2(part1 = false).progressFor(11))
+        assertNull(part2().progressFor(2))
     }
 }

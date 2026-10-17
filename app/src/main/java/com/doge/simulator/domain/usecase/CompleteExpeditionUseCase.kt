@@ -5,8 +5,7 @@ import com.doge.simulator.domain.model.Expedition
 import com.doge.simulator.domain.model.ExpeditionCategory
 import com.doge.simulator.domain.model.ExpeditionStatus
 import com.doge.simulator.domain.model.GameConstants
-import com.doge.simulator.domain.model.PlanetMetaDataTable
-import com.doge.simulator.domain.model.PlanetType
+import com.doge.simulator.domain.model.Planet
 import com.doge.simulator.domain.model.ResourceType
 import com.doge.simulator.domain.model.expeditionDiscoveryChance
 import com.doge.simulator.domain.model.expeditionResourceMultiplier
@@ -30,6 +29,7 @@ class CompleteExpeditionUseCase @Inject constructor(
     private val researchLabRepository: ResearchLabRepository,
     private val userRepository: UserRepository,
     private val generateReportUseCase: GenerateExpeditionReportUseCase,
+    private val generatePlanetsUseCase: GeneratePlanetsUseCase,
     private val storyRepository: com.doge.simulator.domain.repository.StoryRepository
 ) {
     data class ExpeditionResult(
@@ -50,7 +50,7 @@ class CompleteExpeditionUseCase @Inject constructor(
         val isSuccess = Random.nextFloat() < successChance
 
         val resources = mutableMapOf<ResourceType, Long>()
-        var discoveredPlanetType: String? = null
+        var discoveredPlanet: Planet? = null
 
         if (isSuccess) {
             // 자원 획득 (cargo 높을수록, 파견 인원이 많을수록, 매칭 전문가 숙련도 합이 높을수록,
@@ -66,7 +66,9 @@ class CompleteExpeditionUseCase @Inject constructor(
             }
 
             if (Random.nextFloat() < expeditionDiscoveryChance(lab, expedition.category)) {
-                discoveredPlanetType = rollPlanetType(expedition.tier)
+                // 스탯·변종·특성·가격까지 여기서 한 번에 확정해 저장한다 — 결과 창이 다시 굴리지 않도록
+                val type = generatePlanetsUseCase.rollPlanetType(expedition.tier)
+                discoveredPlanet = generatePlanetsUseCase.discoveredPlanet(type, expedition.tier)
             }
         } else {
             // 실패해도 시간 투자가 완전히 헛수고가 되지 않도록 소량의 위로 보상을 지급
@@ -92,7 +94,7 @@ class CompleteExpeditionUseCase @Inject constructor(
             id = expedition.id,
             status = if (isSuccess) ExpeditionStatus.COMPLETED else ExpeditionStatus.FAILED,
             resourcesResult = resourcesStr,
-            discoveredPlanetType = discoveredPlanetType,
+            discoveredPlanet = discoveredPlanet,
             coinsEarned = coinsEarned
         )
         if (!claimed) return ExpeditionResult(success = false, resources = emptyMap(), discoveredPlanetType = null)
@@ -109,28 +111,6 @@ class CompleteExpeditionUseCase @Inject constructor(
         val report = generateReportUseCase(expedition, isSuccess)
         storyRepository.saveReport(report)
 
-        return ExpeditionResult(isSuccess, resources, discoveredPlanetType, coinsEarned)
-    }
-
-    // 티어별 등급(rarity) 가중치(GameConstants.PLANET_RARITY_WEIGHTS)로 등급을 먼저 정하고,
-    // 그 등급에 속한 행성 종류들 사이에서는 균등 분배 — 고티어라도 커먼/언커먼이 완전히 배제되지 않고,
-    // 레전더리/에픽 비중은 캡이 있어 "무조건 최상급"이 되지 않게 함
-    private fun rollPlanetType(tier: Int): String {
-        val rarityWeights = GameConstants.PLANET_RARITY_WEIGHTS[tier]
-            ?: GameConstants.PLANET_RARITY_WEIGHTS.getValue(GameConstants.PLANET_RARITY_WEIGHTS.keys.max())
-        val typesByRarity = PlanetType.entries.groupBy { PlanetMetaDataTable.data.getValue(it).rarity }
-
-        val weightedTypes = rarityWeights.flatMap { (rarity, rarityWeight) ->
-            val typesInRarity = typesByRarity[rarity].orEmpty()
-            typesInRarity.map { type -> type to rarityWeight / typesInRarity.size }
-        }
-
-        val totalWeight = weightedTypes.sumOf { it.second.toDouble() }
-        var roll = Random.nextDouble() * totalWeight
-        for ((type, weight) in weightedTypes) {
-            roll -= weight
-            if (roll <= 0) return type.name
-        }
-        return weightedTypes.last().first.name
+        return ExpeditionResult(isSuccess, resources, discoveredPlanet?.type?.name, coinsEarned)
     }
 }

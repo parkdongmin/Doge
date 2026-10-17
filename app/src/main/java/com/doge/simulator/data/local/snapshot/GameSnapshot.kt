@@ -45,7 +45,9 @@ data class GameSnapshot(
         // 엔티티 모양을 바꿀 때마다 +1. 이름변경/타입변경/구조변경이면 SnapshotMigrations에 step도 등록.
         // (단순 필드 추가/삭제는 step 불필요 — ignoreUnknownKeys + 기본값이 처리)
         // 4: UserEntity에 초보 임무 필드 추가(단순 필드 추가라 step 없음 — 예전 세이브는 대상 아님(-1)으로 채워짐)
-        const val SCHEMA_VERSION = 4
+        // 5: 2부 — 행성 특성·특성 행성 획득 카운터·스토리 6~10장·탐사 완료 시 확정한 발견 행성(필드 추가만, step 없음 —
+        //    예전 세이브는 특성 없음·2부 미시작으로 채워지고, 1부 완주 세이브는 T11이 열린 채 다음 기록에서 6장이 시작된다)
+        const val SCHEMA_VERSION = 5
         const val HISTORY_CAP = 200
     }
 }

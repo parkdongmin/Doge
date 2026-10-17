@@ -5,6 +5,7 @@ import com.doge.simulator.domain.model.Planet
 import com.doge.simulator.domain.model.ResourceType
 import com.doge.simulator.domain.model.isBroken
 import com.doge.simulator.domain.model.upgradeCost
+import com.doge.simulator.domain.model.upgradeSuccessRate
 import com.doge.simulator.domain.repository.PlanetRepository
 import com.doge.simulator.domain.repository.ResourceRepository
 import com.doge.simulator.domain.repository.UserRepository
@@ -60,7 +61,7 @@ class UpgradePlanetUseCase @Inject constructor(
         userRepository.markPlanetUpgradeTried()
 
         // 성공률 계산
-        val successRate = GameConstants.UPGRADE_SUCCESS_RATES[planet.level] ?: 0.5f
+        val successRate = planet.upgradeSuccessRate()
         val isSuccess = Random.nextFloat() < successRate
 
         return if (isSuccess) {

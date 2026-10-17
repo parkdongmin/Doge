@@ -136,8 +136,8 @@ balance.md 5절과 6절을 그대로 옮긴 정적 표.
 | `recordTitlePool[6..10]` | 장마다 16줄 |
 | `chapterEndingTitles[6..9]` | 장 마무리 |
 | `part2EndingTitle` | 2부 완주 문장 |
-| `stalledRecordTitlePool[7..10]` | 막힘 3 / 5 / 8 / 8줄 (6장 없음) |
-| `settlementLogPool` | 정착지 일상 20줄 |
+| `stalledRecordTitlePool[7..10]` | 막힘 3 / 5 / 8 / 16줄 (6장 없음) |
+| `settlementLogPool` | 정착지 일상 40줄 |
 | `part2EventPool` | 공용 이벤트 8개 (`EventTemplate`, 8번은 선택지 3개) |
 | `nextStoryHints[6..10]` | 안내 문장 + 조건 표시 |
 | `part2IntroLines` | 관제탑 안내 5줄 |

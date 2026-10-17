@@ -1,6 +1,7 @@
 package com.doge.simulator.domain.model
 
 import java.util.UUID
+import kotlin.random.Random
 
 object StoryContent {
 
@@ -122,7 +123,7 @@ object StoryContent {
             "마지막 남은 연료로, 신호를 향해 방향을 돌렸다",
             "처음부터 찾는 것이 아니라 찾아지고 있었다"
         )
-    )
+    ) + Part2StoryContent.recordTitlePool
 
     // ── 정체 기록 ─────────────────────────────────────────────────────
     // 챕터 기록 풀을 다 쓰고도 챕터 조건을 못 채웠을 때 내보내는 문장. 이야기가 멈췄다는 걸
@@ -155,7 +156,7 @@ object StoryContent {
             "연료를 아끼며 가까운 곳만 돌았다. 이대로는 끝에 닿을 수 없다",
             "끝까지 가려면, 가장 긴 항해를 준비해야 한다"
         )
-    )
+    ) + Part2StoryContent.stalledRecordTitlePool
 
     // ── 다음 이야기 잠금 칸 ───────────────────────────────────────────
     // 탐사 일지의 기록 목록 맨 위 "다음 챕터"(챕터5는 "완주") 칸. teaser는 이야기 말투, condition은 실제 조건.
@@ -169,24 +170,26 @@ object StoryContent {
         3 to NextStoryHint("그들을 따라, 더 먼 곳까지 가봐야 한다", "3티어 이상 탐사 성공"),
         4 to NextStoryHint("더 깊은 우주로 나아가야 한다", "5티어 이상 탐사 성공"),
         5 to NextStoryHint("이 여정의 끝까지 가봐야 한다", "10티어 탐사 성공")
-    )
+    ) + Part2StoryContent.nextStoryHints
 
-    // 챕터 전환 시 클리프행어 문장 (5는 챕터6이 없어 미사용 — storyEndingTitle이 그 자리를 대신함)
+    // 챕터 전환 시 클리프행어 문장 (5·10은 장 마무리 대신 1부·2부 완주 기록이 그 자리를 대신함)
     val chapterEndingTitles: Map<Int, String> = mapOf(
         1 to "이 행성에... 우리만 있는 게 아닌데?",
         2 to "그들은... 우리가 오기를 기다리고 있었다",
         3 to "적이 아니다. 하지만 친구도 아니다",
         // 2026-09-04 개정 — 강요/위협 뉘앙스에서 "함께 만든 지도로 작별"로 톤 변경
         4 to "지도는 완성됐다. 이제, 각자의 별을 향해"
-    )
+    ) + Part2StoryContent.chapterEndingTitles
 
-    // 스토리 엔딩 — 챕터5("미지의 공간")에서 최초로 T10 탐사에 성공한 기록에 딱 한 번 붙는
-    // 타이틀. chapterEndingTitles와 달리 챕터를 6으로 넘기진 않고(챕터는 계속 5), 이
-    // 기록 하나만 "완주" 기록으로 특별 표시하는 데 쓰인다.
+    // 1부 엔딩 — 챕터5("미지의 공간")에서 최초로 T10 탐사에 성공한 기록에 딱 한 번 붙는
+    // 타이틀. 이 기록(챕터 5)이 "1부 완주"로 표시되고, 다음 기록부터 2부(6장)가 시작된다.
     // 2026-09-04 개정 — 신호를 따라간 곳이 화성(챕터1 "센서 오류"의 정체)이었다는 반전.
     // 화성엔 지구와 오래전 연락이 끊긴 인류 정착지가 있었다 — "가장 먼 곳"인 줄 알았던
     // 여정의 끝이 사실 "가장 가까운 곳"이었다는 아이러니로 마무리
     const val storyEndingTitle = "가장 먼 곳까지 왔다고 믿었다. 그 끝에서 만난 건, 화성에 남아 있던 우리였다"
+
+    // 2부 엔딩 — 10장을 다 보고 T15에 성공한 기록에 한 번(Part2StoryContent 원문)
+    const val part2EndingTitle = Part2StoryContent.part2EndingTitle
 
     // ── 카테고리별 이벤트 풀 ─────────────────────────────────────────
     data class EventTemplate(
@@ -530,4 +533,27 @@ object StoryContent {
     // 챕터5 전용 — chapter5EventPool은 항상 비어있지 않으므로(고정 목록) null 없이 반환
     fun randomChapter5Event(expeditionId: String): StoryEvent =
         eventFromTemplate(chapter5EventPool.random(), expeditionId)
+
+    // 2부 공용 이벤트(6장 이상에서 절반 확률로)
+    fun randomPart2Event(expeditionId: String): StoryEvent =
+        eventFromTemplate(Part2StoryContent.eventPool.random(), expeditionId)
+
+    // 정착지 일상 기록 [cursor]번째(0부터, 장과 무관하게 누적). 전체 줄을 바퀴마다 바퀴 번호를 시드로 섞어 쓰므로
+    // 한 바퀴 안에선 겹치지 않고, 새 바퀴의 첫 줄이 직전 바퀴 마지막 줄과 같으면 첫·둘째 줄을 바꿔 연달아
+    // 같은 줄이 나오지 않게 한다. 순서는 커서만으로 다시 계산되므로 따로 저장할 게 없다
+    fun settlementLog(cursor: Int): String {
+        val pool = Part2StoryContent.settlementLogPool
+        val cycle = cursor / pool.size
+        return settlementCycleOrder(cycle)[cursor % pool.size]
+    }
+
+    private fun settlementCycleOrder(cycle: Int): List<String> {
+        val pool = Part2StoryContent.settlementLogPool
+        val order = pool.shuffled(Random(cycle))
+        if (cycle == 0) return order
+        // 바꾸는 건 첫·둘째 줄뿐이라 직전 바퀴의 마지막 줄은 섞은 순서 그대로다
+        val previousLast = pool.shuffled(Random(cycle - 1)).last()
+        if (order.first() != previousLast) return order
+        return order.toMutableList().apply { this[0] = this[1].also { this[1] = this[0] } }
+    }
 }

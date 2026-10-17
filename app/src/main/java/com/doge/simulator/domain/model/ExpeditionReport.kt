@@ -7,8 +7,8 @@ data class ExpeditionReport(
     val chapterTitle: String,
     val recordTitle: String,
     val isChapterEnding: Boolean = false,
-    // 챕터5("미지의 공간")를 T10 달성으로 빠져나가는 순간 딱 한 번 true — 챕터가 6으로
-    // 넘어가진 않고(콘텐츠 없음) 계속 5에 머물지만, 이 기록 하나만은 "완주"로 특별 표시된다
+    // 1부·2부 완주 기록에서 딱 한 번씩 true. 장 번호로 구분한다 — 5장이면 "1부 완주"(챕터5를 T10 달성으로
+    // 빠져나간 순간), 10장이면 "2부 완주"(10장을 T15 달성으로 빠져나간 순간)
     val isStoryEnding: Boolean = false,
     val events: List<StoryEvent> = emptyList(),
     val isRead: Boolean = false,

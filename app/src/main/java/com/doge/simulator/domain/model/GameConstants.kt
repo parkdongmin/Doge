@@ -222,7 +222,9 @@ object GameConstants {
     // 코인·자원 보상은 이 시간에 비례하므로 분당 수입은 티어 간 그대로 유지된다
     val EXPEDITION_BASE_MINUTES = mapOf(
         1 to 4L, 2 to 8L, 3 to 15L,  4 to 30L,  5 to 60L,
-        6 to 120L, 7 to 180L, 8 to 240L, 9 to 360L, 10 to 480L
+        6 to 120L, 7 to 180L, 8 to 240L, 9 to 360L, 10 to 480L,
+        // 2부(T11~T15): 1시간씩 늘리되 보상 배율도 올려 분당 수입이 티어마다 조금씩 오른다(balance.md 1절)
+        11 to 480L, 12 to 540L, 13 to 600L, 14 to 660L, 15 to 720L
     )
 
     // 탐사 자원량 배율의 기준 시간(분) — 이 시간짜리 탐사가 배율 1(기본 랜덤 1~5개). 1티어 시간에
@@ -237,52 +239,33 @@ object GameConstants {
         1 to "태양계",      2 to "알파 성계",    3 to "오리온 성운",
         4 to "마젤란 성운", 5 to "처녀자리 성단", 6 to "페르세우스 팔",
         7 to "은하 핵",     8 to "은하 외곽",    9 to "보이드 공간",
-        10 to "미지의 공간"
+        10 to "미지의 공간",
+        // 2부 — 지역 이름은 그 시점 이야기에서 따온다
+        11 to "붉은 항로",  12 to "낡은 지도의 끝", 13 to "표식의 바다",
+        14 to "신호기 회랑", 15 to "마지막 항로"
     )
 
-    data class TierUnlockCondition(
-        val requiredRarity: RarityTier,
-        val requiredCount: Int,
-        val label: String
-    )
+    const val MAX_TIER = 15
 
-    // null = 잠금 없음
+    // null = 잠금 없음. 판정은 TierProgress(사다리 규칙)가 한다
     val TIER_UNLOCK_CONDITIONS: Map<Int, TierUnlockCondition?> = mapOf(
         1  to null,
         2  to null,
-        3  to TierUnlockCondition(RarityTier.COMMON,   1, "COMMON 행성 1개+"),
-        4  to TierUnlockCondition(RarityTier.COMMON,   3, "COMMON 행성 3개+"),
-        5  to TierUnlockCondition(RarityTier.UNCOMMON, 1, "UNCOMMON 행성 1개+"),
-        6  to TierUnlockCondition(RarityTier.UNCOMMON, 2, "UNCOMMON 행성 2개+"),
-        7  to TierUnlockCondition(RarityTier.UNCOMMON, 3, "UNCOMMON 행성 3개+"),
-        8  to TierUnlockCondition(RarityTier.RARE,     1, "RARE 행성 1개+"),
-        9  to TierUnlockCondition(RarityTier.EPIC,     1, "EPIC 행성 1개+"),
-        10 to TierUnlockCondition(RarityTier.LEGENDARY,1, "LEGENDARY 행성 1개+")
+        3  to TierUnlockCondition.RarityDiscovered(RarityTier.COMMON,   1, "COMMON 행성 1개+"),
+        4  to TierUnlockCondition.RarityDiscovered(RarityTier.COMMON,   3, "COMMON 행성 3개+"),
+        5  to TierUnlockCondition.RarityDiscovered(RarityTier.UNCOMMON, 1, "UNCOMMON 행성 1개+"),
+        6  to TierUnlockCondition.RarityDiscovered(RarityTier.UNCOMMON, 2, "UNCOMMON 행성 2개+"),
+        7  to TierUnlockCondition.RarityDiscovered(RarityTier.UNCOMMON, 3, "UNCOMMON 행성 3개+"),
+        8  to TierUnlockCondition.RarityDiscovered(RarityTier.RARE,     1, "RARE 행성 1개+"),
+        9  to TierUnlockCondition.RarityDiscovered(RarityTier.EPIC,     1, "EPIC 행성 1개+"),
+        10 to TierUnlockCondition.RarityDiscovered(RarityTier.LEGENDARY,1, "LEGENDARY 행성 1개+"),
+        // 2부 — 특성 행성 획득 기록(매도해도 줄지 않는 누적 숫자) 기준. balance.md 2절
+        11 to TierUnlockCondition.Part1Completed,
+        12 to TierUnlockCondition.TraitPlanetsAcquired(10),
+        13 to TierUnlockCondition.HighFitTraitAcquired(minGrade = 2, required = 2),
+        14 to TierUnlockCondition.TraitPlanetsAcquired(40),
+        15 to TierUnlockCondition.HighFitTraitAcquired(minGrade = 3, required = 2)
     )
-
-    // 티어는 사다리처럼 순서대로만 열린다 — 각 티어 조건은 서로 독립적인 희귀도 기준이라,
-    // 운 좋게 상위 희귀도 행성을 하나 일찍 주우면 뒤 티어 조건은 채우고 앞 티어 조건(개수)은
-    // 못 채운 "구멍"이 생길 수 있다(예: 언커먼 1개만 있으면 T5 자체 조건은 만족하지만
-    // T4의 "커먼 이상 3개+"는 아직 부족). 그래서 1..maxTier를 순서대로 훑어 "가장 먼저
-    // 막힌 티어"를 찾고, 그 이전 티어까지만 실제로 열린 것으로 친다.
-    // null = maxTier까지 전부 열림.
-    //
-    // 기준은 "현재 보유 중인 행성"이 아니라 "한 번이라도 발견한 적 있는 도감 기록"
-    // (discoveredVariantIds)이다 — 매도는 이 게임의 정상적인 플레이(손절/차익실현)인데,
-    // 보유 개수 기준이면 행성 하나 파는 순간 사다리 위 티어가 전부 같이 잠겨버리는 문제가
-    // 있었음(2026-09-04). 도감은 챕터 진행·도감 완성과 같은 성격의 영구 기록이라 매도로
-    // 흔들리지 않는다.
-    fun firstLockedTier(discoveredVariantIds: Set<String>, maxTier: Int = 10): Int? {
-        for (t in 1..maxTier) {
-            val condition = TIER_UNLOCK_CONDITIONS[t] ?: continue
-            val count = discoveredVariantIds.count { variantId ->
-                val rarity = PlanetMetaDataTable.variantRarity[variantId]
-                rarity != null && rarity.ordinal >= condition.requiredRarity.ordinal
-            }
-            if (count < condition.requiredCount) return t
-        }
-        return null
-    }
 
     // 탐사 성공 시 행성 발견 확률. 천체 분석 레벨(+3%/레벨)과 행성 카테고리 보너스로 후반에 상승,
     // 최종 상한은 discoveryChance 계산부(CompleteExpeditionUseCase)에서 80%로 코어스.
@@ -308,7 +291,13 @@ object GameConstants {
         7  to mapOf(RarityTier.COMMON to 22f, RarityTier.UNCOMMON to 35f, RarityTier.RARE to 25f, RarityTier.EPIC to 13f, RarityTier.LEGENDARY to 5f),
         8  to mapOf(RarityTier.COMMON to 18f, RarityTier.UNCOMMON to 32f, RarityTier.RARE to 28f, RarityTier.EPIC to 15f, RarityTier.LEGENDARY to 7f),
         9  to mapOf(RarityTier.COMMON to 15f, RarityTier.UNCOMMON to 30f, RarityTier.RARE to 29f, RarityTier.EPIC to 17f, RarityTier.LEGENDARY to 9f),
-        10 to mapOf(RarityTier.COMMON to 12f, RarityTier.UNCOMMON to 28f, RarityTier.RARE to 30f, RarityTier.EPIC to 18f, RarityTier.LEGENDARY to 12f)
+        10 to mapOf(RarityTier.COMMON to 12f, RarityTier.UNCOMMON to 28f, RarityTier.RARE to 30f, RarityTier.EPIC to 18f, RarityTier.LEGENDARY to 12f),
+        // 2부: 커먼·언커먼을 조금씩 덜고 에픽·레전더리를 늘림(T15에서도 커먼 8%는 남김)
+        11 to mapOf(RarityTier.COMMON to 12f, RarityTier.UNCOMMON to 27f, RarityTier.RARE to 30f, RarityTier.EPIC to 18f, RarityTier.LEGENDARY to 13f),
+        12 to mapOf(RarityTier.COMMON to 11f, RarityTier.UNCOMMON to 26f, RarityTier.RARE to 30f, RarityTier.EPIC to 19f, RarityTier.LEGENDARY to 14f),
+        13 to mapOf(RarityTier.COMMON to 10f, RarityTier.UNCOMMON to 25f, RarityTier.RARE to 30f, RarityTier.EPIC to 20f, RarityTier.LEGENDARY to 15f),
+        14 to mapOf(RarityTier.COMMON to 9f, RarityTier.UNCOMMON to 24f, RarityTier.RARE to 30f, RarityTier.EPIC to 21f, RarityTier.LEGENDARY to 16f),
+        15 to mapOf(RarityTier.COMMON to 8f, RarityTier.UNCOMMON to 22f, RarityTier.RARE to 30f, RarityTier.EPIC to 22f, RarityTier.LEGENDARY to 18f)
     )
 
     // 발견한 행성이 이미 도감에 있는 베리언트(스킨)와 겹치는데, 행성 슬롯도 가득 차 구매할 수 없을 때
@@ -343,8 +332,9 @@ object GameConstants {
     // 역전이 생기지 않게 한다. 티어10은 소요 시간(480분) 자체가 커서 선형 배율(1.9배)까지 얹으면
     // 보상이 과도하게 튀어 9티어와 같은 1.8로 묶음 — 예전 1.5는 1회 보상만 보고 잡아 분당 효율이
     // 9티어보다 낮아지는 역전이 있었다(ExpeditionEconomyTest가 검증)
+    // 2부(T11~T15)는 T10의 1.8에서 티어당 +0.05 — 시간이 길어지는 만큼 분당 효율이 T10 21.6 → T15 24.6으로 조금씩 오른다
     fun expeditionTierMultiplier(tier: Int): Double =
-        if (tier >= 10) 1.8 else 1.0 + (tier - 1) * 0.1
+        if (tier >= 10) 1.8 + (tier - 10) * 0.05 else 1.0 + (tier - 1) * 0.1
 
     // 탐사 성공 시 행성 발견 여부와 무관하게 지급되는 기본 코인 보상.
     // 초반에 코인을 다 쓰고 행성도 못 찾았을 때 완전히 무수입 상태가 되는 것을 막기 위한 안전망.
@@ -436,9 +426,9 @@ object GameConstants {
     const val INTERSTITIAL_INTERVAL_COMPLETIONS = 5
 
     // ── ORBIT 카드게임 (휴게실) ──────────────────────────────────────
-    // 고정 4단계 베팅 금액. 위험도(배율) 티어는 별도 축(OrbitRiskTier)이며 재화 규모와
-    // 무관하게 독립적으로 선택한다.
-    val ORBIT_BET_AMOUNTS: List<Long> = listOf(500L, 1_000L, 2_500L, 5_000L)
+    // 고정 6단계 베팅 금액. 위험도(배율) 티어는 별도 축(OrbitRiskTier)이며 재화 규모와
+    // 무관하게 독립적으로 선택한다. 3만·5만은 2026-10-14 추가 — 중후반 코인 규모에 비해 5천이 상한이라 걸 맛이 없었다
+    val ORBIT_BET_AMOUNTS: List<Long> = listOf(500L, 1_000L, 2_500L, 5_000L, 30_000L, 50_000L)
 
     // 휴게실 일일 리워드 광고: 1회당 지급 재화 및 하루 최대 시청 횟수(기기 로컬 자정 리셋)
     const val ORBIT_DAILY_AD_REWARD_COINS = 500L

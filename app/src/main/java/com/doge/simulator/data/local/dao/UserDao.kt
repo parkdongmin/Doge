@@ -29,6 +29,13 @@ interface UserDao {
     @Query("UPDATE user_table SET discoveredVariantIds = :ids WHERE id = 1")
     suspend fun updateDiscoveredVariantIds(ids: String)
 
+    // ── 2부 특성 행성 획득 기록 — 원자 증가(매도해도 줄지 않는 누적 숫자) ─────────────
+    @Query(
+        "UPDATE user_table SET traitPlanetsAcquired = traitPlanetsAcquired + 1, " +
+            "highFitTier2Acquired = highFitTier2Acquired + :tier2, highFitTier3Acquired = highFitTier3Acquired + :tier3 WHERE id = 1"
+    )
+    suspend fun incrementTraitAcquisition(tier2: Int, tier3: Int)
+
     // ── 초보 임무 ─────────────────────────────────────────────────────
     @Query("UPDATE user_table SET orbitPlayed = 1 WHERE id = 1")
     suspend fun markOrbitPlayed()

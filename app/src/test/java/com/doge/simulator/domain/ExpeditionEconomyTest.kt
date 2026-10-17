@@ -5,6 +5,7 @@ import com.doge.simulator.domain.model.ExpeditionCategory
 import com.doge.simulator.domain.model.ResearchLab
 import com.doge.simulator.domain.model.expectedDiscoveredPlanetPrice
 import com.doge.simulator.domain.model.expeditionDiscoveryChance
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -24,7 +25,7 @@ class ExpeditionEconomyTest {
         val speed = minOf(100, GameConstants.SCOUT_SPEED_BASE + (shipGrade - 1) * GameConstants.UPGRADE_SPEED_PER_GRADE)
         val success = minOf(0.95, GameConstants.SCOUT_SUCCESS_RATE_BASE + (shipGrade - 1) * GameConstants.UPGRADE_SUCCESS_RATE_PER_GRADE.toDouble())
         val discoveryPerRun = success * expeditionDiscoveryChance(ResearchLab(), ExpeditionCategory.PLANET)
-        return (1..10).map { tier ->
+        return (1..GameConstants.MAX_TIER).map { tier ->
             val minutes = (GameConstants.EXPEDITION_BASE_MINUTES.getValue(tier) * (1 - speed / 200.0))
                 .coerceAtLeast(GameConstants.EXPEDITION_MIN_DURATION_MS / 60_000.0)
             val base = success * GameConstants.expeditionSuccessCoinReward(tier)
@@ -63,6 +64,16 @@ class ExpeditionEconomyTest {
             assertTrue("T${higher.tier} 기본 보상 ${higher.basePerMin}/분 < T${lower.tier} ${lower.basePerMin}/분",
                 higher.basePerMin >= lower.basePerMin - 0.05)
         }
+    }
+
+    @Test
+    fun part2TiersMatchTheBalanceTable() {
+        // balance.md 1절: 성공 코인 = 분 × 12 × 배율 — T10 21.6 → T15 24.6 코인/분
+        val expected = mapOf(10 to 10_368L, 11 to 10_656L, 12 to 12_312L, 13 to 14_040L, 14 to 15_840L, 15 to 17_712L)
+        expected.forEach { (tier, coins) ->
+            assertEquals("T$tier 성공 코인", coins, GameConstants.expeditionSuccessCoinReward(tier))
+        }
+        assertEquals(24.6, GameConstants.expeditionSuccessCoinReward(15) / 720.0, 0.01)
     }
 
     @Test

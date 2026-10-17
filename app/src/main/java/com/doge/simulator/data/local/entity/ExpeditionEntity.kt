@@ -23,5 +23,8 @@ data class ExpeditionEntity(
     // 포그라운드 폴링과 백그라운드 워커 중 어느 쪽이 완료 처리를 선점하든 상관없이
     // 이 플래그를 기준으로 결과 팝업을 띄운다
     val resultHandled: Boolean = true,
-    val coinsEarned: Long = 0L
+    val coinsEarned: Long = 0L,
+    // 탐사 완료 시 한 번만 굴려 확정한 발견 행성(스탯·변종·특성·가격, PlanetEntity JSON). 결과를 보기 전에
+    // 앱을 껐다 켜도 같은 행성이 나오게 저장해 둔다. 발견이 없거나 업데이트 전에 완료된 탐사는 null
+    val discoveredPlanetJson: String? = null
 )

@@ -29,7 +29,8 @@ const W = { 11: [12, 27, 30, 18, 13], 12: [11, 26, 30, 19, 14], 13: [10, 25, 30,
 const byRar = Object.fromEntries(["C", "U", "R", "E", "L"].map(r => [r, PL.filter(p => p.rar === r)]));
 const OPP = { "높은 생산력": "낮은 생산력", "안정된 환경": "불안정한 환경", "튼튼한 구조": "약한 구조", "풍부한 자원": "메마른 자원", "강화 적성": "강화 부적성" };
 const GN = GOOD_COLS, BN = [...BAD_COLS, "강화 부적성"];
-let r2 = 2024; const R = () => { r2 = (r2 * 1103515245 + 12345) % 2147483648; return r2 / 2147483648; };
+// mulberry32 — verify.js의 LCG(r2 * 1103515245)는 곱이 2^53을 넘어 JS double에서 정밀도가 깨져 난수 품질이 나빴다(2026-10-14 발견)
+let r2 = 2024; const R = () => { r2 |= 0; r2 = (r2 + 0x6D2B79F5) | 0; let t = Math.imul(r2 ^ (r2 >>> 15), 1 | r2); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 const pickW = w => { let x = R() * w.reduce((a, b) => a + b, 0); for (let i = 0; i < w.length; i++) { x -= w[i]; if (x <= 0) return i; } return w.length - 1; };
 const conflict = (a, b) => a === b || OPP[a] === b || OPP[b] === a;
 const N = Number(process.argv[2] || 20000);

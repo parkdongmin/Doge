@@ -40,6 +40,7 @@ class GenerateExpeditionReportUseCaseTest {
         override suspend fun claimEventChoice(eventId: String, expeditionId: String, choiceIndex: Int) = true
         override suspend fun setEventOutcomeNote(eventId: String, expeditionId: String, outcomeNote: String) {}
         override suspend fun addEvent(event: StoryEvent) {}
+        override suspend fun markPart2IntroShown() { progressFlow.value = progressFlow.value.copy(part2IntroShown = true) }
     }
 
     private val repo = FakeStoryRepository()
@@ -150,7 +151,7 @@ class GenerateExpeditionReportUseCaseTest {
     }
 
     @Test
-    fun `T10을 달성하면 챕터5는 그대로 유지되고 완주 기록이 딱 한 번 뜬다`() = runBlocking {
+    fun `T10을 달성하면 1부 완주 기록이 딱 한 번 뜨고 다음 기록부터 6장`() = runBlocking {
         // 챕터5까지 정상 순서로 도달
         finishChapterStory(); record(ExpeditionCategory.RUINS, 1)
         finishChapterStory(); record(ExpeditionCategory.ALIEN_CIVILIZATION, 1)
@@ -163,17 +164,18 @@ class GenerateExpeditionReportUseCaseTest {
         val tooEarly = record(ExpeditionCategory.MINERAL, tier = 10)
         assertFalse(tooEarly.isStoryEnding)
 
-        // 이야기를 다 보면 다음 기록이 완주. 챕터는 6으로 안 넘어가고 5 그대로
+        // 이야기를 다 보면 다음 기록이 1부 완주
         finishChapterStory()
         val endingReport = record(ExpeditionCategory.MINERAL, tier = 1)
-        assertEquals(5, endingReport.chapter)
-        assertFalse("챕터가 6으로 넘어가면 안 된다(콘텐츠 없음)", endingReport.isChapterEnding)
+        assertEquals("1부 완주 기록은 5장으로 남는다", 5, endingReport.chapter)
+        assertFalse(endingReport.isChapterEnding)
         assertTrue(endingReport.isStoryEnding)
         assertTrue(repo.getProgressOnce().storyCompleted)
 
-        // 그 뒤로 T10을 또 완료해도 완주 기록은 다시 뜨지 않는다(한 번만)
+        // 그 뒤 기록은 2부 6장 1번 — T10을 또 완료해도 1부 완주 기록은 다시 뜨지 않는다(한 번만)
         val afterEnding = record(ExpeditionCategory.MINERAL, tier = 10)
-        assertEquals(5, afterEnding.chapter)
+        assertEquals(6, afterEnding.chapter)
+        assertEquals(StoryContent.recordTitlePool.getValue(6).first(), afterEnding.recordTitle)
         assertFalse(afterEnding.isStoryEnding)
         assertFalse(afterEnding.isChapterEnding)
     }
@@ -190,5 +192,110 @@ class GenerateExpeditionReportUseCaseTest {
         // 조건을 채우면 바로 다음 챕터로 넘어가고, 새 챕터 풀은 처음부터 시작한다
         assertTrue(record(ExpeditionCategory.RUINS, 1).isChapterEnding)
         assertEquals(StoryContent.recordTitlePool.getValue(2).first(), record(ExpeditionCategory.MINERAL, 1).recordTitle)
+    }
+
+    // ── 2부 (6~10장) ──────────────────────────────────────────────────
+
+    // 1부를 완주하고 5장에 머문 상태(업데이트 직후의 기존 완주 플레이어와 같음)
+    private suspend fun startPart2() {
+        repo.saveProgress(
+            StoryProgress(
+                currentChapter = 5, storyCompleted = true,
+                firstRuinsCompleted = true, firstAlienCivCompleted = true,
+                firstT3Completed = true, firstT5Completed = true, firstT10Completed = true
+            )
+        )
+    }
+
+    @Test
+    fun `1부 완주 상태의 다음 기록은 6장 1번이고 6장은 이야기만 보면 넘어간다`() = runBlocking {
+        startPart2()
+        val first = record(ExpeditionCategory.MINERAL, 1)
+        assertEquals(6, first.chapter)
+        assertEquals(StoryContent.recordTitlePool.getValue(6).first(), first.recordTitle)
+
+        finishChapterStory()
+        val ending = record(ExpeditionCategory.MINERAL, 1)
+        assertTrue(ending.isChapterEnding)
+        assertEquals(StoryContent.chapterEndingTitles.getValue(6), ending.recordTitle)
+        assertEquals(7, repo.getProgressOnce().currentChapter)
+    }
+
+    @Test
+    fun `조건을 못 채운 동안은 막힘 1 일상 2로 섞이고 채우면 장 마무리가 나온다`() = runBlocking {
+        startPart2()
+        repo.saveProgress(repo.getProgressOnce().copy(currentChapter = 7, storyCompleted = true))
+        finishChapterStory()
+
+        val stalledPool = StoryContent.stalledRecordTitlePool.getValue(7)
+        val waiting = (0 until 9).map { record(ExpeditionCategory.MINERAL, 10).recordTitle }
+        waiting.forEachIndexed { k, title ->
+            if (k % 3 == 0) assertEquals("k=$k", stalledPool[(k / 3) % stalledPool.size], title)
+            else assertTrue("k=$k 일상 기록이어야 함: $title", title !in stalledPool)
+        }
+        assertEquals(6, repo.getProgressOnce().settlementLogCursor)
+
+        val ending = record(ExpeditionCategory.MINERAL, 11)
+        assertTrue(ending.isChapterEnding)
+        assertEquals(8, repo.getProgressOnce().currentChapter)
+    }
+
+    @Test
+    fun `조건을 몰아서 채워도 한 기록에 한 장씩만 넘어간다`() = runBlocking {
+        startPart2()
+        repo.saveProgress(repo.getProgressOnce().copy(currentChapter = 7, storyCompleted = true))
+        record(ExpeditionCategory.MINERAL, 15) // T11·T12·T13·T15 조건을 한 번에
+        finishChapterStory()
+        assertTrue(record(ExpeditionCategory.MINERAL, 1).isChapterEnding)
+        assertEquals(8, repo.getProgressOnce().currentChapter)
+        assertEquals("8장 이야기를 건너뛰지 않는다", StoryContent.recordTitlePool.getValue(8).first(),
+            record(ExpeditionCategory.MINERAL, 1).recordTitle)
+    }
+
+    @Test
+    fun `10장 이야기를 다 보고 T15에 성공하면 2부 완주가 한 번 나오고 이후엔 일상 기록만`() = runBlocking {
+        startPart2()
+        repo.saveProgress(repo.getProgressOnce().copy(currentChapter = 10, storyCompleted = true))
+        finishChapterStory()
+        val stalled = record(ExpeditionCategory.MINERAL, 14)
+        assertEquals(StoryContent.stalledRecordTitlePool.getValue(10).first(), stalled.recordTitle)
+
+        val ending = record(ExpeditionCategory.MINERAL, 15)
+        assertTrue(ending.isStoryEnding)
+        assertEquals(10, ending.chapter)
+        assertEquals(StoryContent.part2EndingTitle, ending.recordTitle)
+        assertTrue(repo.getProgressOnce().part2Completed)
+
+        val stalledPool = StoryContent.stalledRecordTitlePool.getValue(10)
+        repeat(6) {
+            val after = record(ExpeditionCategory.MINERAL, 15)
+            assertFalse(after.isStoryEnding)
+            assertTrue("2부 완주 뒤엔 막힘 문장이 안 나온다", after.recordTitle !in stalledPool)
+        }
+    }
+
+    @Test
+    fun `정착지 일상 기록은 한 바퀴 안에서 겹치지 않고 바퀴 경계에서도 연달아 같지 않다`() {
+        val pool = com.doge.simulator.domain.model.Part2StoryContent.settlementLogPool.size
+        val logs = (0 until pool * 10).map { StoryContent.settlementLog(it) }
+        logs.chunked(pool).forEach { cycle -> assertEquals(pool, cycle.toSet().size) }
+        logs.zipWithNext().forEachIndexed { i, (a, b) -> assertTrue("$i: $a", a != b) }
+    }
+
+    @Test
+    fun `2부에서는 1부 5장 전용 이벤트가 나오지 않는다`() = runBlocking {
+        startPart2()
+        val chapter5Titles = StoryContent.chapter5EventPool.map { it.title }.toSet()
+        val part2Titles = com.doge.simulator.domain.model.Part2StoryContent.eventPool.map { it.title }.toSet()
+        var sawPart2Event = false
+        repeat(200) {
+            // 9시간짜리 탐사 — 이벤트 확률 60%, 최대 2개
+            val report = useCase(expedition(ExpeditionCategory.MINERAL, 11).copy(endTime = 9 * 3_600_000L), true)
+            report.events.filterNot { it.isDeparture }.forEach { event ->
+                assertTrue(event.title, event.title !in chapter5Titles)
+                if (event.title in part2Titles) sawPart2Event = true
+            }
+        }
+        assertTrue(sawPart2Event)
     }
 }

@@ -22,4 +22,7 @@ interface StoryRepository {
     suspend fun claimEventChoice(eventId: String, expeditionId: String, choiceIndex: Int): Boolean
     suspend fun setEventOutcomeNote(eventId: String, expeditionId: String, outcomeNote: String)
     suspend fun addEvent(event: StoryEvent)
+
+    /** 관제탑 2부 안내를 봤다고 기록(클라우드 세이브에도 남아 기기를 바꿔도 다시 안 뜬다) */
+    suspend fun markPart2IntroShown()
 }

@@ -27,8 +27,12 @@ class StoryRepositoryImpl @Inject constructor(
     override suspend fun getProgressOnce(): StoryProgress =
         progressDao.getOnce()?.toDomain() ?: StoryProgress()
 
-    override suspend fun saveProgress(progress: StoryProgress) =
-        progressDao.upsert(progress.toEntity())
+    // 진행 전체를 덮어쓰는 저장이라, 탐사 완료(백그라운드 워커일 수 있음)가 읽고 쓰는 사이에 관제탑 2부 안내를 닫으면
+    // "봤음"이 되돌아가 안내가 한 번 더 뜰 수 있었다 — 한 번 켜지면 꺼질 일이 없는 값이라 저장된 쪽이 켜져 있으면 유지한다
+    override suspend fun saveProgress(progress: StoryProgress) {
+        val introShown = progress.part2IntroShown || (progressDao.getOnce()?.part2IntroShown ?: false)
+        progressDao.upsert(progress.copy(part2IntroShown = introShown).toEntity())
+    }
 
     override fun getAllReports(): Flow<List<ExpeditionReport>> =
         reportDao.getAllReports().map { reports ->
@@ -80,6 +84,8 @@ class StoryRepositoryImpl @Inject constructor(
         reportDao.touchReport(event.expeditionId)
     }
 
+    override suspend fun markPart2IntroShown() = progressDao.markPart2IntroShown()
+
     // ── 매핑 ─────────────────────────────────────────────────────────
     private fun StoryProgressEntity.toDomain() = StoryProgress(
         totalRecordsCompleted = totalRecordsCompleted,
@@ -89,7 +95,14 @@ class StoryRepositoryImpl @Inject constructor(
         firstT3Completed = firstT3Completed,
         firstT5Completed = firstT5Completed,
         firstT10Completed = firstT10Completed,
-        storyCompleted = storyCompleted
+        storyCompleted = storyCompleted,
+        firstT11Completed = firstT11Completed,
+        firstT12Completed = firstT12Completed,
+        firstT13Completed = firstT13Completed,
+        firstT15Completed = firstT15Completed,
+        part2Completed = part2Completed,
+        part2IntroShown = part2IntroShown,
+        settlementLogCursor = settlementLogCursor
     )
 
     private fun StoryProgress.toEntity() = StoryProgressEntity(
@@ -100,7 +113,14 @@ class StoryRepositoryImpl @Inject constructor(
         firstT3Completed = firstT3Completed,
         firstT5Completed = firstT5Completed,
         firstT10Completed = firstT10Completed,
-        storyCompleted = storyCompleted
+        storyCompleted = storyCompleted,
+        firstT11Completed = firstT11Completed,
+        firstT12Completed = firstT12Completed,
+        firstT13Completed = firstT13Completed,
+        firstT15Completed = firstT15Completed,
+        part2Completed = part2Completed,
+        part2IntroShown = part2IntroShown,
+        settlementLogCursor = settlementLogCursor
     )
 
     private fun ExpeditionReportEntity.toDomain(events: List<StoryEventEntity>) = ExpeditionReport(

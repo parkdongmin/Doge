@@ -2,6 +2,7 @@ package com.doge.simulator.data.local.mapper
 
 import com.doge.simulator.data.local.entity.PlanetEntity
 import com.doge.simulator.domain.model.Planet
+import com.doge.simulator.domain.model.PlanetTrait
 import com.doge.simulator.domain.model.PlanetType
 
 fun PlanetEntity.toDomain(): Planet {
@@ -24,7 +25,8 @@ fun PlanetEntity.toDomain(): Planet {
         lastEventTime = lastEventTime,
         bankedProfit = bankedProfit,
         bankedUntil = bankedUntil,
-        lossMultiplier = lossMultiplier
+        lossMultiplier = lossMultiplier,
+        traits = PlanetTrait.decode(traits)
     )
 }
 
@@ -48,6 +50,7 @@ fun Planet.toEntity(): PlanetEntity {
         lastEventTime = lastEventTime,
         bankedProfit = bankedProfit,
         bankedUntil = bankedUntil,
-        lossMultiplier = lossMultiplier
+        lossMultiplier = lossMultiplier,
+        traits = PlanetTrait.encode(traits)
     )
 }

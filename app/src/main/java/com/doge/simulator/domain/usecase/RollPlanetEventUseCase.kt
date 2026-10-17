@@ -6,6 +6,9 @@ import com.doge.simulator.domain.model.PlanetEventFlavor
 import com.doge.simulator.domain.model.PlanetEventLog
 import com.doge.simulator.domain.model.PlanetMetaDataTable
 import com.doge.simulator.domain.model.bankedProfitAt
+import com.doge.simulator.domain.model.boomMultiplier
+import com.doge.simulator.domain.model.breakdownThreshold
+import com.doge.simulator.domain.model.effectiveBadChance
 import com.doge.simulator.domain.model.isBroken
 import com.doge.simulator.domain.model.marketAdjustmentFor
 import com.doge.simulator.domain.model.marketValue
@@ -30,7 +33,7 @@ class RollPlanetEventUseCase @Inject constructor(
         val intervalHours = GameConstants.planetEventIntervalHours(planet.risk)
         if (elapsedHours < intervalHours) return null
 
-        val isBad = Random.nextInt(100) < planet.eventRate
+        val isBad = Random.nextInt(100) < planet.effectiveBadChance
         val delta = Random.nextDouble(GameConstants.PLANET_EVENT_DELTA_MIN, GameConstants.PLANET_EVENT_DELTA_MAX)
         val after = applyEvent(planet, isBad, delta)
 
@@ -83,9 +86,11 @@ class RollPlanetEventUseCase @Inject constructor(
                     .coerceIn(GameConstants.PLANET_LOSS_MULTIPLIER_MIN, GameConstants.PLANET_LOSS_MULTIPLIER_MAX)
                 return planet.copy(lossMultiplier = newLoss)
             }
-            val newMultiplier = (planet.productionMultiplier + if (isBad) -delta else delta)
+            // 호황 체질은 정상 상태의 호재 상승폭만 키운다(고장 중엔 위 분기라 영향 없음)
+            val newMultiplier = (planet.productionMultiplier + if (isBad) -delta else delta * planet.boomMultiplier)
                 .coerceIn(GameConstants.PLANET_EVENT_MULTIPLIER_FLOOR, GameConstants.PLANET_EVENT_MULTIPLIER_CEILING)
-            val breaks = isBad && delta >= GameConstants.PLANET_BREAKDOWN_DELTA_THRESHOLD
+            // 고장 기준은 특성(튼튼한/약한 구조)에 따라 15%p에서 오르내린다
+            val breaks = isBad && delta >= planet.breakdownThreshold
             return planet.copy(
                 productionMultiplier = newMultiplier,
                 // 시세는 매번 "지금 생산 배율" 기준으로 다시 계산 — 생산 배율과 시세가 어긋나지 않음

@@ -32,6 +32,7 @@ import com.doge.simulator.domain.usecase.GetAstronautsUseCase
 import com.doge.simulator.domain.usecase.GetExpeditionReportsUseCase
 import com.doge.simulator.domain.usecase.GetOwnedPlanetsUseCase
 import com.doge.simulator.domain.usecase.GetResearchLabUseCase
+import com.doge.simulator.domain.usecase.GetTierProgressUseCase
 import com.doge.simulator.domain.usecase.GetSpaceshipsUseCase
 import com.doge.simulator.domain.usecase.SeedStarterAssetsUseCase
 import com.doge.simulator.domain.usecase.SellPlanetUseCase
@@ -61,6 +62,7 @@ class ExploreViewModel @Inject constructor(
     private val getSpaceshipsUseCase: GetSpaceshipsUseCase,
     private val getResearchLabUseCase: GetResearchLabUseCase,
     private val generatePlanetsUseCase: GeneratePlanetsUseCase,
+    private val getTierProgressUseCase: GetTierProgressUseCase,
     private val buyPlanetUseCase: BuyPlanetUseCase,
     private val sellPlanetUseCase: SellPlanetUseCase,
     private val seedStarterAssetsUseCase: SeedStarterAssetsUseCase,
@@ -104,9 +106,9 @@ class ExploreViewModel @Inject constructor(
     val ownedPlanets = getOwnedPlanetsUseCase()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // 티어 해금 판정용 — 매도해도 안 줄어드는 영구 발견 기록(도감)
-    val discoveredVariantIds = userRepository.getDiscoveredVariantIds()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+    // 티어 해금 판정용 — 매도해도 안 줄어드는 영구 기록(도감·1부 완주·특성 행성 획득 기록)
+    val tierProgress = getTierProgressUseCase()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.doge.simulator.domain.model.TierProgress())
 
     val astronauts = getAstronautsUseCase()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -185,21 +187,12 @@ class ExploreViewModel @Inject constructor(
                 val lab = getResearchLabUseCase().first()
                 val ownedPlanets = getOwnedPlanetsUseCase().first()
                 val ownedCount = ownedPlanets.size
-                val type = PlanetType.valueOf(typeName)
-                val meta = PlanetMetaDataTable.data[type] ?: return@runCatching null
-                val production = (meta.productionMin..meta.productionMax).random()
-                val risk = (meta.riskMin..meta.riskMax).random()
-                val buyPrice = meta.basePrice + production * 20 + risk * 10
-                val variantId = meta.variants.random().variantId
-                val discoveredPlanet = Planet(
-                    type = type,
-                    production = production,
-                    risk = risk,
-                    investment = (meta.investmentMin..meta.investmentMax).random(),
-                    eventRate = (meta.eventRateMin..meta.eventRateMax).random(),
-                    variantId = variantId,
-                    buyPrice = buyPrice
-                )
+                // 탐사 완료 시 확정해 저장한 행성을 그대로 쓴다(다시 굴리지 않음 — 앱을 껐다 켜도 같은 행성·같은 특성).
+                // 업데이트 전에 완료돼 종류만 남은 탐사만 여기서 굴린다(모두 T10 이하라 특성 없음)
+                val discoveredPlanet = expedition.discoveredPlanet
+                    ?: generatePlanetsUseCase.discoveredPlanet(PlanetType.valueOf(typeName), expedition.tier)
+                val variantId = discoveredPlanet.variantId
+                val buyPrice = discoveredPlanet.buyPrice
 
                 // 도감 등록 여부(전체 발견 기록)와 "지금 슬롯에 실제로 들고 있는지"는 별개 —
                 // 화면에 "이미 보유 중이니 비교해보라"는 안내는 후자(isCurrentlyOwned) 기준으로 띄우고,
@@ -311,7 +304,7 @@ class ExploreViewModel @Inject constructor(
                 is StartExpeditionUseCase.Result.CategoryLocked ->
                     _uiState.update { it.copy(isDispatching = false, dispatchError = "해당 탐사 카테고리가 잠겨있습니다") }
                 is StartExpeditionUseCase.Result.TierRequirementNotMet ->
-                    _uiState.update { it.copy(isDispatching = false, dispatchError = "${result.conditionLabel} 보유 필요") }
+                    _uiState.update { it.copy(isDispatching = false, dispatchError = "${result.conditionLabel} 필요") }
                 is StartExpeditionUseCase.Result.AstronautNotAvailable ->
                     _uiState.update { it.copy(isDispatching = false, dispatchError = "선택한 우주인이 이미 파견 중입니다") }
                 is StartExpeditionUseCase.Result.SpaceshipBusy ->
@@ -380,7 +373,8 @@ class ExploreViewModel @Inject constructor(
         val planet = result.discoveredPlanet ?: return
         _uiState.update { it.copy(isResolvingDiscovery = true) }
         viewModelScope.launch {
-            userRepository.recordVariantDiscovery(planet.variantId)
+            // 구매와 똑같이 "획득"으로 센다 — 도감 등록 + 특성 행성이면 획득 기록(T12~T15 해금 조건) +1
+            userRepository.recordPlanetAcquisition(planet)
             userRepository.addCoins(result.slotFullCoins)
             _uiState.update { it.copy(completionResult = null, discoveryRevealed = true, isSwapPickerOpen = false, isResolvingDiscovery = false) }
             expeditionRepository.markResultHandled(result.expeditionId)

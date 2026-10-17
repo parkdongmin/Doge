@@ -3,6 +3,10 @@ package com.doge.simulator.data.repository
 import com.doge.simulator.data.local.dao.UserDao
 import com.doge.simulator.data.local.entity.UserEntity
 import com.doge.simulator.domain.model.MissionProgress
+import com.doge.simulator.domain.model.Planet
+import com.doge.simulator.domain.model.TraitAcquisitionCounts
+import com.doge.simulator.domain.model.hasTraits
+import com.doge.simulator.domain.model.highFitGrade
 import com.doge.simulator.domain.model.ResourceType
 import com.doge.simulator.domain.repository.UserRepository
 import kotlinx.coroutines.flow.Flow
@@ -61,6 +65,23 @@ class UserRepositoryImpl(
 
     override suspend fun claimMissionReward(step: Int, coins: Long, resources: Map<ResourceType, Long>): Boolean =
         dao.claimMissionReward(step, coins, resources.mapKeys { it.key.name })
+
+    // 1부 도감 등록과 같은 시점에 함께 센다 — 도감은 변종 기준이라 특성과 무관하게 지금처럼 등록된다
+    override suspend fun recordPlanetAcquisition(planet: Planet) {
+        recordVariantDiscovery(planet.variantId)
+        if (!planet.hasTraits) return
+        val grade = planet.highFitGrade
+        dao.incrementTraitAcquisition(tier2 = if (grade >= 2) 1 else 0, tier3 = if (grade >= 3) 1 else 0)
+    }
+
+    override fun getTraitAcquisitionCounts(): Flow<TraitAcquisitionCounts> =
+        dao.getUser().map { entity ->
+            TraitAcquisitionCounts(
+                traitPlanets = entity?.traitPlanetsAcquired ?: 0,
+                highFitTier2 = entity?.highFitTier2Acquired ?: 0,
+                highFitTier3 = entity?.highFitTier3Acquired ?: 0
+            )
+        }
 
     override suspend fun recordVariantDiscovery(variantId: String) {
         if (variantId.isBlank()) return

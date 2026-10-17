@@ -1,6 +1,7 @@
 package com.doge.simulator.domain.model
 
 import java.util.UUID
+import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
 data class Planet(
@@ -39,8 +40,14 @@ data class Planet(
     val bankedUntil: Long = 0L,
 
     // 고장(마이너스 생산) 상태의 손해 배율. 0 = 정상, 0.5~2.0 = 고장. 정비하면 0으로 돌아간다
-    val lossMultiplier: Double = 0.0
+    val lossMultiplier: Double = 0.0,
+
+    // 2부 행성 특성(T11 이상에서 발견한 행성만). 효과는 traitEffects 확장으로만 계산한다
+    val traits: List<PlanetTrait> = emptyList()
 )
+
+val Planet.hasTraits: Boolean
+    get() = traits.isNotEmpty()
 
 val Planet.isBroken: Boolean
     get() = lossMultiplier > 0.0
@@ -59,7 +66,72 @@ val Planet.preciseProduction: Double
 
 // 고장이 아닐 때(정비 후)의 분당 생산량. 강화 미리보기·정비 비용·고장 손해의 기준값
 fun Planet.normalProductionAtLevel(level: Int): Double =
-    production * GameConstants.PLANET_PRODUCTION_SCALE * GameConstants.planetLevelMultiplier(level) * productionMultiplier
+    production * GameConstants.PLANET_PRODUCTION_SCALE * GameConstants.planetLevelMultiplier(level) * productionMultiplier *
+        traitEffects.productionMultiplier
+
+// ── 특성 효과 ────────────────────────────────────────────────────────
+// 특성이 바꾸는 값은 전부 아래 확장으로만 읽는다. 수령·오프라인 정산·이벤트·정비·강화·화면이 같은 값을 쓰게 —
+// 원시 값(eventRate, UPGRADE_SUCCESS_RATES, PLANET_BREAKDOWN_DELTA_THRESHOLD)을 직접 읽으면 특성이 빠진다
+data class TraitEffects(
+    val productionMultiplier: Double = 1.0,
+    val badChanceDeltaPercent: Double = 0.0,
+    val breakdownThresholdDelta: Double = 0.0,
+    val boomMultiplier: Double = 1.0,
+    val resourceDropMultiplier: Double = 1.0,
+    val upgradeSuccessMultiplier: Double = 1.0,
+    // 구매가에 이미 반영된 특성 시세 보정(0.35 = +35%) — 발견 화면 "특성 시세" 표시용
+    val priceAdjustment: Double = 0.0
+)
+
+// 반대·중복 금지 규칙으로 한 축에는 특성이 최대 1개라, 합·곱이 실제로 섞이는 경우는 없다
+val Planet.traitEffects: TraitEffects
+    get() {
+        if (traits.isEmpty()) return NO_TRAIT_EFFECTS
+        var effects = TraitEffects()
+        for (trait in traits) {
+            val value = PlanetTraitTable.value(type, trait)
+            effects = when (trait.type.axis) {
+                TraitAxis.PRODUCTION -> effects.copy(productionMultiplier = effects.productionMultiplier * (1.0 + value))
+                // 안정된 환경은 표에 양수(줄일 %p)로, 불안정한 환경은 늘릴 %p로 들어 있다
+                TraitAxis.BAD_CHANCE -> effects.copy(
+                    badChanceDeltaPercent = effects.badChanceDeltaPercent + if (trait.type.isGood) -value else value
+                )
+                TraitAxis.BREAKDOWN_THRESHOLD -> effects.copy(breakdownThresholdDelta = effects.breakdownThresholdDelta + value)
+                TraitAxis.BOOM -> effects.copy(boomMultiplier = effects.boomMultiplier * (1.0 + value))
+                // 풍부한 자원은 +비율(1.5 = ×2.5), 메마른 자원은 배율 그대로(×0.5)
+                TraitAxis.RESOURCE_DROP -> effects.copy(
+                    resourceDropMultiplier = effects.resourceDropMultiplier * if (trait.type.isGood) 1.0 + value else value
+                )
+                TraitAxis.UPGRADE_SUCCESS -> effects.copy(upgradeSuccessMultiplier = effects.upgradeSuccessMultiplier * value)
+            }
+            effects = effects.copy(priceAdjustment = effects.priceAdjustment + PlanetTraitTable.priceEffect(type, trait))
+        }
+        return effects
+    }
+
+private val NO_TRAIT_EFFECTS = TraitEffects()
+
+// 이벤트가 악재로 나올 확률(%) — 기본 eventRate에 특성 %p를 더한 값
+val Planet.effectiveBadChance: Int
+    get() = (eventRate + traitEffects.badChanceDeltaPercent).roundToInt().coerceIn(0, 100)
+
+// 정상 행성이 고장 나는 악재폭 기준
+val Planet.breakdownThreshold: Double
+    get() = GameConstants.PLANET_BREAKDOWN_DELTA_THRESHOLD + traitEffects.breakdownThresholdDelta
+
+// 정상 상태에서 호재가 뜰 때 상승폭에 곱하는 배율
+val Planet.boomMultiplier: Double
+    get() = traitEffects.boomMultiplier
+
+val Planet.resourceDropMultiplier: Double
+    get() = traitEffects.resourceDropMultiplier
+
+// 지금 레벨에서 강화 1회 성공률. 특성으로 올라도 99%에서 멈춘다(확정 성공은 없음)
+fun Planet.upgradeSuccessRate(): Float =
+    ((GameConstants.UPGRADE_SUCCESS_RATES[level] ?: 0f) * traitEffects.upgradeSuccessMultiplier)
+        .toFloat().coerceAtMost(MAX_UPGRADE_SUCCESS_RATE)
+
+private const val MAX_UPGRADE_SUCCESS_RATE = 0.99f
 
 val Planet.normalProduction: Double
     get() = normalProductionAtLevel(level)
@@ -154,3 +226,8 @@ val Planet.marketValue: Long
 // 투자액(매입가 + 강화비) 대비 현재 매도가의 차이 — 화면의 "시세 변동" 표시용
 val Planet.marketChange: Long
     get() = marketValue - (buyPrice + upgradeInvestment)
+
+// 적합도 높음인 좋은 특성 중 가장 높은 등급(없으면 0) — T13(Ⅱ 이상)·T15(Ⅲ) 해금 기록 판정용
+val Planet.highFitGrade: Int
+    get() = traits.filter { it.type.isGood && PlanetTraitTable.fit(type, it.type) == TraitFit.HIGH }
+        .maxOfOrNull { it.intensity } ?: 0

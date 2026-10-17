@@ -64,7 +64,7 @@ abstract class PlanetDatabase : RoomDatabase() {
     abstract fun snapshotDao(): SnapshotDao
 
     companion object {
-        const val VERSION = 22
+        const val VERSION = 23
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
@@ -491,6 +491,21 @@ abstract class PlanetDatabase : RoomDatabase() {
                 database.execSQL("ALTER TABLE user_table ADD COLUMN missionStep INTEGER NOT NULL DEFAULT -1")
                 database.execSQL("ALTER TABLE user_table ADD COLUMN orbitPlayed INTEGER NOT NULL DEFAULT 0")
                 database.execSQL("ALTER TABLE user_table ADD COLUMN planetUpgradeTried INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val MIGRATION_22_23 = object : Migration(22, 23) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // 2부 — 행성 특성, 특성 행성 획득 기록, 스토리 6~10장, 탐사 완료 시 확정한 발견 행성. 칼럼 추가만
+                database.execSQL("ALTER TABLE planet_table ADD COLUMN traits TEXT NOT NULL DEFAULT ''")
+                database.execSQL("ALTER TABLE user_table ADD COLUMN traitPlanetsAcquired INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE user_table ADD COLUMN highFitTier2Acquired INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE user_table ADD COLUMN highFitTier3Acquired INTEGER NOT NULL DEFAULT 0")
+                for (column in listOf("firstT11Completed", "firstT12Completed", "firstT13Completed", "firstT15Completed",
+                        "part2Completed", "part2IntroShown", "settlementLogCursor")) {
+                    database.execSQL("ALTER TABLE story_progress_table ADD COLUMN $column INTEGER NOT NULL DEFAULT 0")
+                }
+                database.execSQL("ALTER TABLE expedition_table ADD COLUMN discoveredPlanetJson TEXT")
             }
         }
     }

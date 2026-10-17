@@ -2,6 +2,7 @@ package com.doge.simulator.domain.repository
 
 import com.doge.simulator.domain.model.Expedition
 import com.doge.simulator.domain.model.ExpeditionStatus
+import com.doge.simulator.domain.model.Planet
 import kotlinx.coroutines.flow.Flow
 
 interface ExpeditionRepository {
@@ -14,7 +15,8 @@ interface ExpeditionRepository {
         id: String,
         status: ExpeditionStatus,
         resourcesResult: String?,
-        discoveredPlanetType: String?,
+        // 탐사 완료 시 확정한 발견 행성(없으면 null) — 종류와 함께 통째로 저장한다
+        discoveredPlanet: Planet?,
         coinsEarned: Long = 0L
     ): Boolean
 

@@ -9,7 +9,6 @@ import com.doge.simulator.domain.repository.AstronautRepository
 import com.doge.simulator.domain.repository.ExpeditionRepository
 import com.doge.simulator.domain.repository.ResearchLabRepository
 import com.doge.simulator.domain.repository.SpaceshipRepository
-import com.doge.simulator.domain.repository.UserRepository
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
@@ -18,7 +17,7 @@ class StartExpeditionUseCase @Inject constructor(
     private val astronautRepository: AstronautRepository,
     private val spaceshipRepository: SpaceshipRepository,
     private val researchLabRepository: ResearchLabRepository,
-    private val userRepository: UserRepository
+    private val getTierProgress: GetTierProgressUseCase
 ) {
     sealed class Result {
         data class Success(val expedition: Expedition) : Result()
@@ -41,13 +40,11 @@ class StartExpeditionUseCase @Inject constructor(
         // 카테고리 해금 확인
         if (!lab.unlockedCategories().contains(category)) return Result.CategoryLocked
 
-        // 티어 잠금 해제 조건 확인 (도감 발견 이력·등급 기반, 사다리 방식 — GameConstants.firstLockedTier 참고)
-        if (GameConstants.TIER_UNLOCK_CONDITIONS[tier] != null) {
-            val discoveredVariantIds = userRepository.getDiscoveredVariantIds().first()
-            val firstLocked = GameConstants.firstLockedTier(discoveredVariantIds, maxTier = tier)
-            if (firstLocked != null)
-                return Result.TierRequirementNotMet(GameConstants.TIER_UNLOCK_CONDITIONS[firstLocked]!!.label)
-        }
+        // 티어 잠금 해제 조건 확인 (도감·획득 기록 기반, 사다리 방식 — TierProgress.firstLockedTier 참고)
+        if (tier > GameConstants.MAX_TIER) return Result.TierRequirementNotMet("")
+        val firstLocked = getTierProgress.once().firstLockedTier(maxTier = tier)
+        if (firstLocked != null)
+            return Result.TierRequirementNotMet(GameConstants.TIER_UNLOCK_CONDITIONS[firstLocked]!!.label)
 
         // 우주선 확인
         val spaceship = spaceshipRepository.getSpaceships().first()

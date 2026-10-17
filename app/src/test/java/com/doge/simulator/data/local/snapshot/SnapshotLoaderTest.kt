@@ -69,6 +69,31 @@ class SnapshotLoaderTest {
     }
 
     @Test
+    fun `v4 saves load into v5 with no traits and part 2 not started`() {
+        // 2부 이전(스키마 4) 세이브 — 특성·획득 카운터·2부 진행·발견 행성 칸이 없다
+        val json = """{"snapshotSchemaVersion":4,"roomDbVersion":22,
+            "user":{"coins":5000,"discoveredVariantIds":"STAR-01","missionStep":-1},
+            "storyProgress":{"totalRecordsCompleted":90,"currentChapter":5,"firstT10Completed":true,"storyCompleted":true},
+            "planets":[{"id":"p","type":"STAR","production":1200,"risk":30,"investment":0,"eventRate":28,
+                "buyPrice":211140,"acquireTime":0,"level":10,"totalProfit":0,"lastProfitTime":0}],
+            "expeditions":[{"id":"e","category":"PLANET","tier":10,"astronautIds":"a","spaceshipId":"s",
+                "startTime":0,"endTime":1,"status":"COMPLETED","resourcesResult":null,"discoveredPlanetType":"STAR"}]}"""
+        val snapshot = (loadSnapshot(json) as SnapshotLoad.Loaded).snapshot
+
+        assertEquals("", snapshot.planets.single().traits)
+        assertEquals(0, snapshot.user!!.traitPlanetsAcquired)
+        assertEquals(0, snapshot.user!!.highFitTier2Acquired)
+        assertEquals(0, snapshot.user!!.highFitTier3Acquired)
+        val story = snapshot.storyProgress!!
+        assertTrue("1부 완주는 유지돼 T11이 열린다", story.storyCompleted)
+        assertEquals(5, story.currentChapter)
+        assertEquals(false, story.part2Completed)
+        assertEquals(false, story.part2IntroShown)
+        assertEquals(0, story.settlementLogCursor)
+        assertEquals(null, snapshot.expeditions.single().discoveredPlanetJson)
+    }
+
+    @Test
     fun `same-version migrate returns input unchanged`() {
         val v = GameSnapshot.SCHEMA_VERSION
         val json = """{"snapshotSchemaVersion":$v,"roomDbVersion":17}"""

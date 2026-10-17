@@ -25,5 +25,7 @@ data class PlanetEntity(
     val lastEventTime: Long = System.currentTimeMillis(),
     val bankedProfit: Double = 0.0,
     val bankedUntil: Long = 0L,
-    val lossMultiplier: Double = 0.0
+    val lossMultiplier: Double = 0.0,
+    // 2부 행성 특성 — "HIGH_PRODUCTION:3,UNSTABLE_ENVIRONMENT:1" 형식(PlanetTrait.encode). T10 이하·옛 행성은 빈 문자열
+    val traits: String = ""
 )

@@ -280,6 +280,7 @@ fun MainScreen(deepLinkFlow: StateFlow<String?>, onSignOut: () -> Unit) {
                 step = tutorialStep,
                 targets = tutorialTargets,
                 onAdvancePart1 = { tutorialViewModel.advancePart1() },
+                onAdvancePart2StoryIntro = { tutorialViewModel.advancePart2StoryIntro() },
                 onDismiss = { tutorialViewModel.dismiss(it) },
             )
         }

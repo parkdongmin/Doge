@@ -35,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.doge.simulator.domain.model.GameConstants
+import com.doge.simulator.domain.model.Part2StoryContent
 import com.doge.simulator.presentation.component.GameButton
 import com.doge.simulator.presentation.component.GameButtonSize
 import com.doge.simulator.presentation.component.GameButtonStyle
@@ -60,6 +61,7 @@ fun TutorialOverlay(
     step: TutorialStep,
     targets: TutorialTargetRegistry,
     onAdvancePart1: () -> Unit,
+    onAdvancePart2StoryIntro: () -> Unit,
     onDismiss: (TutorialStep) -> Unit,
 ) {
     if (step is TutorialStep.None) return
@@ -109,6 +111,18 @@ fun TutorialOverlay(
             target = null,
             onPrimary = { onDismiss(step) }
         )
+        // 2부 안내 5줄(story-content.md 원문) — 한 줄씩 넘기고, 마지막 줄에서 탐사 카테고리 카드를 비춘다.
+        // 티어 칩은 카테고리를 눌러 여는 팀 구성 창 안에 있어 여기서 직접 비출 수 없다 — 창을 열면 T11이 강조된다
+        is TutorialStep.Part2StoryIntro -> {
+            val lines = Part2StoryContent.part2IntroLines
+            val isLast = step.page >= lines.lastIndex
+            OverlaySpec(
+                body = lines[step.page.coerceIn(0, lines.lastIndex)],
+                buttonLabel = if (isLast) "알겠어요" else "다음",
+                target = if (isLast) TutorialTarget.EXPLORE_FIRST_CATEGORY else null,
+                onPrimary = if (isLast) ({ onDismiss(step) }) else onAdvancePart2StoryIntro
+            )
+        }
         is TutorialStep.None -> return
     }
 

@@ -11,6 +11,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -44,6 +45,9 @@ import com.doge.simulator.presentation.component.CrewInfoContent
 import com.doge.simulator.presentation.component.GradePips
 import com.doge.simulator.presentation.component.effectSummary
 import com.doge.simulator.presentation.component.InfoDialog
+import com.doge.simulator.presentation.component.PlanetTraitChips
+import com.doge.simulator.presentation.component.PlanetTraitList
+import com.doge.simulator.presentation.component.traitPriceText
 import com.doge.simulator.presentation.component.ShipInfoContent
 import com.doge.simulator.presentation.component.rarityColor
 import com.doge.simulator.presentation.component.rarityLabel
@@ -84,7 +88,8 @@ fun ExploreScreen(
     val activeExpeditions by viewModel.activeExpeditions.collectAsState()
     val researchLab by viewModel.researchLab.collectAsState()
     val ownedPlanets by viewModel.ownedPlanets.collectAsState()
-    val discoveredVariantIds by viewModel.discoveredVariantIds.collectAsState()
+    val tierProgress by viewModel.tierProgress.collectAsState()
+    val storyProgress by viewModel.storyProgress.collectAsState()
     val astronauts by viewModel.astronauts.collectAsState()
     val spaceships by viewModel.spaceships.collectAsState()
     val busyShipIds by viewModel.busyShipIds.collectAsState()
@@ -177,7 +182,9 @@ fun ExploreScreen(
             modifier = Modifier.fillMaxWidth().weight(1f),
             uiState = uiState,
             researchLab = researchLab,
-            discoveredVariantIds = discoveredVariantIds,
+            tierProgress = tierProgress,
+            // 1부 완주 뒤 관제탑이 2부를 안내하면, T11을 처음 성공할 때까지 팀 구성 창에서 T11을 짚어 준다
+            highlightTier = if (storyProgress.part1Completed && !storyProgress.firstT11Completed) 11 else null,
             astronauts = astronauts,
             spaceships = spaceships,
             busyShipIds = busyShipIdsSnapshot,
@@ -663,7 +670,8 @@ private fun ActivityDots(color: Color, modifier: Modifier = Modifier) {
 private fun TeamBuilderContent(
     uiState: ExploreUiState,
     researchLab: ResearchLab,
-    discoveredVariantIds: Set<String>,
+    tierProgress: TierProgress,
+    highlightTier: Int? = null,
     astronauts: List<com.doge.simulator.domain.model.Astronaut>,
     spaceships: List<Spaceship>,
     busyShipIds: Set<String> = emptySet(),
@@ -696,15 +704,16 @@ private fun TeamBuilderContent(
     ) {
 
         // ── 다음 해제 목표 배너 ────────────────────────────────────────
-        // 사다리 순서상 가장 먼저 막힌 티어(GameConstants.firstLockedTier) — 티어 선택
-        // 잠금·실제 파견 검증(StartExpeditionUseCase)과 같은 기준을 쓴다. 도감 발견 이력
-        // 기준이라 매도해도 이 진행도는 줄지 않는다
-        val nextLockedTier = GameConstants.firstLockedTier(discoveredVariantIds)
+        // 사다리 순서상 가장 먼저 막힌 티어(TierProgress.firstLockedTier) — 티어 선택
+        // 잠금·실제 파견 검증(StartExpeditionUseCase)과 같은 기준을 쓴다. 도감·특성 행성 획득
+        // 기록 기준이라 매도해도 이 진행도는 줄지 않는다
+        val nextLockedTier = tierProgress.firstLockedTier()
         if (nextLockedTier != null) {
             val cond = GameConstants.TIER_UNLOCK_CONDITIONS[nextLockedTier]!!
-            val currentCount = discoveredVariantIds.count { variantId ->
-                val rarity = PlanetMetaDataTable.variantRarity[variantId]
-                rarity != null && rarity.ordinal >= cond.requiredRarity.ordinal
+            val currentCount = cond.current(tierProgress).coerceAtMost(cond.required)
+            val conditionText = when (cond) {
+                is TierUnlockCondition.RarityDiscovered -> "${cond.rarity.name} 등급 이상 행성 ${cond.required}개 필요"
+                else -> cond.label
             }
             val locationName = GameConstants.TIER_LABELS[nextLockedTier] ?: "T$nextLockedTier"
             Surface(
@@ -732,20 +741,20 @@ private fun TeamBuilderContent(
                         )
                         Spacer(modifier = Modifier.height(Spacing.xxs))
                         Text(
-                            text = "${cond.requiredRarity.name} 등급 이상 행성 ${cond.requiredCount}개 필요",
+                            text = conditionText,
                             color = TextSecondary,
                             style = MaterialTheme.typography.labelSmall
                         )
                     }
-                    // 진행도 뱃지
-                    Surface(
+                    // 진행도 뱃지 — "1부 완주"처럼 개수가 아닌 조건엔 0 / 1이 어색해 숨긴다
+                    if (cond != TierUnlockCondition.Part1Completed) Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = if (currentCount >= cond.requiredCount) StatusGreen.copy(alpha = 0.15f)
+                        color = if (currentCount >= cond.required) StatusGreen.copy(alpha = 0.15f)
                                 else SpaceMid.copy(alpha = 0.3f)
                     ) {
                         Text(
-                            text = "$currentCount / ${cond.requiredCount}",
-                            color = if (currentCount >= cond.requiredCount) StatusGreen else TextDisabled,
+                            text = "$currentCount / ${cond.required}",
+                            color = if (currentCount >= cond.required) StatusGreen else TextDisabled,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm)
@@ -822,8 +831,13 @@ private fun TeamBuilderContent(
             style = MaterialTheme.typography.labelSmall
         )
         Spacer(modifier = Modifier.height(Spacing.sm))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-            items((1..10).toList()) { tier ->
+        // 짚어 줄 티어가 있으면 창을 열 때 그 칩까지 가로로 스크롤해 둔다(T11은 처음엔 화면 밖에 있다)
+        val tierRowState = rememberLazyListState()
+        LaunchedEffect(highlightTier) {
+            if (highlightTier != null) tierRowState.animateScrollToItem((highlightTier - 1).coerceAtLeast(0))
+        }
+        LazyRow(state = tierRowState, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            items((1..GameConstants.MAX_TIER).toList()) { tier ->
                 // 사다리 방식: nextLockedTier(가장 먼저 막힌 티어) 앞쪽만 실제로 열려 있다.
                 // 운 좋게 상위 희귀도 행성을 하나 일찍 주워도(예: 언커먼 1개 → T5 자체 조건은
                 // 충족) 그 앞의 T4가 안 열려 있으면 T5도 잠긴 채로 유지된다.
@@ -842,7 +856,10 @@ private fun TeamBuilderContent(
                         selected    -> SpaceBlue
                         else        -> SpaceNavy
                     },
-                    border = BorderStroke(
+                    border = if (tier == highlightTier && isUnlocked) {
+                        // 관제탑 스포트라이트와 같은 굵은 금색 테두리
+                        BorderStroke(2.dp, GoldAccent)
+                    } else BorderStroke(
                         1.dp,
                         when {
                             !isUnlocked -> SpaceMid.copy(alpha = 0.3f)
@@ -1307,6 +1324,18 @@ private fun DiscoveryRevealContent(
             }
         }
 
+        // 2부 특성 — 가격엔 이미 특성 시세가 들어 있어, 얼마나 반영됐는지를 가격 바로 아래에 보여 준다
+        if (planet.hasTraits) {
+            Text(
+                traitPriceText(planet),
+                color = TextSecondary,
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.padding(top = Spacing.xs)
+            )
+            Spacer(modifier = Modifier.height(Spacing.md))
+            PlanetTraitList(planet)
+        }
+
         if (result.isCurrentlyOwned) {
             Text(
                 "이미 보유 중인 행성이에요. 능력치가 다를 수 있으니 비교해보고 구매하세요",
@@ -1427,6 +1456,11 @@ private fun SwapPickerDialog(
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold
                             )
+                            // 무엇을 팔지 고르는 창이라 특성도 같이 보여 준다
+                            if (owned.hasTraits) {
+                                Spacer(modifier = Modifier.height(Spacing.xxs))
+                                PlanetTraitChips(owned.traits)
+                            }
                             Spacer(modifier = Modifier.height(Spacing.xxs))
                             Text(
                                 // 행성은 "매도"로 통일(자원은 "판매").

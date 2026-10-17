@@ -1,5 +1,17 @@
 package com.doge.simulator.presentation.screen.expedition
 
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Box
+import com.doge.simulator.ui.theme.SpaceDark
+import com.doge.simulator.ui.theme.TextPrimary
+import com.doge.simulator.ui.theme.BodyReading
+import com.doge.simulator.ui.theme.LabelTiny
+import com.doge.simulator.domain.model.StoryContent
+import com.doge.simulator.domain.model.StoryReader
+import com.doge.simulator.presentation.component.SegmentedTabs
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -29,7 +41,6 @@ import com.doge.simulator.domain.model.coinSkipCost
 import com.doge.simulator.presentation.component.DailyResetEffect
 import com.doge.simulator.presentation.component.GameDialog
 import com.doge.simulator.presentation.component.GameDialogButtons
-import com.doge.simulator.domain.model.StoryContent
 import com.doge.simulator.domain.model.StoryEvent
 import com.doge.simulator.domain.model.StoryProgress
 import com.doge.simulator.domain.model.representativeIconRes
@@ -56,8 +67,8 @@ fun ExpeditionLogPanel(
     val astronauts by viewModel.astronauts.collectAsState()
     val allReports by viewModel.allReports.collectAsState()
     val unreadReports by viewModel.unreadReports.collectAsState()
-    val storyProgress by viewModel.storyProgress.collectAsState()
     val actionMessage by viewModel.actionMessage.collectAsState()
+    val storyProgress by viewModel.storyProgress.collectAsState()
     val skipAdsRemaining by viewModel.skipAdsRemaining.collectAsState()
     DailyResetEffect(onRefresh = viewModel::refreshSkipAdsRemaining)
     val coinSkipUnits by viewModel.coinSkipUnits.collectAsState()
@@ -99,130 +110,241 @@ fun ExpeditionLogPanel(
         subtitle = if (unreadReports.isNotEmpty()) "보고서 ${unreadReports.size}건 대기 중" else null,
         subtitleColor = StatusRed
     ) {
-        val hasContent = activeExpeditions.isNotEmpty() || allReports.isNotEmpty()
+        // 탭 2개 — "기록"은 진행 중인 탐사·보고서·선택지, "이야기"는 지금까지 본 이야기를 한 편의 글처럼 장별로 이어 읽기
+        var tab by rememberSaveable { mutableIntStateOf(0) }
+        SegmentedTabs(
+            tabs = listOf("기록", "이야기"),
+            selectedIndex = tab,
+            onSelect = { tab = it },
+            modifier = Modifier.padding(start = Spacing.lg, end = Spacing.lg, top = Spacing.md)
+        )
+        val progress = storyProgress
+        val currentChapter = progress?.let { StoryReader.currentChapter(it) }
+        // 지금 장에서 본 일반 기록 수 — 스토리 생성(GenerateExpeditionReportUseCase)과 같은 기준
+        val seenInCurrentChapter = allReports.count {
+            it.chapter == currentChapter && !it.isChapterEnding && !it.isStoryEnding
+        }
 
-        if (!hasContent) {
-            Box(
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Image(
-                        painter = painterResource(R.drawable.ic_ui_no_signal),
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp)
-                    )
-                    Spacer(modifier = Modifier.height(Spacing.md))
-                    Text("탐사 기록이 없습니다", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
-                    Text("탐사를 완료하면 이야기가 쌓입니다", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+        if (tab == 1) {
+            StoryReadingView(
+                chapters = progress?.let { StoryReader.chapters(it, seenInCurrentChapter) }.orEmpty(),
+                modifier = Modifier.fillMaxWidth().weight(1f)
+            )
+        } else {
+            val hasContent = activeExpeditions.isNotEmpty() || allReports.isNotEmpty()
+
+            if (!hasContent) {
+                Box(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Image(
+                            painter = painterResource(R.drawable.ic_ui_no_signal),
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(Spacing.md))
+                        Text("탐사 기록이 없습니다", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+                        Text("탐사를 완료하면 이야기가 쌓입니다", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.md)
+                ) {
+                    actionMessage?.let { msg ->
+                        item {
+                            Surface(shape = RoundedCornerShape(8.dp), color = SpaceBlue.copy(alpha = 0.3f)) {
+                                Text(msg, color = SpaceAccent, style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm))
+                            }
+                        }
+                    }
+                    // ── 진행 중인 탐사 ────────────────────────────────────
+                    if (activeExpeditions.isNotEmpty()) {
+                        item {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Image(
+                                    painter = painterResource(R.drawable.ic_ui_rocket),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(IconGlyphSize.large.value.dp)
+                                )
+                                Spacer(modifier = Modifier.width(Spacing.xs))
+                                Text(
+                                    "진행 중인 탐사",
+                                    color = SpaceAccent,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                        items(activeExpeditions, key = { "active_${it.id}" }) { expedition ->
+                            ActiveExpeditionCard(
+                                expedition = expedition,
+                                astronauts = astronauts,
+                                skipAdsRemaining = skipAdsRemaining,
+                                coinSkipUnit = coinSkipUnits[expedition.id],
+                                coins = coins,
+                                onSkipWaitAd = { viewModel.skipExpeditionWait(expedition, activity) },
+                                onSkipWithCoins = { cost -> pendingCoinSkip = expedition to cost }
+                            )
+                        }
+                        item { HorizontalDivider(color = SpaceMid, modifier = Modifier.padding(vertical = Spacing.xs)) }
+                    }
+
+                    // ── 미확인 보고서 ─────────────────────────────────────
+                    val pending = allReports.filter { !it.isRead || it.hasPendingChoices }
+                    if (pending.isNotEmpty()) {
+                        item {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Image(
+                                    painter = painterResource(R.drawable.ic_ui_mailbox),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(IconGlyphSize.large.value.dp)
+                                )
+                                Spacer(modifier = Modifier.width(Spacing.xs))
+                                Text(
+                                    "미확인 보고서",
+                                    color = GoldAccent,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                        items(pending, key = { "pending_${it.expeditionId}" }) { report ->
+                            ReportCard(
+                                report = report,
+                                isPending = true,
+                                onChoose = { event, idx -> viewModel.choose(event, idx) },
+                                onMarkRead = { viewModel.markAsRead(report.expeditionId) }
+                            )
+                        }
+                        item { HorizontalDivider(color = SpaceMid, modifier = Modifier.padding(vertical = Spacing.xs)) }
+                    }
+
+                    // ── 완료된 기록 ───────────────────────────────────────
+                    val completed = allReports.filter { it.isRead && !it.hasPendingChoices }
+                    // 다음 장 조건은 정말 막혔을 때(장 이야기를 다 봤는데 조건 미달)만 작게 보여 준다(2026-10-14) — 예전엔 장 내내
+                    // "다음 챕터" 칸이 떠서 스토리보다 눈에 띄었고, 조건을 채운 뒤의 "남은 기록 N개"는 오해를 샀다
+                    val stalledHint = progress?.let { StoryReader.stalledHint(it, seenInCurrentChapter) }
+                    if (completed.isNotEmpty()) {
+                        item {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Image(
+                                    painter = painterResource(R.drawable.ic_ui_logbook),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(IconGlyphSize.large.value.dp)
+                                )
+                                Spacer(modifier = Modifier.width(Spacing.xs))
+                                Text(
+                                    "탐사 기록",
+                                    color = TextSecondary,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                        stalledHint?.let { hint -> item(key = "stalled_hint") { StalledHintRow(hint) } }
+                        items(completed, key = { "done_${it.expeditionId}" }) { report ->
+                            ReportCard(report = report, isPending = false)
+                        }
+                    }
                 }
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(Spacing.md)
-            ) {
-                actionMessage?.let { msg ->
-                    item {
-                        Surface(shape = RoundedCornerShape(8.dp), color = SpaceBlue.copy(alpha = 0.3f)) {
-                            Text(msg, color = SpaceAccent, style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm))
-                        }
-                    }
-                }
-                // ── 진행 중인 탐사 ────────────────────────────────────
-                if (activeExpeditions.isNotEmpty()) {
-                    item {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Image(
-                                painter = painterResource(R.drawable.ic_ui_rocket),
-                                contentDescription = null,
-                                modifier = Modifier.size(IconGlyphSize.large.value.dp)
-                            )
-                            Spacer(modifier = Modifier.width(Spacing.xs))
-                            Text(
-                                "진행 중인 탐사",
-                                color = SpaceAccent,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                    items(activeExpeditions, key = { "active_${it.id}" }) { expedition ->
-                        ActiveExpeditionCard(
-                            expedition = expedition,
-                            astronauts = astronauts,
-                            skipAdsRemaining = skipAdsRemaining,
-                            coinSkipUnit = coinSkipUnits[expedition.id],
-                            coins = coins,
-                            onSkipWaitAd = { viewModel.skipExpeditionWait(expedition, activity) },
-                            onSkipWithCoins = { cost -> pendingCoinSkip = expedition to cost }
-                        )
-                    }
-                    item { HorizontalDivider(color = SpaceMid, modifier = Modifier.padding(vertical = Spacing.xs)) }
-                }
+        }
+    }
+}
 
-                // ── 미확인 보고서 ─────────────────────────────────────
-                val pending = allReports.filter { !it.isRead || it.hasPendingChoices }
-                if (pending.isNotEmpty()) {
-                    item {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Image(
-                                painter = painterResource(R.drawable.ic_ui_mailbox),
-                                contentDescription = null,
-                                modifier = Modifier.size(IconGlyphSize.large.value.dp)
-                            )
-                            Spacer(modifier = Modifier.width(Spacing.xs))
-                            Text(
-                                "미확인 보고서",
-                                color = GoldAccent,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                    items(pending, key = { "pending_${it.expeditionId}" }) { report ->
-                        ReportCard(
-                            report = report,
-                            isPending = true,
-                            onChoose = { event, idx -> viewModel.choose(event, idx) },
-                            onMarkRead = { viewModel.markAsRead(report.expeditionId) }
-                        )
-                    }
-                    item { HorizontalDivider(color = SpaceMid, modifier = Modifier.padding(vertical = Spacing.xs)) }
-                }
+// 정말 막혔을 때만(장 이야기를 다 봤는데 다음 장 조건 미달) 기록 목록 위에 작게 — "다음 챕터 조건" + 실제 조건.
+// 이야기 말투 안내문(teaser)은 뺐다 — 막힘 문장이 이미 이야기로 말해 주고, 여긴 할 일만 또렷하면 된다
+@Composable
+private fun StalledHintRow(hint: StoryContent.NextStoryHint) {
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = SpaceDark,
+        border = BorderStroke(1.dp, SpaceMid.copy(alpha = 0.4f))
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+        ) {
+            Image(
+                painter = painterResource(R.drawable.ic_ui_lock),
+                contentDescription = null,
+                modifier = Modifier.size(IconGlyphSize.small.value.dp)
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                Text(
+                    "다음 챕터 조건",
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.labelSmall,
+                    letterSpacing = 0.5.sp
+                )
+                Text(
+                    hint.condition,
+                    color = SpaceAccent,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp
+                )
+            }
+        }
+    }
+}
 
-                // ── 완료된 기록 ───────────────────────────────────────
-                val completed = allReports.filter { it.isRead && !it.hasPendingChoices }
-                // 완주 전이면 기록 목록(최신순) 맨 위에 "다음 챕터" 칸 — 이야기가 왜 안 넘어가는지
-                // 조건이 앱 어디에도 안 보여서, 같은 기록만 반복된다고 느끼는 문제가 있었다(2026-10-12)
-                val nextStory = storyProgress?.takeIf { !it.storyCompleted }
-                if (completed.isNotEmpty() || nextStory != null) {
-                    item {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+// "이야기" 탭 — 지금까지 본 이야기를 장별로 이어 붙인 글. 선택지·보상·막힘 문장 없이 줄거리만
+@Composable
+private fun StoryReadingView(chapters: List<StoryReader.Chapter>, modifier: Modifier = Modifier) {
+    if (chapters.isEmpty()) {
+        Box(modifier, contentAlignment = Alignment.Center) {
+            Text("탐사를 완료하면 이야기가 쌓입니다", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+        }
+        return
+    }
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = PaddingValues(horizontal = Spacing.xl, vertical = Spacing.lg),
+        verticalArrangement = Arrangement.spacedBy(Spacing.xl)
+    ) {
+        chapters.forEachIndexed { index, chapter ->
+            if (index == 0 || chapters[index - 1].part != chapter.part) {
+                item(key = "part_${chapter.part}") {
+                    Text(
+                        "${chapter.part}부",
+                        color = TextSecondary,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+            item(key = "chapter_${chapter.number}") {
+                Column {
+                    Text(
+                        "챕터 ${chapter.number} · ${chapter.title}",
+                        color = TextPrimary,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(Spacing.md))
+                    // 기록 하나가 한 문단 — 일지 문장이라 마침표가 없어 줄마다 끊어 읽히게 문단 간격을 둔다
+                    chapter.lines.forEach { line ->
+                        Text(line, color = TextPrimary.copy(alpha = 0.9f), style = BodyReading)
+                        Spacer(Modifier.height(Spacing.sm))
+                    }
+                    chapter.ending?.let { ending ->
+                        Spacer(Modifier.height(Spacing.xs))
+                        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                             Image(
-                                painter = painterResource(R.drawable.ic_ui_logbook),
+                                painter = painterResource(if (chapter.isPartEnding) R.drawable.ic_ui_trophy else R.drawable.ic_ui_star),
                                 contentDescription = null,
-                                modifier = Modifier.size(IconGlyphSize.large.value.dp)
+                                modifier = Modifier.size(IconGlyphSize.small.value.dp)
                             )
-                            Spacer(modifier = Modifier.width(Spacing.xs))
-                            Text(
-                                "탐사 기록",
-                                color = TextSecondary,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Text(ending, color = TextPrimary, style = BodyReading, fontWeight = FontWeight.Bold)
                         }
-                    }
-                    nextStory?.let { progress ->
-                        val seenInChapter = allReports.count {
-                            it.chapter == progress.currentChapter && !it.isChapterEnding && !it.isStoryEnding
-                        }
-                        item(key = "next_story") { NextStoryCard(progress, seenInChapter) }
-                    }
-                    items(completed, key = { "done_${it.expeditionId}" }) { report ->
-                        ReportCard(report = report, isPending = false)
                     }
                 }
             }
@@ -374,57 +496,6 @@ private fun ActiveExpeditionCard(
     }
 }
 
-// 다음 챕터로 넘어가는 조건을 보여주는 잠금 칸. 큰 글씨는 이야기 말투, 작은 글씨는 실제 조건.
-// 조건을 이미 채웠으면 잠금 대신 언제 이어지는지만 알려준다 — 챕터는 이야기를 끝까지 봐야
-// 넘어가므로, 남은 챕터 기록이 있으면 그 개수를 보여준다
-@Composable
-private fun NextStoryCard(progress: StoryProgress, seenInChapter: Int) {
-    val hint = StoryContent.nextStoryHints[progress.currentChapter] ?: return
-    val ready = progress.isCurrentChapterExitMet
-    val remaining = ((StoryContent.recordTitlePool[progress.currentChapter]?.size ?: 0) - seenInChapter)
-        .coerceAtLeast(0)
-    Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = SpaceDark,
-        border = BorderStroke(1.dp, if (ready) SpaceAccent.copy(alpha = 0.6f) else SpaceMid.copy(alpha = 0.4f))
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(Spacing.lg)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
-            ) {
-                Image(
-                    painter = painterResource(if (ready) R.drawable.ic_ui_star else R.drawable.ic_ui_lock),
-                    contentDescription = null,
-                    modifier = Modifier.size(IconGlyphSize.small.value.dp)
-                )
-                Text(
-                    if (progress.currentChapter < 5) "다음 챕터" else "완주",
-                    color = if (ready) SpaceAccent else TextSecondary,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            Spacer(modifier = Modifier.height(Spacing.sm))
-            Text(
-                if (ready) "신호가 잡혔다" else hint.teaser,
-                color = TextPrimary.copy(alpha = 0.75f),
-                style = MaterialTheme.typography.bodySmall
-            )
-            Spacer(modifier = Modifier.height(Spacing.xxs))
-            Text(
-                when {
-                    !ready -> hint.condition
-                    remaining > 0 -> "남은 기록 ${remaining}개 뒤에 이어져요"
-                    else -> "다음 탐사 기록에서 이어져요"
-                },
-                color = SpaceAccent,
-                style = MaterialTheme.typography.labelSmall
-            )
-        }
-    }
-}
-
 @Composable
 private fun ReportCard(
     report: ExpeditionReport,
@@ -493,7 +564,12 @@ private fun ReportCard(
                         color = SpaceBlue.copy(alpha = 0.3f)
                     ) {
                         Text(
-                            if (report.isStoryEnding) "완주" else "챕터 ${report.chapter} · ${report.chapterTitle}",
+                            when {
+                                // 완주 기록은 장 번호로 1부·2부를 가른다(1부 완주 = 5장, 2부 완주 = 10장)
+                                report.isStoryEnding && report.chapter >= StoryProgress.LAST_CHAPTER -> "2부 완주"
+                                report.isStoryEnding -> "1부 완주"
+                                else -> "챕터 ${report.chapter} · ${report.chapterTitle}"
+                            },
                             color = TextSecondary,
                             style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.xxs)

@@ -3,6 +3,8 @@ package com.doge.simulator.presentation.tutorial
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.doge.simulator.data.local.TutorialPrefs
+import com.doge.simulator.domain.model.Part2StoryContent
+import com.doge.simulator.domain.repository.StoryRepository
 import com.doge.simulator.domain.usecase.GetActiveExpeditionsUseCase
 import com.doge.simulator.domain.usecase.GetOwnedPlanetsUseCase
 import com.doge.simulator.presentation.navigation.NavRoutes
@@ -12,6 +14,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 // 첫 진입 튜토리얼의 현재 단계.
@@ -28,6 +31,9 @@ sealed interface TutorialStep {
     data object HqIntro : TutorialStep
     data object UpgradeIntro : TutorialStep
 
+    // 스토리 2부 안내 — 1부 완주 뒤 탐사 탭에서 한 번. page 0~4 = 관제탑 안내 5줄(Part2StoryContent.part2IntroLines)
+    data class Part2StoryIntro(val page: Int) : TutorialStep
+
     companion object { const val PART1_PAGES = 2 }
 }
 
@@ -43,10 +49,22 @@ private data class TutorialFlags(
 class TutorialViewModel @Inject constructor(
     getActiveExpeditionsUseCase: GetActiveExpeditionsUseCase,
     getOwnedPlanetsUseCase: GetOwnedPlanetsUseCase,
-    private val prefs: TutorialPrefs
+    private val prefs: TutorialPrefs,
+    private val storyRepository: StoryRepository
 ) : ViewModel() {
 
     private val part1Page = MutableStateFlow(0)
+    private val part2StoryPage = MutableStateFlow(0)
+
+    // 2부 안내를 띄울 때인지 — 1부를 완주했고, 아직 안 봤고, 1부 완주 기록을 이미 읽었을 때(기록을 읽기 전에
+    // 안내가 먼저 나오면 엔딩의 반전을 관제탑이 먼저 말해 버린다). "봤음"은 기기 설정이 아니라 게임 데이터에
+    // 저장해 기기를 바꾸거나 클라우드에서 복원해도 다시 뜨지 않는다
+    private val part2IntroDue = combine(
+        storyRepository.getProgress(),
+        storyRepository.getUnreadReports()
+    ) { progress, unread ->
+        progress.part1Completed && !progress.part2IntroShown && unread.none { it.isStoryEnding }
+    }
 
     // MainScreen이 현재 라우트를 밀어넣는다 — 화면별 맥락형 버블 판정에 필요.
     private val currentRoute = MutableStateFlow<String?>(null)
@@ -56,7 +74,7 @@ class TutorialViewModel @Inject constructor(
         prefs.startedFresh, prefs.part1Done, prefs.part2Done, prefs.hqIntroDone, prefs.upgradeIntroDone
     ) { fresh, p1, p2, hq, up -> TutorialFlags(fresh, p1, p2, hq, up) }
 
-    val step: StateFlow<TutorialStep> = combine(
+    private val baseStep = combine(
         flags,
         getActiveExpeditionsUseCase(),
         getOwnedPlanetsUseCase(),
@@ -88,6 +106,13 @@ class TutorialViewModel @Inject constructor(
 
             else -> TutorialStep.None
         }
+    }
+
+    // 2부 안내는 첫 진입 튜토리얼(startedFresh 기준)과 무관하게 판정한다 — 클라우드에서 복원한 기존 플레이어는
+    // startedFresh가 false라 첫 진입 튜토리얼이 통째로 꺼져 있다
+    val step: StateFlow<TutorialStep> = combine(baseStep, part2IntroDue, currentRoute, part2StoryPage) { base, due, route, page ->
+        if (due && route == NavRoutes.Explore.route) TutorialStep.Part2StoryIntro(page.coerceIn(0, Part2StoryContent.part2IntroLines.lastIndex))
+        else base
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TutorialStep.None)
 
     /** Part 1 인트로 → 카테고리 하이라이트로 진행. */
@@ -95,8 +120,13 @@ class TutorialViewModel @Inject constructor(
         part1Page.value = (part1Page.value + 1).coerceAtMost(TutorialStep.PART1_PAGES - 1)
     }
 
+    fun advancePart2StoryIntro() {
+        part2StoryPage.value = (part2StoryPage.value + 1).coerceAtMost(Part2StoryContent.part2IntroLines.lastIndex)
+    }
+
     fun dismiss(step: TutorialStep) {
         when (step) {
+            is TutorialStep.Part2StoryIntro -> viewModelScope.launch { storyRepository.markPart2IntroShown() }
             is TutorialStep.Part1 -> prefs.markPart1Done()
             TutorialStep.Part2 -> prefs.markPart2Done()
             TutorialStep.HqIntro -> prefs.markHqIntroDone()
