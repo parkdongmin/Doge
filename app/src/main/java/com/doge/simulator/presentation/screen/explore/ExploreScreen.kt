@@ -1091,7 +1091,9 @@ private fun ExpeditionResultDialog(
                     GameButton(
                         text = if (coins >= planet.buyPrice) "구매" else "코인 부족",
                         coinAmount = if (coins >= planet.buyPrice) planet.buyPrice.toLong() else null,
-                        onClick = { onBuyPlanet(); onDismiss() },
+                        // 구매가 성공하면 창은 구매 쪽에서 닫는다(BuyPlanetUseCase). 여기서 닫기까지 부르면 닫기가 먼저
+                        // "결과 처리됨"을 저장해, 구매가 이미 처리된 결과로 보고 되돌려졌다
+                        onClick = onBuyPlanet,
                         enabled = coins >= planet.buyPrice,
                         modifier = Modifier.weight(2f),
                         style = GameButtonStyle.Gold,
