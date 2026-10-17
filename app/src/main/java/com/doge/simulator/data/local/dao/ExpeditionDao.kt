@@ -35,8 +35,9 @@ interface ExpeditionDao {
     @Query("SELECT * FROM expedition_table WHERE resultHandled = 0 ORDER BY endTime ASC")
     fun getUnhandledResults(): Flow<List<ExpeditionEntity>>
 
-    @Query("UPDATE expedition_table SET resultHandled = 1 WHERE id = :id")
-    suspend fun markResultHandled(id: String)
+    // 아직 처리 안 된 결과만 처리로 바꾼다 — 0이면 이미 다른 쪽이 처리한 결과(구매·코인 받기를 두 번 하지 않게)
+    @Query("UPDATE expedition_table SET resultHandled = 1 WHERE id = :id AND resultHandled = 0")
+    suspend fun markResultHandled(id: String): Int
 
     // 코인 단축: 아직 진행 중이고 끝나지 않은 탐사만 지금 끝나게 — 그사이 워커가 완료했거나 이미 끝났으면
     // 0을 돌려줘 호출부가 낸 코인을 돌려준다.

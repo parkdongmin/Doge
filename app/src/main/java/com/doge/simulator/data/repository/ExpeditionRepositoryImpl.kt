@@ -41,7 +41,7 @@ class ExpeditionRepositoryImpl(
     override fun getUnhandledResults(): Flow<List<Expedition>> =
         dao.getUnhandledResults().map { list -> list.map { it.toDomain() } }
 
-    override suspend fun markResultHandled(id: String) = dao.markResultHandled(id)
+    override suspend fun markResultHandled(id: String): Boolean = dao.markResultHandled(id) > 0
 
     override suspend fun updateEndTime(id: String, endTime: Long) = dao.updateEndTime(id, endTime)
 

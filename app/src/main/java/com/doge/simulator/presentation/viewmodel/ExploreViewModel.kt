@@ -25,6 +25,7 @@ import com.doge.simulator.domain.repository.AstronautRepository
 import com.doge.simulator.domain.repository.ExpeditionRepository
 import com.doge.simulator.domain.repository.UserRepository
 import com.doge.simulator.domain.usecase.BuyPlanetUseCase
+import com.doge.simulator.domain.usecase.ClaimSlotFullCoinsUseCase
 import com.doge.simulator.domain.usecase.CollectProfitUseCase
 import com.doge.simulator.domain.usecase.CompleteExpeditionUseCase
 import com.doge.simulator.domain.usecase.GeneratePlanetsUseCase
@@ -66,6 +67,7 @@ class ExploreViewModel @Inject constructor(
     private val getTierProgressUseCase: GetTierProgressUseCase,
     private val buyPlanetUseCase: BuyPlanetUseCase,
     private val sellPlanetUseCase: SellPlanetUseCase,
+    private val claimSlotFullCoinsUseCase: ClaimSlotFullCoinsUseCase,
     private val seedStarterAssetsUseCase: SeedStarterAssetsUseCase,
     private val tutorialPrefs: TutorialPrefs,
     private val getOwnedPlanetsUseCase: GetOwnedPlanetsUseCase,
@@ -352,15 +354,16 @@ class ExploreViewModel @Inject constructor(
         // 구매 진입점인 여기서 원자적으로 재진입을 막는다
         if (_uiState.value.isResolvingDiscovery) return
         _uiState.update { it.copy(isResolvingDiscovery = true) }
+        val expeditionId = _uiState.value.completionResult?.expeditionId ?: run {
+            _uiState.update { it.copy(isResolvingDiscovery = false) }
+            return
+        }
         viewModelScope.launch {
-            val bought = buyPlanetUseCase(planet)
-            if (bought) {
-                val expeditionId = _uiState.value.completionResult?.expeditionId
+            // 구매·"결과 처리됨"이 한 번에 저장된다. 결과 창은 저장 직전에 닫아 다음 미처리 결과가 이어서 뜨게 한다
+            val result = buyPlanetUseCase(planet, expeditionId) {
                 _uiState.update { it.copy(completionResult = null, discoveryRevealed = true, isSwapPickerOpen = false, isResolvingDiscovery = false) }
-                expeditionId?.let { expeditionRepository.markResultHandled(it) }
-            } else {
-                _uiState.update { it.copy(isResolvingDiscovery = false) }
             }
+            if (result == BuyPlanetUseCase.Result.FAILED) _uiState.update { it.copy(isResolvingDiscovery = false) }
         }
     }
 
@@ -387,11 +390,10 @@ class ExploreViewModel @Inject constructor(
         val planet = result.discoveredPlanet ?: return
         _uiState.update { it.copy(isResolvingDiscovery = true) }
         viewModelScope.launch {
-            // 구매와 똑같이 "획득"으로 센다 — 도감 등록 + 특성 행성이면 획득 기록(T12~T15 해금 조건) +1
-            userRepository.recordPlanetAcquisition(planet)
-            userRepository.addCoins(result.slotFullCoins)
-            _uiState.update { it.copy(completionResult = null, discoveryRevealed = true, isSwapPickerOpen = false, isResolvingDiscovery = false) }
-            expeditionRepository.markResultHandled(result.expeditionId)
+            // 획득 기록·코인·"결과 처리됨"이 한 번에 저장된다(ClaimSlotFullCoinsUseCase)
+            claimSlotFullCoinsUseCase(planet, result.slotFullCoins, result.expeditionId) {
+                _uiState.update { it.copy(completionResult = null, discoveryRevealed = true, isSwapPickerOpen = false, isResolvingDiscovery = false) }
+            }
         }
     }
 

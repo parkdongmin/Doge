@@ -9,6 +9,7 @@ import com.doge.simulator.data.local.entity.AstronautEntity
 import com.doge.simulator.data.local.entity.ExpeditionEntity
 import com.doge.simulator.data.repository.AstronautRepositoryImpl
 import com.doge.simulator.data.repository.ExpeditionRepositoryImpl
+import com.doge.simulator.data.repository.PlanetRepositoryImpl
 import com.doge.simulator.data.repository.ResearchLabRepositoryImpl
 import com.doge.simulator.data.repository.ResourceRepositoryImpl
 import com.doge.simulator.data.repository.SpaceshipRepositoryImpl
@@ -22,6 +23,7 @@ import com.doge.simulator.domain.model.Expedition
 import com.doge.simulator.domain.model.ExpeditionCategory
 import com.doge.simulator.domain.model.ExpeditionReport
 import com.doge.simulator.domain.model.ExpeditionStatus
+import com.doge.simulator.domain.model.PlanetType
 import com.doge.simulator.domain.model.ResourceType
 import com.doge.simulator.domain.model.Spaceship
 import com.doge.simulator.domain.model.TrainingType
@@ -261,5 +263,54 @@ class ExpeditionAtomicityTest {
         assertEquals(AstronautStatus.DEPLOYED, status("a3"))
         assertEquals(AstronautStatus.TRAINING, status("t1"))
         assertEquals(AstronautStatus.IDLE, status("i1"))
+    }
+
+    // ── 발견 행성 구매·코인으로 받기 ─────────────────────────────────────
+
+    private val planetRepo by lazy { PlanetRepositoryImpl(db.planetDao()) }
+
+    private fun buyUseCase() = BuyPlanetUseCase(planetRepo, userRepo, labRepo, expeditionRepo, RoomTransactionRunner(db))
+    private fun claimUseCase() = ClaimSlotFullCoinsUseCase(userRepo, expeditionRepo, RoomTransactionRunner(db))
+
+    // 결과 창이 아직 처리되지 않은(완료됐지만 결과를 안 본) 탐사
+    private suspend fun seedUnhandledResult(id: String) {
+        val now = System.currentTimeMillis()
+        db.expeditionDao().insert(ExpeditionEntity(id = id, category = "MINERAL", tier = 1, astronautIds = "",
+            spaceshipId = "s", startTime = now, endTime = now, status = "COMPLETED", resourcesResult = null,
+            discoveredPlanetType = "TERRAN_WET", resultHandled = false))
+    }
+
+    private fun discovered(price: Int) =
+        GeneratePlanetsUseCase().discoveredPlanet(PlanetType.TERRAN_WET, 1, kotlin.random.Random(1)).copy(buyPrice = price)
+
+    @Test
+    fun buy_marksResultHandled_andSecondBuyIsRejected() = runBlocking {
+        seedUnhandledResult("e1")
+        val planet = discovered(1_000)
+        val coinsBefore = userRepo.getCoins().first()
+
+        assertEquals(BuyPlanetUseCase.Result.BOUGHT, buyUseCase()(planet, "e1"))
+        assertTrue(expeditionRepo.getUnhandledResults().first().isEmpty())
+        // 결과 창이 다시 떠서 또 눌러도 코인은 한 번만 빠지고 행성도 하나
+        assertEquals(BuyPlanetUseCase.Result.ALREADY_HANDLED, buyUseCase()(planet, "e1"))
+        assertEquals(coinsBefore - 1_000, userRepo.getCoins().first())
+        assertEquals(1, planetRepo.getOwnedPlanets().first().size)
+    }
+
+    @Test
+    fun buy_notEnoughCoins_leavesResultOpen() = runBlocking {
+        seedUnhandledResult("e1")
+        assertEquals(BuyPlanetUseCase.Result.FAILED, buyUseCase()(discovered(Int.MAX_VALUE), "e1"))
+        assertEquals(1, expeditionRepo.getUnhandledResults().first().size)
+        assertTrue(planetRepo.getOwnedPlanets().first().isEmpty())
+    }
+
+    @Test
+    fun claimCoins_paysOnce() = runBlocking {
+        seedUnhandledResult("e1")
+        val coinsBefore = userRepo.getCoins().first()
+        assertTrue(claimUseCase()(discovered(1_000), 500L, "e1"))
+        assertTrue(!claimUseCase()(discovered(1_000), 500L, "e1"))
+        assertEquals(coinsBefore + 500L, userRepo.getCoins().first())
     }
 }

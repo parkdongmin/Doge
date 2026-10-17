@@ -49,6 +49,11 @@ data class Planet(
 val Planet.hasTraits: Boolean
     get() = traits.isNotEmpty()
 
+// 손에 넣은 순간부터 생산·이벤트 시계를 시작한다. 발견 행성은 탐사가 끝날 때 만들어 저장해 두므로(결과를
+// 몇 시간 뒤에 열 수도 있음) 만든 시각 그대로 사면 그 사이 생산이 소급 지급되고 밀린 이벤트가 바로 굴렀다
+fun Planet.acquiredAt(now: Long): Planet =
+    copy(acquireTime = now, lastProfitTime = now, lastEventTime = now, bankedProfit = 0.0, bankedUntil = 0L)
+
 val Planet.isBroken: Boolean
     get() = lossMultiplier > 0.0
 
