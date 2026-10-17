@@ -181,4 +181,7 @@ dependencies {
 
     // AdMob (UMP 동의 SDK 포함)
     implementation(libs.play.services.ads)
+
+    // 플레이 스토어 인앱 업데이트 — 새 버전이 있으면 앱 안에서 업데이트 안내
+    implementation(libs.play.app.update.ktx)
 }

@@ -17,10 +17,13 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.doge.simulator.presentation.component.AppUpdateDialog
 import com.doge.simulator.presentation.navigation.NavRoutes
 import com.doge.simulator.presentation.screen.MainScreen
 import com.doge.simulator.presentation.screen.SplashScreen
@@ -28,6 +31,11 @@ import com.doge.simulator.presentation.screen.auth.LoginScreen
 import com.doge.simulator.ui.theme.DogeTheme
 import com.doge.simulator.ui.theme.SpaceDark
 import com.google.android.gms.ads.MobileAds
+import com.google.android.play.core.appupdate.AppUpdateInfo
+import com.google.android.play.core.appupdate.AppUpdateManagerFactory
+import com.google.android.play.core.appupdate.AppUpdateOptions
+import com.google.android.play.core.install.model.AppUpdateType
+import com.google.android.play.core.install.model.UpdateAvailability
 import com.google.android.ump.ConsentInformation
 import com.google.android.ump.ConsentRequestParameters
 import com.google.android.ump.UserMessagingPlatform
@@ -49,9 +57,20 @@ class MainActivity : ComponentActivity() {
 
     private val adsInitialized = AtomicBoolean(false)
 
+    // ── 플레이 스토어 인앱 업데이트 ──────────────────────────────────
+    private val appUpdateManager by lazy { AppUpdateManagerFactory.create(this) }
+    // 새 버전이 있으면 채워져 메인 화면에 안내 창이 뜬다
+    private val availableUpdate = MutableStateFlow<AppUpdateInfo?>(null)
+    // 업데이트 화면에서 뒤로 나와도 게임은 그대로 이어서 한다 — 결과는 따로 처리하지 않음
+    private val updateLauncher = registerForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        checkForAppUpdate()
 
         // 알림 권한 요청 (Android 13+)
         requestNotificationPermissionIfNeeded()
@@ -120,6 +139,20 @@ class MainActivity : ComponentActivity() {
                                         }
                                     }
                                 )
+                                // 업데이트 안내는 게임에 들어온 뒤에만 — 시작·로그인 화면 위에는 띄우지 않는다
+                                val update by availableUpdate.collectAsState()
+                                update?.let { info ->
+                                    AppUpdateDialog(
+                                        onUpdate = {
+                                            availableUpdate.value = null
+                                            startImmediateUpdate(info)
+                                        },
+                                        onLater = {
+                                            availableUpdate.value = null
+                                            updatePromptDismissed = true
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -183,6 +216,36 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // 플레이 스토어에 더 새 버전이 있는지 확인. 스토어 밖에서 설치한 빌드(디버그 등)나 확인 실패는 조용히 넘어간다
+    private fun checkForAppUpdate() {
+        if (updatePromptDismissed) return
+        appUpdateManager.appUpdateInfo.addOnSuccessListener { info ->
+            if (info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE &&
+                info.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE)
+            ) {
+                availableUpdate.value = info
+            }
+        }
+    }
+
+    private fun startImmediateUpdate(info: AppUpdateInfo) {
+        runCatching {
+            appUpdateManager.startUpdateFlowForResult(
+                info, updateLauncher, AppUpdateOptions.newBuilder(AppUpdateType.IMMEDIATE).build()
+            )
+        }
+    }
+
+    // 업데이트 화면이 떠 있는 중에 앱을 벗어났다 돌아오면 구글 권장대로 업데이트 화면을 다시 띄운다
+    override fun onResume() {
+        super.onResume()
+        appUpdateManager.appUpdateInfo.addOnSuccessListener { info ->
+            if (info.updateAvailability() == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS) {
+                startImmediateUpdate(info)
+            }
+        }
+    }
+
     private fun initializeMobileAdsSdk() {
         if (adsInitialized.getAndSet(true)) return
         MobileAds.initialize(this) {}
@@ -197,5 +260,10 @@ class MainActivity : ComponentActivity() {
                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
+    }
+
+    companion object {
+        // [나중에]를 누르면 이번 실행(프로세스) 동안은 다시 안 묻는다 — 화면 회전 등으로 액티비티가 다시 만들어져도 유지
+        @Volatile private var updatePromptDismissed = false
     }
 }
